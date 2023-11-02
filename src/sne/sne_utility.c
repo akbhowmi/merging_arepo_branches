@@ -21,6 +21,8 @@
 #include "../allvars.h"
 #include "../proto.h"
 
+static double *SNEPDF_radial_CDF;
+
 /*! \brief Initialize variables for the SNe module
  *
  * Note that e.g. the log file descriptor is initialized in other parts of the code.
@@ -58,30 +60,28 @@ void sne_destroy(void)
 void sne_initialize_radial_CDF(void)
 {
   double radial_PDF[SNEPDF_NBINS];
-  SNEPDF_radial_CDF = mymalloc_movable(&SNEPDF_radial_CDF, "SNEPDF_radial_CDF", SNEPDF_NBINS * sizeof(double));
-
-  int i;
+  SNEPDF_radial_CDF = (double *)mymalloc_movable(&SNEPDF_radial_CDF, "SNEPDF_radial_CDF", SNEPDF_NBINS * sizeof(double));
 
   double Rm = 12. * KILOPARSEC / All.UnitLength_in_cm;
   double Rd = 1.5 * KILOPARSEC / All.UnitLength_in_cm;
 
   double dR = SNEPDF_RMAX / SNEPDF_NBINS;
 
-  /*define radial(cylindrical) PDF (not normalized)*/
-  for(i = 0; i < SNEPDF_NBINS; i++)
+  /* define radial(cylindrical) PDF (not normalized) */
+  for(int i = 0; i < SNEPDF_NBINS; i++)
     {
       double R      = i * dR;
       radial_PDF[i] = R * exp(-Rm / R - R / Rd);  // Radial distribution of the Galactic H2 disc taken from McMillan 2017
     }
 
-  /*find radial CDF*/
+  /* find radial CDF */
   SNEPDF_radial_CDF[0] = 0.;
 
-  for(i = 1; i < SNEPDF_NBINS; i++)
+  for(int i = 1; i < SNEPDF_NBINS; i++)
     SNEPDF_radial_CDF[i] = SNEPDF_radial_CDF[i - 1] + (radial_PDF[i - 1] + radial_PDF[i]) * dR / 2.;
 
-  /*normalize shit*/
-  for(i = 0; i < SNEPDF_NBINS; i++)
+  /* normalize shit */
+  for(int i = 0; i < SNEPDF_NBINS; i++)
     SNEPDF_radial_CDF[i] /= SNEPDF_radial_CDF[SNEPDF_NBINS - 1];
 }
 

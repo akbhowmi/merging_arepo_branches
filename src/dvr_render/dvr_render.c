@@ -622,7 +622,7 @@ static int dvr_init(dvr_cam_data *dvrdata)
 
   dvrdata->Nray    = 0;
   dvrdata->MaxNray = dvrdata->npixels;
-  dvrdata->Ray     = mymalloc("Ray", dvrdata->MaxNray * sizeof(dvr_ray_data));
+  dvrdata->Ray     = (dvr_ray_data *)mymalloc("Ray", dvrdata->MaxNray * sizeof(dvr_ray_data));
 
   for(i = 0; i < dvrdata->MaxNray; i++)
     for(field = 0; field < DVR_NUM_FIELDS; field++)
@@ -685,9 +685,7 @@ static int dvr_init(dvr_cam_data *dvrdata)
           dvrdata->Nray++;
       }
 
-  mesh_search_data *searchdata;
-
-  searchdata = mymalloc("searchdata", dvrdata->Nray * sizeof(mesh_search_data));
+  mesh_search_data *searchdata = (mesh_search_data *)mymalloc("searchdata", dvrdata->Nray * sizeof(mesh_search_data));
 
   for(i = 0; i < dvrdata->Nray; i++)
     {
@@ -748,10 +746,10 @@ static int dvr_run(dvr_cam_data *dvrdata)
   for(field = 0; field < DVR_NUM_FIELDS; field++)
     {
       /* need to collect integrated rays, do this collectively for simplicity */
-      localRed     = mymalloc("localRed", dvrdata->npixels * sizeof(double));
-      localGreen   = mymalloc("localGreen", dvrdata->npixels * sizeof(double));
-      localBlue    = mymalloc("localBlue", dvrdata->npixels * sizeof(double));
-      localOpacity = mymalloc("localOpacity", dvrdata->npixels * sizeof(double));
+      localRed     = (double *)mymalloc("localRed", dvrdata->npixels * sizeof(double));
+      localGreen   = (double *)mymalloc("localGreen", dvrdata->npixels * sizeof(double));
+      localBlue    = (double *)mymalloc("localBlue", dvrdata->npixels * sizeof(double));
+      localOpacity = (double *)mymalloc("localOpacity", dvrdata->npixels * sizeof(double));
 
       memset(localRed, 0, dvrdata->npixels * sizeof(double));
       memset(localGreen, 0, dvrdata->npixels * sizeof(double));
@@ -769,10 +767,10 @@ static int dvr_run(dvr_cam_data *dvrdata)
 
       if(ThisTask == 0)
         {
-          Red     = mymalloc("Red", dvrdata->npixels * sizeof(double));
-          Green   = mymalloc("Green", dvrdata->npixels * sizeof(double));
-          Blue    = mymalloc("Blue", dvrdata->npixels * sizeof(double));
-          Opacity = mymalloc("Opacity", dvrdata->npixels * sizeof(double));
+          Red     = (double *)mymalloc("Red", dvrdata->npixels * sizeof(double));
+          Green   = (double *)mymalloc("Green", dvrdata->npixels * sizeof(double));
+          Blue    = (double *)mymalloc("Blue", dvrdata->npixels * sizeof(double));
+          Opacity = (double *)mymalloc("Opacity", dvrdata->npixels * sizeof(double));
         }
 
       MPI_Reduce(localRed, Red, dvrdata->npixels, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
@@ -808,7 +806,7 @@ void dvr_write_file(char *name, dvr_cam_data *dvrdata, double *data, int field)
   FILE *fd;
   char fname[MAXLEN_PATH], ext[MAXLEN_PATH];
 
-  float *float_data = mymalloc("float_data", dvrdata->npixels * sizeof(float));
+  float *float_data = (float *)mymalloc("float_data", dvrdata->npixels * sizeof(float));
   int i;
   for(i = 0; i < dvrdata->npixels; i++)
     float_data[i] = (float)data[i];

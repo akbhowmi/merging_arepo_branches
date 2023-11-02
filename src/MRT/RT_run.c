@@ -25,8 +25,8 @@
 #include <string.h>
 
 #include "../allvars.h"
-//#include "../proto.h"
 #include "../domain.h"
+#include "../proto.h"
 #include "../voronoi.h"
 #include "RT.h"
 #include "RT_proto.h"

@@ -77,7 +77,8 @@ int fof_compare_aux_sort_Type(const void *a, const void *b)
   return 0;
 }
 
-#if defined(RECOMPUTE_POTENTIAL_IN_SNAPSHOT) || defined(CALCULATE_QUANTITIES_IN_POSTPROCESS)
+#if defined(RECOMPUTE_POTENTIAL_IN_SNAPSHOT) || defined(CALCULATE_QUANTITIES_IN_POSTPROCESS) || \
+    defined(COMPUTE_VORONOI_DM_DENSITY_IN_POSTPROC)
 /*! \brief Comparison function for data_aux_sort objects.
  *
  *  Sorting kernel comparing element FileOrder.

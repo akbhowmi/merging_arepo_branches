@@ -4,14 +4,13 @@
 #  Enable/Disable compile-time options as needed #
 ##################################################
 
-
 #--------------------------------------- Basic operation mode of code
 NTYPES=6                       # number of particle types
-PERIODIC
-#RANDOM_REALIZATION=200
+#PERIODIC
 #TWODIMS
 #AXISYMMETRY                    # This is for axisymmetry in cylindrical coordinates (requires TWODIMS and a stationary mesh)
 #ONEDIMS
+#ONEDIMS_PARALLEL
 #LONG_X=10.0
 #LONG_Y=2.0
 #LONG_Z=10.0
@@ -52,15 +51,18 @@ VORONOI
 #ADIABATIC_GENERAL_RELATIVITY=0
 
 #----------------------------------------- MHD
-MHD
+#MHD
 #MHD_CT
 #MHD_CT_IC
 #MHD_CT_PERTURB_POSITIONS
-#MHD_DIVBCLEANING
-MHD_POWELL
-MHD_POWELL_LIMIT_TIMESTEP
+#MHD_POWELL
+#MHD_POWELL_LIMIT_TIMESTEP
 #MHD_POWELL_SPLIT
-MHD_SEEDFIELD
+#MHD_POWELL_ENERGYLIMITER
+#MHD_DEDNER
+#MHD_DEDNER_VARIABLE_SPEED
+#MHD_DEDNER_WITHOUT_POWELL_OVERRIDE
+#MHD_SEEDFIELD
 #MHD_SEEDPSPEC
 #MHD_THERMAL_ENERGY_SWITCH
 
@@ -82,8 +84,8 @@ MHD_SEEDFIELD
 #COSMIC_RAYS_COOLING
 #COSMIC_RAYS_ALFVEN_COOLING
 #COSMIC_RAYS_STREAMING
-#COSMIC_RAYS_STREAMING_GLOBAL_CHI
 #COSMIC_RAYS_STREAMING_EXPLICIT
+#COSMIC_RAYS_STREAMING_FACE_OUTPUT
 #COSMIC_RAYS_DIFFUSION
 #COSMIC_RAYS_DIFFUSION_CONSTANT_TIMESTEP
 #COSMIC_RAYS_DIFFUSION_GLOBAL_TIMESTEP
@@ -108,7 +110,7 @@ MHD_SEEDFIELD
 #RIEMANN_HLL
 #RIEMANN_HLLC
 #RIEMANN_ROSUNOV
-RIEMANN_HLLD
+#RIEMANN_HLLD
 #RIEMANN_GAMMA
 
 #AMR_CONNECTIONS
@@ -175,16 +177,20 @@ TREE_BASED_TIMESTEPS     # non-local timestep criterion (take 'signal speed' int
 #PROJ_WRITE_RAYS
 #OPACITIES                               # include opacities for stellar material, tables have to be supplied
 #AURIGA_MOVIE
+#HCOUTPUT
 
 #--------------------------------------- Refinement and derefinement
 REFINEMENT_SPLIT_CELLS
 REFINEMENT_MERGE_CELLS
+#REFINEMENT_SPLIT_MOST_DISTANCE_NEIGHBOUR
 #REFINEMENT_MERGE_PAIRS
 #REFINEMENT_VOLUME_LIMIT
-REFINEMENT_HIGH_RES_GAS
+#REFINEMENT_HIGH_RES_GAS
+#REFINEMENT_CGM
+#REFINEMENT_CGM_USE_R200M
 #REFINEMENT_AROUND_BH=0                    # spatial refinement scheme near BHs (0: default, 1: ignore cell shape constraints and always refine)
 #DEREFINE_ONLY_DENSE_GAS
-#NODEREFINE_BACKGROUND_GRID
+NODEREFINE_BACKGROUND_GRID
 #DEREFINE_GENTLY
 #OPTIMIZE_MESH_MEMORY_FOR_REFINEMENT       # deletes the mesh structures not needed for refinement/derefinemet to lower the peak memory consumption
 #REFINEMENT_AROUND_DM                      # refine around DM particles according to their softening length (useful for binary systems)
@@ -194,10 +200,13 @@ REFINEMENT_HIGH_RES_GAS
 #DISC_REFINE_ONLY
 #REFINE_ONLY_WITH_TRACER
 #ROTATING_HIGHRES_REGION
+#TRACK_ROTATING_HIGHRES_REGION
 #RAMP_REFINE
 #SNE_RAMP_REFINE
 #MHD_REFINE_ON_DIVB_FACTOR
 #REFINE_ABOVE_WNM_DENSITY
+BH_BASED_CGM_ZOOM
+#REFINE_MCTR
 
 #--------------------------------------- Mesh-relaxing or mesh-adding (this will not carry out a simulation)
 #MESHRELAX                     # this keeps the mass constant and only regularizes the mesh
@@ -207,13 +216,13 @@ REFINEMENT_HIGH_RES_GAS
 
 #--------------------------------------- Gravity treatment
 SELFGRAVITY                   # switch on for self-gravity
-HIERARCHICAL_GRAVITY         # use hierarchical splitting of the time integration of the gravity
-CELL_CENTER_GRAVITY          # uses geometric centers to calculate gravity of cells, only possible with HIERARCHICAL_GRAVITY
+#HIERARCHICAL_GRAVITY         # use hierarchical splitting of the time integration of the gravity
+#CELL_CENTER_GRAVITY          # uses geometric centers to calculate gravity of cells, only possible with HIERARCHICAL_GRAVITY
 #NO_GAS_SELFGRAVITY            # switch off gas self-gravity in tree
-#GRAVITY_NOT_PERIODIC          # if gravity is not to be treated periodically
+GRAVITY_NOT_PERIODIC          # if gravity is not to be treated periodically
 #GRAVITY_TALLBOX               # special switch for making treating gravity in z-extended box, with x/y periodic, and z nonperiodic. LONG_Z may be used but must be an integer.
-ALLOW_DIRECT_SUMMATION
-DIRECT_SUMMATION_THRESHOLD=16000
+#ALLOW_DIRECT_SUMMATION
+#DIRECT_SUMMATION_THRESHOLD=1000
 #EXACT_GRAVITY_FOR_PARTICLE_TYPE=4 #N-squared fashion gravity for a small number of particles of the given type
 #NO_SELFGRAVITY_TYPE=1         # exclude particle type from self-gravity (can be used with exact gravity)
 #NO_GRAVITY_TYPE=1             # disable computation of gravity on particle type
@@ -224,39 +233,38 @@ DIRECT_SUMMATION_THRESHOLD=16000
 #EXTERNALSHEARBOX
 #EXTERNALSHEARBOX_KSRATE_RANDOM
 #EXTERNALSHEARBOX_KSRATE_UPDATE_PARAM
-ENFORCE_JEANS_STABILITY_OF_CELLS_EEOS
-ENFORCE_JEANS_STABILITY_OF_CELLS    # this imposes an adaptive floor for the temperature
+#ENFORCE_JEANS_STABILITY_OF_CELLS_EEOS
+#ENFORCE_JEANS_STABILITY_OF_CELLS    # this imposes an adaptive floor for the temperature
 EVALPOTENTIAL                 # computes gravitational potential
 #EXTERNALSHEETY
 #COMPUTE_POTENTIAL_ENERGY
-#RANDOMIZE_DOMAINCENTER
 #ACCRETE_ONTO_CENTRAL_POTENTIAL # Allow mass to be accreted onto the central potential (needs CENTRAL_MASS_POTENTIAL)
 
 
 #--------------------------------------- Gravity softening
-NSOFTTYPES=4                  # Number of different softening values to which particle types can be mapped.
-MULTIPLE_NODE_SOFTENING       # If a tree node is to be used which is softened, this is done with the softenings of its different mass components
-INDIVIDUAL_GRAVITY_SOFTENING=32  # bitmask with particle types where the softenig type should be chosen with that of parttype 1 as a reference type
+#NSOFTTYPES=4                  # Number of different softening values to which particle types can be mapped.
+#MULTIPLE_NODE_SOFTENING       # If a tree node is to be used which is softened, this is done with the softenings of its different mass components
+#INDIVIDUAL_GRAVITY_SOFTENING=2+4  # bitmask with particle types where the softenig type should be chosen with that of parttype 1 as a reference type
 ADAPTIVE_HYDRO_SOFTENING
 #NSOFTTYPES_HYDRO=64           # this is only relevant for ADAPTIVE_HYDRO_SOFTENING can can be set to override default value of 64
 
 
 #--------------------------------------- TreePM Options
-PMGRID=256
+#PMGRID=512
 #ASMTH=1.25
-RCUT=5.0
+#RCUT=6.0
 
-PLACEHIGHRESREGION=2
-ENLARGEREGION=1.1
-GRIDBOOST=1
+#PLACEHIGHRESREGION=2
+#ENLARGEREGION=1.1
+#GRIDBOOST=2
 #ONLY_PM
 
 #FFT_COLUMN_BASED
-PM_ZOOM_OPTIMIZED
+#PM_ZOOM_OPTIMIZED
 
 #--------------------------------------- Things that are always recommended
 #AUTO_SWAP_ENDIAN_READIC                # Enables automatic ENDIAN swapping for reading ICs
-CHUNKING                 # will calculated the gravity force in interleaved blocks. This can reduce imbalances in case multiple iterations due to insufficient buffer size need to be done
+#CHUNKING                 # will calculated the gravity force in interleaved blocks. This can reduce imbalances in case multiple iterations due to insufficient buffer size need to be done
 
 
 #---------------------------------------- Single/Double Precision
@@ -264,15 +272,15 @@ DOUBLEPRECISION=1
 DOUBLEPRECISION_FFTW
 #OUTPUT_IN_DOUBLEPRECISION                # snapshot files will be written in double precision
 #INPUT_IN_DOUBLEPRECISION                 # initial conditions are in double precision
-OUTPUT_COORDINATES_IN_DOUBLEPRECISION    # will always output coordinates in double precision
-NGB_TREE_DOUBLEPRECISION                 # if this is enabled, double precision is used for the neighbor node extension
+#OUTPUT_COORDINATES_IN_DOUBLEPRECISION    # will always output coordinates in double precision
+#NGB_TREE_DOUBLEPRECISION                 # if this is enabled, double precision is used for the neighbor node extension
 
 
 #---------------------------------------- On the fly FOF groupfinder
-FOF                                # enable FoF output
-FOF_PRIMARY_LINK_TYPES=2           # 2^type for the primary dark matter type
-FOF_SECONDARY_LINK_TYPES=1+4+16+32   # 2^type for the types linked to nearest primaries
-#FOF_SECONDARY_LINK_TARGET_TYPES=2+4   # should normally be set to a list of all dark matter types (in zoom runs), if not set defaults to FOF_PRIMARY_LINK_TYPES
+#FOF                                # enable FoF output
+#FOF_PRIMARY_LINK_TYPES=2           # 2^type for the primary dark matter type
+#FOF_SECONDARY_LINK_TYPES=1+16+32   # 2^type for the types linked to nearest primaries
+#FOF_SECONDARY_LINK_TARGET_TYPES=   # should normally be set to a list of all dark matter types (in zoom runs), if not set defaults to FOF_PRIMARY_LINK_TYPES
 #FOF_GROUP_MIN_LEN=32               # default is 32
 #FOF_LINKLENGTH=0.16                # Linkinglength for FoF (default=0.2)
 #FOF_FUZZ_SORT_BY_NEAREST_GROUP=0   # sort fuzz particles by nearest group and generate offset table in catalog (=1 writes nearest group number to snapshot)
@@ -282,11 +290,11 @@ FOF_SECONDARY_LINK_TYPES=1+4+16+32   # 2^type for the types linked to nearest pr
 #ADD_MAGNETIC_GROUP_PROPERTIES
 
 #---------------------------------------- Subfind
-SUBFIND                            # enables substructure finder
-SAVE_HSML_IN_SNAPSHOT              # stores hsml, density, and velocity dispersion values in the snapshot files
+#SUBFIND                            # enables substructure finder
+#SAVE_HSML_IN_SNAPSHOT              # stores hsml, density, and velocity dispersion values in the snapshot files
 
 #SUBFIND_MEASURE_H2MASS             # special measuremenat option for mass in molecular hydrogen
-SUBFIND_CALC_MORE                  # calculates also the velocity dispersion in the local density estimate (this is automatically enabled by several other options, e.g. SAVE_HSML_IN_SNAPSHOT)
+#SUBFIND_CALC_MORE                  # calculates also the velocity dispersion in the local density estimate (this is automatically enabled by several other options, e.g. SAVE_HSML_IN_SNAPSHOT)
 #SUBFIND_EXTENDED_PROPERTIES        # adds calculation of further quantities related to angular momentum in different components
 
 #--------------------------------------- SFR/feedback model
@@ -294,61 +302,16 @@ SUBFIND_CALC_MORE                  # calculates also the velocity dispersion in 
 #MIN_METALLICITY_ON_STARTUP
 #STELLARAGE
 
-SOFTEREQS
+#SOFTEREQS
 #MODIFIED_EOS
 #SLOW_RELAX_TO_EOS
 #STEEPER_SFR_FOR_STARBURST
+#SF_STELLAR_MASS_TO_GAS_MASS_RATIO
 
-#------------------------------------- BH seeding
-CREATE_SUBFOFS
-GAS_BASED_SEED_MODEL      # seed BHs based on local gas properties (overrides default seeding criterion based only on FOF halo mass)
-ONLY_SEED_IN_VALID_FOFS
-#SEED_GAS_DENSITY_CRITERION=0     # 0: default, form seed from densest gas cell above SF threshold, 1: form seed from densest star-forming gas cell
-#SEED_GAS_METALLICITY_CRITERION     # impose gas metallicity constraints on the seed parent cell (requires parameters MinMetallicityForNewSeed & MaxMetallici$
-#SEED_MASS_HALO_MASS_RATIO_CRITERION=0
-#SEED_STARFORMINGGASMASS_CRITERION
-#SEED_STARFORMINGMETALFREEGASMASS_CRITERION
-#SEED_GASSPIN_CRITERION
-#SEED_STARFORMINGMETALFREELYMANWERNERGASMASS_CRITERION
-#SEED_LYMANWERNERGASMASS_CRITERION
-#SEED_LYMAN_WERNER_INTENSITY_CRITERION
-#SEED_STARFORMINGGASMETALLICITY_CRITERION
-SEED_HALO_ENVIRONMENT_CRITERION
-#SEED_HALO_ENVIRONMENT_CRITERION2
-#PROBABILISTIC_SEEDING
-#NO_SEEDING_IN_LOW_RESOLUTION_CONTAMINATED_HALOS
-#-----------------------------------------------
-#-----------------------------------------------
-SEED_BASED_ON_PROBABLISTIC_HALO_PROPERTIES
-PROBABILISTIC_SEED_MASS_HALO_MASS_RATIO_CRITERION
-#EVOLVING_SEEDHALOMASS_DISTRIBUTION
-#EVOLVING_SEEDING_PROBABILITY
-#EVOLVING_SEEDHALOMASS_DISTRIBUTION_DOUBLE_POWERLAW_MODEL
-EVOLVING_SEEDHALOMASS_DISTRIBUTION_DOUBLE_POWERLAW_MODEL2
-
-#-------------------------------------------------
-#CORRECT_FOR_HALO_MASS_BIAS_IN_ENVIRONMENT_BASED_SEEDING
-INCLUDE_MERGERS_OF_UNRESOLVED_SEED_BHS
-PTYPE_USED_FOR_ENVIRONMENT_BASED_SEEDING=1
-STORE_MERGERS_IN_SNAPSHOT
-OUTPUT_LOG_FILES_FOR_SEEDING
-OUTPUT_HOST_PROPERTIES_FOR_BH_MERGERS
-#PREVENT_SEEDING_AROUND_BLACKHOLE_NEIGHBORS2
-#SUPPRESS_STARFORMATION_ABOVE_CRITICAL_LYMANWERNERFLUX
-#CHECK_FOR_ENOUGH_GAS_MASS_IN_DCBH_FORMING_POCKETS
-PREVENT_SPURIOUS_RESEEDING2
-PREVENT_SPURIOUS_RESEEDING
-#ACCOUNT_FOR_SWALLOWED_PAINTED_GAS
-OUTPUT_STELLAR_AGE
-#SEED_BHS_FROM_ELIGIBLE_GAS_CELLS
-#----------------------------------------------
-#CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_SOURCES
-#CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS=1
-#CALCULATE_SPIN_STARFORMINGGAS
-#CALCULATE_LYMAN_WERNER_INTENSITY_ALL_SOURCES
 #-------------------------------------- AGN stuff
 BLACK_HOLES               # enables Black-Holes (master switch)
-BH_THERMALFEEDBACK        # quasar-mode: couple a fraction of the BH luminosity into surrounding
+#BH_CONSTANT_EDDINGTON_RATIO
+#BH_THERMALFEEDBACK        # quasar-mode: couple a fraction of the BH luminosity into surrounding
 #BH_THERMALFEEDBACK_ACC    # quasar-mode: bursty quasar-mode, accumulate thermal energy
 #BH_NF_RADIO               # radio-mode model based on Nulsen & Fabian theory
 DRAINGAS=3                # non-stochastic smooth accretion (1: on, 2: on + cell rho, 3: on + gas drained from all cells within hsml)
@@ -359,18 +322,23 @@ BH_BONDI_DEFAULT          # default Bondi prescription
 #BH_BONDI_DISK_VORTICITY   # Bondi -> vorticity dependent
 BH_DO_NOT_PREVENT_MERGERS # When this is enabled, BHs can merge irrespective of their relative velocity
 #BH_USE_GASVEL_IN_BONDI    # only when this is enabled, the surrounding gas velocity is used in addition to the sounds speed in the Bondi rate
-BH_USE_ALFVEN_SPEED_IN_BONDI  # when this is enabled the alfven speed is added to the gas sound speed in the Bondi rate and the total gas pressure around the BH includes the magnetic contribution when compared the the reference pressure in BH_PRESSURE_CRITERION (requires MHD)
+#BH_USE_ALFVEN_SPEED_IN_BONDI  # when this is enabled the alfven speed is added to the gas sound speed in the Bondi rate and the total gas pressure around the BH includes the magnetic contribution when compared the the reference pressure in BH_PRESSURE_CRITERION (requires MHD)
 #MASSIVE_SEEDS             # BH seeds assigned large dynamical mass, such that ideally no repositioning is needed anymore
 #MASSIVE_SEEDS_MERGER
-BH_NEW_CENTERING          # an alternative to the BH_FRICTION and REPOSITION_ON_POTMIN switches
+#BH_NEW_CENTERING          # an alternative to the BH_FRICTION and REPOSITION_ON_POTMIN switches
 #BH_DRAG                   # Drag on black-holes due to accretion: current implementation simply double-accounts for the accretion momentum transfer, and should therefore not be used
 #REPOSITION_ON_POTMIN      # repositions hole on potential minimum (requires EVALPOTENTIAL)
-BH_PRESSURE_CRITERION
+#BH_PRESSURE_CRITERION
 #BH_RELATIVE_NGB_DEVIATION # Maximum NGB number deviation calculated relative to total number of neighbours
 #OUTPUT_BLACK_HOLE_TIMESTEP #outputs the 3 time-steps for BH particles
 #BH_FRICTION				# Estimates the local DM density around BH and applies a friction force to the relative velocity, meant as a replacement for REPOSITION_ON_POTMIN
 #BH_FRICTION_AGGRESSIVE
 #BH_HARMONIC_OSCILLATOR_FORCE
+
+
+# -- LZK
+BH_NEW_LOGS               # Create blackhole log files ('mergers' and 'details') separated by snapshot and including additional information
+BH_DF_DISCRETE            # Use [Ma, Hopkins, Kelley, Fauche-Giguere] discrete dynamical friction prescription for BH particles
 
 #-------------------------------------- AGN spin evolution and recoil merger kicks
 #BH_RECOIL_KICK				# Includes the remnant recoil of a BH merger
@@ -382,13 +350,15 @@ BH_PRESSURE_CRITERION
 #BH_BUBBLES              # calculate bubble energy directly from the black hole accretion rate (-->OBSOLETE: replaced by BH_NEW_RADIO)
 #BH_MAGNETIC_BUBBLES     # inject part of the  bubble energy as magnetic energy
 #BH_MAGNETIC_DIPOLAR_BUBBLES #inject part of the bubble energy as magnetic energy, field arranged as a dipole with random orientation
-BH_ADIOS_WIND
+BH_FAST_WIND
+BH_FAST_WIND_STOCHASTIC
+#BH_ADIOS_WIND
 #BH_ADIOS_DENS_DEP_EFFICIANCY  # makes the radiative efficiency density dependend
-BH_ADIOS_WIND_WITH_QUASARTHRESHOLD  # use a threshold value ("qusarthrehold") of bondi-rate over Eddington rate to decide about quasar mode vs. adios wind
-BH_ADIOS_WIND_WITH_VARIABLE_QUASARTHRESHOLD  # scales the threshold with black hole mass (with a factor (M_BH/M_ref)^2, where M_ref = 10^8 Msun)
+#BH_ADIOS_WIND_WITH_QUASARTHRESHOLD  # use a threshold value ("qusarthrehold") of bondi-rate over Eddington rate to decide about quasar mode vs. adios wind
+#BH_ADIOS_WIND_WITH_VARIABLE_QUASARTHRESHOLD  # scales the threshold with black hole mass (with a factor (M_BH/M_ref)^2, where M_ref = 10^8 Msun)
 #BH_ADIOS_WIND_DIRECTIONAL  # puts in momentum preferentially along a random direction
-BH_ADIOS_RANDOMIZED        # inputs momentum along alternating random directions
-BH_ADIOS_ONLY_ABOVE_MINIMUM_DENSITY   # disable ADIOS wind if density around blackhole drops below a certain fraction of the star formation density
+#BH_ADIOS_RANDOMIZED        # inputs momentum along alternating random directions
+#BH_ADIOS_ONLY_ABOVE_MINIMUM_DENSITY   # disable ADIOS wind if density around blackhole drops below a certain fraction of the star formation density
 #BH_CONTINOUS_MODE_SWITCH # calculates fraction of thermal and mechanical feedback energy depending on eddington factor and mass (continously in both quantities)
 
 #-------------------------------------- Black Hole Refinement and Bipolar Options
@@ -429,11 +399,12 @@ BH_ADIOS_ONLY_ABOVE_MINIMUM_DENSITY   # disable ADIOS wind if density around bla
 #TOLERATE_WRITE_ERROR
 #OPTIMIZE_MEMORY_USAGE          # optimize for memory, not for speed. Note: this is dangerous for high dynamic range simulations with mixed precision, since some position variables are singles instead of doubles
 #SUBBOX_SNAPSHOTS
-PROCESS_TIMES_OF_OUTPUTLIST
+#PROCESS_TIMES_OF_OUTPUTLIST
 #EXTENDED_GHOST_SEARCH          # This extends the ghost search to the full 3x3 domain instead of the principal domain
 #DOUBLE_STENCIL                 # this will ensure that the boundary region of the local mesh is deep enough to have a valid double stencil for all local cells
 #TETRA_INDEX_IN_FACE            # adds an index to each entry of VF[] and DC[] to one of the tetrahedra that share this edge
 VORONOI_DYNAMIC_UPDATE          # keeps track of mesh connectivity, which speeds up mesh construction
+#VORONOI_MESH_KEEP_DT_AND_DTC    # keeps DTC and DT in memory, i.e. for anisotropic transport solvers
 #COFFEE_PROBLEM
 #NOH_PROBLEM
 #SHIFT_BY_HALF_BOX
@@ -458,30 +429,33 @@ ENLARGE_DYNAMIC_RANGE_IN_TIME  # This extends the dynamic range of the integer t
 #ADJ_BOX_POWERSPEC              # compiles in a code module that allows via restart-flag 7 the calculation of gas power spectra of a snapshot with an adjustable box (user defined center and size)
 #DISABLE_OPTIMIZE_DOMAIN_MAPPING
 #RECOMPUTE_POTENTIAL_IN_SNAPSHOT   # needed for postprocess option 18 that can be used to calculate potential values for a snapshot
+#COMPUTE_VORONOI_DM_DENSITY_IN_POSTPROC
 #ACTIVATE_MINIMUM_OPENING_ANGLE   # this does not open tree nodes under the relative opening criterion any more if their opening angle has dropped below a minimum angle
 #USE_DIRECT_IO_FOR_RESTARTS     # Try to use O_DIRECT for low-level read/write operations of restart files to circumvent the linux kernel page caching
 #PERTURB_VELOCITIES             # continuously perturb velocities when running simulation
+#UVB_OFF                        #No UVB
+#UVB_START                      #UVB switched on after a redshift supplied in parameterfile
 
 #CUDA                       # enables CUDA support in Arepo
 #CUDA_INSTRUMENT            # This enables instrumentation support for the nvidia profiler
 #USE_DSDE                   # try to use a dynamic sparse data exchange paradigm to get rid off sparse MPI_Alltoall patterns on large partitions
-#USE_NBC_FOR_IBARRIER       # use the NBC library to implement non-blocking collectives (only relevant when USE_DSDE is used)
 
 #HUGEPAGES                  # use huge pages for memory allocation, through hugetlbfs library
 #DETAILEDTIMINGS            # creates individual timings entries for primary/secondary kernels to diagnose work-load balancing
 
 #PERFORMANCE_TEST_SPARSE_MPI_ALLTOALL
 #BITS_PER_DIMENSION=42      # Peano-Hilbert order
-OVERRIDE_PEANOGRID_WARNING
+#OVERRIDE_PEANOGRID_WARNING
 
 
 #--------------------------------------- Output/Input options
+#READ_IN_ALL_IC_FIELDS      # Read in all fields that are in the initial condition files
 #UPDATE_GRADIENTS_FOR_OUTPUT
 #REDUCE_FLUSH
 #OUTPUT_REFBHCOUNTER
 #OUTPUT_EVERY_STEP
 #GODUNOV_STATS
-OUTPUT_CPU_CSV
+#OUTPUT_CPU_CSV
 #OUTPUT_TASK
 #OUTPUT_TIMEBIN_HYDRO
 #OUTPUT_PRESSURE_GRADIENT
@@ -491,11 +465,11 @@ OUTPUT_CPU_CSV
 #OUTPUT_VERTEX_VELOCITY
 #OUTPUT_VERTEX_VELOCITY_DIVERGENCE
 #OUTPUT_VOLUME
-OUTPUT_CENTER_OF_MASS
+#OUTPUT_CENTER_OF_MASS
 #OUTPUT_SURFACE_AREA
 OUTPUT_PRESSURE
-OUTPUTPOTENTIAL
-#OUTPUTACCELERATION
+#OUTPUTPOTENTIAL
+OUTPUTACCELERATION
 #OUTPUTTIMESTEP
 #OUTPUT_SOFTENINGS            # output particle softenings
 #OUTPUTGRAVINTERACTIONS       # output gravitatational interactions (from the tree) of particles
@@ -503,9 +477,10 @@ HAVE_HDF5                     # needed when HDF5 I/O support is desired
 #HDF5_FILTERS                  # activate snapshot compression and checksum for HDF5 output
 #OUTPUT_XDMF                   #writes an .xmf file for each snapshot, which can be read by visit (with the hdf5 snapshot)
 #OUTPUTCOOLRATE                # outputs cooling rate, and conduction rate if enabled
+#OUTPUT_HE_IONIZATION_STATE    # outputs the helium ionization state in detail (HeI, HeII, HeIII)
 #OUTPUT_DIVVEL                 # output  velocity divergence
 #OUTPUT_CURLVEL                 # output  velocity curl
-#OUTPUT_COOLHEAT               # output actual energy loss/gain in cooling/heating routine
+OUTPUT_COOLHEAT               # output actual energy loss/gain in cooling/heating routine
 #OUTPUT_VORTICITY
 #OUTPUT_CELL_SPIN
 #MEASURE_DISSIPATION_RATE      # measures and outputs dissipation rate. Note: requires USE_ENTROPY_FOR_COLD_FLOWS, even though it will then always use the thermal energy update
@@ -513,6 +488,10 @@ HAVE_HDF5                     # needed when HDF5 I/O support is desired
 #OUTPUT_TASK
 #OUTPUT_ENTROPY
 #OUTPUT_CSND
+#HIGH_FREQUENCY_OUTPUT_STARS
+
+#POWERSPECTRUM_ON_THE_FLY
+
 
 #--------------------------------------- Testing and Debugging options
 DEBUG                         # enables core-dumps
@@ -532,9 +511,22 @@ HOST_MEMORY_REPORTING         # reports after start-up the available system memo
 #--------------------------------------- Static NFW Potential
 #STATICNFW
 #NFW_C=12
-#NFW_M200=100.0
-#NFW_Eps=0.01
-#NFW_DARKFRACTION=0.87
+#NFW_M200=112.233
+#NFW_Eps=0.001
+#NFW_DARKFRACTION=0.9554374
+#NFW_h=0.7
+
+#NFW_C=10
+#NFW_M200=78.4754
+#NFW_Eps=0.001
+#NFW_DARKFRACTION=0.956
+
+#NFW_C=15
+#NFW_M200=1.4623
+#NFW_Eps=0.001
+#NFW_DARKFRACTION=0.957395883198
+
+
 
 #--------------------------------------- Static Isothermal Sphere Potential
 #STATICISO
@@ -547,6 +539,7 @@ HOST_MEMORY_REPORTING         # reports after start-up the available system memo
 #STATICHQ
 #HQ_M200=186.015773
 #HQ_C=10.0
+#HQ_A=10.0
 #HQ_DARKFRACTION=0.9
 
 #--------------------------------------- Growing Disk Potential
@@ -564,8 +557,8 @@ HOST_MEMORY_REPORTING         # reports after start-up the available system memo
 #SECOND_ORDER_ICS
 #LONGIDS
 #OFFSET_FOR_NON_CONTIGUOUS_IDS
-GENERATE_GAS_IN_ICS
-SPLIT_PARTICLE_TYPE=2+4+8
+#GENERATE_GAS_IN_ICS
+#SPLIT_PARTICLE_TYPE=4+8
 #NTYPES_ICS=6 # number of particle types in ICs, if not NTYPES (only works for 6, and non-HDF5 ICs!)
 
 #-------------------------------------- Simple turbulence test
@@ -573,8 +566,13 @@ SPLIT_PARTICLE_TYPE=2+4+8
 #POWERSPEC_GRID=128
 
 #AB_TURB
+#AB_TURB_DECAYING
 
 #READ_LEGACY_ICS
+
+#--------------------------------------- Passive element tracking
+#EOS_NSPECIES=3
+#EOS_PASSIVE
 
 #--------------------------------------- Degenerate Equation of State
 #EOS_DEGENERATE
@@ -600,6 +598,7 @@ SPLIT_PARTICLE_TYPE=2+4+8
 #NUCLEAR_NETWORK_DETONATE_POSITION
 #NUCLEAR_NETWORK_TIMESTEP_LIMITER
 #NUCLEAR_NETWORK_USE_SHOCKFINDER
+#NUCLEAR_NETWORK_DISABLE_BURNING_IN_SHOCK
 #NUCLEAR_NETWORK_LIMIT_COMPOSITION_CHANGE
 
 #--------------------------------------- OPAL Equation of State
@@ -628,6 +627,7 @@ SPLIT_PARTICLE_TYPE=2+4+8
 #SECOND_DERIVATIVES
 #SLOPE_LIMIT_HESSIANS
 #RECONSTRUCT_GRADIENTS
+#OUTPUT_HESSIAN
 
 #-------------------------------------- Navier-Stokes Terms
 #GLOBAL_VISCOSITY 	   #needs dynamic and bulk coefficients
@@ -642,6 +642,7 @@ SPLIT_PARTICLE_TYPE=2+4+8
 #CIRCUMSTELLAR_WBOUNDARIES
 #CIRCUMSTELLAR_IRRADIATION
 #CIRCUMSTELLAR_SINKS
+#CIRCUMSTELLAR_SINKS_ALTERNATIVE # alternative calculation of cirumstellar sink, i.e. swallow cell entirely
 #CIRCUMSTELLAR_PLANET_GROWTH     #Requires BLACK_HOLES turned on
 #GRAVITY_FROM_STARS_PLANETS_ONLY #Requires EXTERNALGRAVITY turned on
 #CENTRAL_MASS_POTENTIAL     #Point-mass potential
@@ -651,6 +652,7 @@ SPLIT_PARTICLE_TYPE=2+4+8
 #-------------------------------------- Special Boundaries within domain
 #SPECIAL_BOUNDARY          #Main Switch
 #COAXIAL_BOUNDARIES              #e.g. Couette flow-type boundaries
+#BOUNDARY_FLAG
 
 #-------------------------------------- Windtunnel
 #WINDTUNNEL
@@ -658,7 +660,7 @@ SPLIT_PARTICLE_TYPE=2+4+8
 #WINDTUNNEL_EXTERNAL_SOURCE
 #WINDTUNNEL_FIXVARIABLESININJECTIONREGION # enables a region with fixed properties
 #WINDTUNNEL_REFINEMENT_VOLUME_LIMIT #Volume refinement option for windtunnel setup. REFINEMENT_VOLUME_LIMIT should also be enabled.
-
+#WINDTUNNEL_READ_IN_BFIELD #Overwrites B-field in injection region with a field specified in a separate file.
 
 #--------------------------------------- Boundaries with optional inflow/outflow
 #BOUNDARY_INFLOWOUTFLOW_MINID=10000000   # defines the ID range describing inflow/outflow nozzle of wind-tunnel
@@ -678,65 +680,50 @@ SPLIT_PARTICLE_TYPE=2+4+8
 #-------------------------------------- GFM - Galaxy Formation Module
 GFM                                    #master switch
 GFM_STELLAR_EVOLUTION=0                #stellar evolution: 0->default, 1->no mass loss (beta value changes + MassMetallicity & MassMetals inconsistent internally with cell dynamical mass) 2->call only test routine
-GFM_CONST_IMF=0                        #0 for Chabrier (default), 1 for a pure power-law (requires parameter IMFslope, e.g. -2.35 for Salpeter)
+#GFM_STELLAR_EVOLUTION_NO_ELEMENTS
+#GFM_CONST_IMF=1                        #0 for Chabrier (default), 1 for a pure power-law (requires parameter IMFslope, e.g. -2.35 for Salpeter)
 #GFM_VARIABLE_IMF=0                     #0 for a pure power-law that depends on DM-veldisp
-GFM_PREENRICH                          #pre enrich gas at given redshift
+#GFM_PREENRICH                          #pre enrich gas at given redshift
+GFM_SET_METALLICITY                    #set the metallicity of gas in solar metallicity units
+GFM_NO_METAL_ENRICHMENT                #disable metal production by SNII and AGB stars
 #GFM_EXACT_NUMNGB                       #use direct neighbor count instead of kernel weighted neighbor count
-GFM_WINDS                              #decoupled ISM winds
-GFM_WINDS_VARIABLE=1                   #decoupled ISM winds: 0->scale winds with halo mass, requires FoF, 1->sigma winds
-GFM_WINDS_VARIABLE_HUBBLE              #add an additional H(z)^(-1/3) factor to the wind scaling, such that it scales with halo mass not halo velocity dispersion
+#GFM_WINDS                              #decoupled ISM winds
+#GFM_WINDS_VARIABLE=0                   #decoupled ISM winds: 0->scale winds with halo mass, requires FoF, 1->sigma winds
+#GFM_WINDS_VARIABLE_HUBBLE              #add an additional H(z)^(-1/3) factor to the wind scaling, such that it scales with halo mass not halo velocity dispersion
 #GFM_WINDS_HUBBLESCALING                #scale the wind energy fraction with the Hubble rate, limit the maximum to 1
 #GFM_WINDS_MASSSCALING                  #scale the wind energy mass loading with halo mass (equivalent to scaling the wind energy fraction with halo virial radius)
-GFM_WIND_ENERGY_METAL_DEPENDENCE       #this can be used to decrease the wind energy for high metallicity (mimicking higher cooling losses)
+#GFM_WIND_ENERGY_METAL_DEPENDENCE       #this can be used to decrease the wind energy for high metallicity (mimicking higher cooling losses)
 #GFM_WIND_ENERGY_METAL_DEPENDENCE_TANH  #this selects an alternative functional form for the transition, requires GFM_WIND_ENERGY_METAL_DEPENDENCE
-GFM_WINDS_STRIPPING                    #wind metal stripping
+#GFM_WINDS_STRIPPING                    #wind metal stripping
 #GFM_WINDS_THERMAL                      #not only give the wind kinetic energy but also thermal energy
-GFM_WINDS_THERMAL_NEWDEF               #with this switch, the thermal energy is specified as a fraction of the total energy
+#GFM_WINDS_THERMAL_NEWDEF               #with this switch, the thermal energy is specified as a fraction of the total energy
 #GFM_BIPOLAR_WINDS=1                    #decoupled ISM winds: bipolar winds: 0->default, 1->relative to motion of FOF group, 3->parallel to spin of star-forming gas in halo
 #GFM_WINDS_LOCAL                        #energy-driven decoupled local sigma winds
 #GFM_STELLAR_FEEDBACK                   #local SNIa and AGB energy and momentum feedback
 #GFM_PRIMORDIAL_RATES                   #updated coefficients for primordial chemistry and cooling
 GFM_COOLING_METAL                      #metal line cooling
 #GFM_UVB_CORRECTIONS                    #reionization energy corrections
-GFM_AGN_RADIATION                      #cooling suppression/heating due to AGN radiation field (proximity effect)
-GFM_STELLAR_PHOTOMETRICS               #calculate stellar magnitudes for different filters based on GALAXEV/BC03
-GFM_OUTPUT_MASK=1+2+4+8+16+32+64+256   #which fields to output (see io_fields.c)
+#GFM_AGN_RADIATION                      #cooling suppression/heating due to AGN radiation field (proximity effect)
+#GFM_STELLAR_PHOTOMETRICS               #calculate stellar magnitudes for different filters based on GALAXEV/BC03
+GFM_OUTPUT_MASK=1+2+4+8+16+32+64+128   #which fields to output (see io_fields.c)
 #GFM_CHECKS                             #this checks the consistency of the AuxDataID/PID indices of stars and black holes every timestep
 #GFM_DISCARD_ENRICHMENT_GRADIENTS       #this disables the gradient extrapolation of the passively advected metallicity scalar variables
 GFM_NORMALIZED_METAL_ADVECTION         #this introduces an additional pseudo element for all untracked metals and normalizes the extrapolated abundance vectors to unity
-GFM_OUTPUT_BIRTH_POS                   #output BirthPos and BirthVel for all star particles
-GFM_CHEMTAGS                           #see documentation/modules_GFM_chemtags
+#GFM_OUTPUT_BIRTH_POS                   #output BirthPos and BirthVel for all star particles
+#GFM_CHEMTAGS                           #see documentation/modules_GFM_chemtags
 #GFM_WINDS_SAVE_PARTTYPE=2              #save wind particles as separate particle type instead of mixed with 4 (stars)
 GFM_DISCRETE_ENRICHMENT                #allow stars to enrich nearby gas from stellar evolution only above some delta mass fraction threshold
-GFM_SPLITFE                            #see documentation/modules_GFM_chemtags
+#GFM_NO_NEGATIVE_ELEMENT_MASS_RELEASED  #do not allow that negative yields for each element consume more mass than contained in ejecta elemental composition
+#GFM_SPLITFE                            #see documentation/modules_GFM_chemtags
 #GFM_SPLITFE_ADDINAGB                   #add in the AGB iron half-half on the two iron SNIa/SNII tags such that the sum of them should be equal to the total iron
-GFM_RPROCESS                           #see documentation/modules_GFM_chemtags, must have GFM_SPLITFE toggled as well
+#GFM_RPROCESS                           #see documentation/modules_GFM_chemtags, must have GFM_SPLITFE toggled as well
 #GFM_LAMBDA                             #output all cooling rates
 #GFM_RPROCESS_CHANNELS=10               #alternative to GFM_PROCESS, use many different channels, number is number of independent r-process channels
+#GFM_RPROCESS_CHANNELS_NS_KICKS         #include neutron star kicks for NSNS mergers
 #GFM_RPROCESS_NSNS=7                    #the number of channels of GFM_RPROCESS_CHANNELS that are NSNS channels, the rest are SN channels
 #GFM_SPROCESS                           #adds s-process elements, need to exist in yield tables
-
-
-#SMUGGLE_SFR                                #turns on star formation (needs USE_SFR)
-#SMUGGLE_STAR_FEEDBACK                      #turns on stellar feedback
-#SMUGGLE_STAR_FEEDBACK_TIME_LIMITER         #turns on time step limiter for stellar evolution (to revise?)
-#SMUGGLE_VARIABLE_EFFICIENCY
-#SMUGGLE_OUTPUT_STELLAR_FEEDBACK               #outputs SNII number, feedback energy and mass released for stellar particles and log files for feedback (requires GFM_STELLAR_EVOLUTION)
-#SMUGGLE_COMPUTE_SFR_FROM_H2
-#SMUGGLE_OUTPUT_VIRIAL_PARAM
-#SMUGGLE_RADIATION_FEEDBACK                 #inputs momentum to gas particles within stromgren radius, keep cells at 10^4 K and prevents star formation in them.
-#SMUGGLE_RADIATION_FEEDBACK_DEBUG           #extra output fields for FM_RADIATION_FEEDBACK
-#SMUGGLE_OMEGA_WEIGHT_SN                     #feedback energy weighted by mass instead of volume
-#SMUGGLE_MOLEC_COOLING                      #approx extra molecular cooling contribution addition based on fit to GRACKLE cooling curves
-#SMUGGLE_COSMIC_RAY_HEATING                 #approx extra molecular cooling contribution addition based on fit to GRACKLE cooling curves
-#SMUGGLE_PHOTOELECTRIC_HEATING              #approx extra molecular cooling contribution addition based on fit to GRACKLE cooling curves
-#SMUGGLE_SN_COOLING_RADIUS_BOOST            #returns momentum and energy to the ISM accounting for an unresolved energy conserving early ST blast wave phase
-#SMUGGLE_DISCRETE_SN                        #SN feedback is done in discrete SN rather then as a continuous injection
-#SMUGGLE_AGB_WINDS                          #returns momentum and energy to the ISM accounting OB and AGB stellar winds
-#SMUGGLE_STOCHASTIC_HII_PHOTOIONIZATION=0   #Photoionization is carried out stochastically based on mass in stromgren sphere
-##SMUGGLE_SUPERBUBBLE_LIMITER                #sets feedback coupling radius according to estimates of superbubble sizes
-##SMUGGLE_FACE_AREA_BALANCE                  #balances SN feedback momentum injection in x/y/z directions
-##SMUGGLE_STELLAR_EVOLUTION
+#GFM_SNIA_ENERGY_INJECTION              #add thermal energy if Ia's
+#GFM_SINGLE_CELL_INJECTION
 
 #-------------------------------------- Dust physics
 #GFM_DUST                               #formation and evolution of dust, requires GFM_STELLAR_EVOLUTION
@@ -745,11 +732,16 @@ GFM_RPROCESS                           #see documentation/modules_GFM_chemtags, 
 #GFM_DUST_COOLING                       #high temperature dust cooling
 #GFM_DUST_MRN                           #MRN grain size distribution; otherwise single grain size with size in mu specified in parameter file
 #GFM_DUST_CAP                           #cap negative dust masses
+#GFM_DUST_ISMGROWTH                     #stop dust from growing outside of star-forming regions
+#GFM_DUST_LOWGROWTH                     #use low dust growth as in McKinnon+ 2017 paper
+
 
 #-------------------------------------- Live dust physics
 #DUST_LIVE=3                            #turns on live dust particles, value specifies output parttype; parttype 3 is recommended
 #DL_STOPPING_TIME_CORRECTION            #include higher-order corrections to stopping timescale for supersonic flow, makes analytic tests more difficult
 #DL_DRAG_SEMI_IMPLICIT                  #make use of drag analytic solution for velocity updates, instead of requiring explicit drag timesteps
+#DL_DRAG_BACKREACTION                   #allow dust to drag gas using an equal and opposite drag force
+#DL_NODRAG                              #do not couple dust to gas through a drag force
 #DL_GRAIN_BINS=10                       #track grain size distribution information for dust particles, using the specified number of bins; requires cooling, star formation
 #DL_GRAIN_BINS_PIECEWISE_LINEAR         #allow grain size distribution bins to be piecewise linear, not just piecewise constant
 #DL_GROWTH                              #enable growth of dust mass by accumulating gas-phase metals
@@ -760,52 +752,53 @@ GFM_RPROCESS                           #see documentation/modules_GFM_chemtags, 
 #DL_SHATTERING_DETAILED_INTEGRALS       #do not use piecewise constant approximation for integrals used in shattering and coagulation calculations to compute grain collision cross sections, but use slower piecewise linear integrals
 #DL_PRODUCTION                          #creation of dust particles from star particles
 #DL_REFINEMENT                          #refinement of large dust particles
-#DL_DEREFINEMENT                        #derefinement of small dust particles
+#DL_DEREFINEMENT                        #derefinement of small dust particles, 0=derefine into closest dust particle with mass above derefinement mass, 1=derefine into closest dust particle
 #DL_SUBCYCLE                            #grain size evolution takes places over multiple subcycles during larger particle timesteps
+#DL_WINDS                               #stochastic prescription giving dust particles kicks to mimic dust winds
+#DL_ONLY_HIGHRES_DUST                   #avoid spawning very high mass dust particles; useful for zoom-in runs, where some star particles may have very high mass; requires DL_REFINEMENT for desired maximum dust mass
+#DL_RADIATION                           #main switch to allow dust particles and radiation to interact
+#DL_RADIATION_PRESSURE                  #radiation computed from MRT imparts momentum on by dust particles
+#DL_RADIATION_ABSORPTION                #dust particles provide opacity to absorb photons
+#DL_OUTPUT_RT_FLUX                      #print interpolated radiation field flux in snapshots
+#DL_THERMAL_IR                          #if tracking IR radiation, include the thermal coupling between dust and IR radiation
 
 #---------------------------------- Modified Gas Cooling
 #RADCOOL                                #Include the effects of local radiation fields on gas cooling rates, requires GFM, if PMGRID not defined then uncomment GRAVITY_NOT_PERIODIC, currently not compatible with PLACEHIGHRESREGION
 #RADCOOL_HOTHALO                        #Include radiation field from HOT GAS, works only with RADCOOL option
 #RADCOOL_HOTHALO_METAL_BOOST            #Include an additional boost factor to account for the additional luminosity emitted in emission lines
+#TEST_COOLING_METAL                     #call only cooling test routine (save cooling function with metal cooling for solar metallicity)
+#EXPLICIT_COOLING                       #switch to a 2-nd order explicit method for cooling if (u^{n+1} - u_{n}) < tol * u^{n}
 
-#-------------------------------------- FM - Star formation and feedback module
-#FM_SFR                                #turns on star formation (needs USE_SFR)
-#FM_STAR_FEEDBACK                      #turns on stellar feedback
-#FM_STAR_FEEDBACK_KICK_TYPE=1          #direction of the velocity kick: 0->random, 1->radial, 2->bipolar
-#NON_STOCHASTIC_MOMENTUM_FEEDBACK      #enables non-probabilistic momentum feedback
-#INJECT_INTO_SINGLE_CELL               #feedback energy is injected only over the closest neighbour of a star particle (requires NON_STOCHASTIC_MOMENTUM_FEEDBACK)
-#DIRECT_MOMENTUM_INJECTION_FEEDBACK    #SN momentum is injected non-stochastically but determined separately from kinetic energy
-#OUTPUT_SF_PROBABILITY                 #enables output of the probability of transforming gas cell into star particle
-#TEST_SFR                              #only calls the SF initialization and saves Kennicutt law (and the gas effective EOS if available)
-#USE_POLYTROPIC_EQSTATE                #imposes a minimum temperature to star forming gas (through a polytropic equation of state)
-#DELAYED_COOLING                       #turns on delayed cooling model (Stinson et al. 2006)
-#SHUTOFFTIME_UPDATE=0                  #update of the cooling shutoff time: 0->max(actual,computed); 1->sum(actual,computed)
-#DELAYED_COOLING_TURB                  #turns on delayed cooling model with turbulent enegy advection (Teyssier et al. 2012)
-#INSTANTANEOUS_DEPOSITION              #inject the SN energy after a minimum stellar age in at most FeedbackInjectionEvents times
-#EXPLICIT_COOLING                      #switch to a 2-nd order explicit method for cooling if (u^{n+1} - u_{n}) < tol * u^{n}
-#COMPUTE_SFR_FROM_H2                   #links the SFR to the H2 gas fraction
-#TEST_COOLING_METAL                    #call only cooling test routine (save cooling function with metal cooling for solar metallicity)
-#OUTPUT_STELLAR_FEEDBACK               #outputs SNII number, feedback energy and mass released for stellar particles and log files for feedback (requires GFM_STELLAR_EVOLUTION)
-#OUTPUT_MOLECULAR_FRACTION             #outputs the H2 gas fraction (requires COMPUTE_SFR_FROM_H2 switched on)
-#OUTPUT_OPTICAL_DEPTH                  #outputs the gas optical depth (requires COMPUTE_SFR_FROM_H2 switched on)
-#RADPRESS_OPT_THIN                     #adds radiative pressure in optically thin approximation. If GFM active only young stars are considered. Needs OTVET
-#RADPRESS_OPT_THIN_LUMPERMASS          #source emits at a rate proportional to mass (IonizingLumPerSolarMass in parameterfile). Otherwise constant given by IonizingLumPerSolarMass
-#RADPRESS_OPT_THICK                    #adds radiation pressure feedback using radiative transfer. Needs OTVET active
-#FM_RADIATION_FEEDBACK                 #inputs momentum to gas particles within stromgren radius, keep cells at 10^4 K and prevents star formation in them.
-#FM_RADIATION_FEEDBACK_DEBUG           #extra output fields for FM_RADIATION_FEEDBACK
-#FM_EARLY_STAR_FEEDBACK                #inputs momentum to neighbor gas particles according to the luminosity emmited by stars
-#FM_EARLY_STAR_FEEDBACK_KICK_TYPE=1    #direction of the early-feedback velocity kick: 0->random, 1->radial, 2->bipolar
-#OUTPUT_EARLY_STELLAR_FEEDBACK         #enable output of logging info (such as total momentum injected) for early stellar feedback
-#FM_MASS_WEIGHT_SN                     #feedback energy weighted by mass instead of volume
-#FM_OMEGA_WEIGHT_SN                     #feedback energy weighted by mass instead of volume
-#FM_VAR_SN_EFF	                       #SN efficiency scales with neighboring gas metallicity
-#FM_MOLEC_COOLING                      #approx extra molecular cooling contribution addition based on fit to GRACKLE cooling curves
-#FM_COSMIC_RAY_HEATING                  #approx extra molecular cooling contribution addition based on fit to GRACKLE cooling curves
-#FM_SN_COOLING_RADIUS_BOOST            #returns momentum and energy to the ISM accounting for an unresolved energy conserving early ST blast wave phase
-#FM_STOCHASTIC_HII_PHOTOIONIZATION     #Photoionization is carried out stochastically based on mass in stromgren sphere
-
-
-
+#-------------------------------------- SMUGGLE - Star formation and feedback module
+SMUGGLE_SFR                                #turns on star formation (needs USE_SFR)
+SMUGGLE_STAR_FEEDBACK                      #turns on stellar feedback
+SMUGGLE_STAR_FEEDBACK_TIME_LIMITER         #turns on time step limiter for stellar evolution
+#SMUGGLE_VARIABLE_EFFICIENCY                #allows for variation of star formation efficiency based on virial parameter
+#SMUGGLE_OUTPUT_SF_PROBABILITY              #enables output of the probability of transforming gas cell into star particle
+#SMUGGLE_TEST_SFR                           #only calls the SF initialization and saves Kennicutt law (and the gas effective EOS if available)
+#SMUGGLE_USE_POLYTROPIC_EQSTATE             #imposes a minimum temperature to star forming gas (through a polytropic equation of state)
+SMUGGLE_COMPUTE_SFR_FROM_H2                #links the SFR to the H2 gas fraction
+SMUGGLE_OUTPUT_STELLAR_FEEDBACK            #outputs SNII number, feedback energy and mass released for stellar particles and log files for feedback (requires GFM_STELLAR_EVOLUTION)
+SMUGGLE_OUTPUT_MOLECULAR_FRACTION          #outputs the H2 gas fraction (requires SMUGGLE_COMPUTE_SFR_FROM_H2 switched on)
+#SMUGGLE_OUTPUT_OPTICAL_DEPTH               #outputs the gas optical depth (requires SMUGGLE_COMPUTE_SFR_FROM_H2 switched on)
+SMUGGLE_OUTPUT_VIRIAL_PARAM                #outputs the gas cell virial parameter
+#SMUGGLE_RADPRESS_OPT_THIN                  #adds radiative pressure in optically thin approximation. If GFM active only young stars are considered. Needs OTVET
+#SMUGGLE_RADPRESS_OPT_THIN_LUMPERMASS       #source emits at a rate proportional to mass (IonizingLumPerSolarMass in parameterfile). Otherwise constant given by IonizingLumPerSolarMass
+#SMUGGLE_RADPRESS_OPT_THICK                 #adds radiation pressure feedback using radiative transfer. Needs OTVET active
+SMUGGLE_RADIATION_FEEDBACK                 #inputs momentum to gas particles within stromgren radius, keep cells at 10^4 K and prevents star formation in them.
+SMUGGLE_RADIATION_FEEDBACK_DEBUG           #extra output fields for SMUGGLE_RADIATION_FEEDBACK
+#SMUGGLE_MASS_WEIGHT_SN                     #feedback energy weighted by mass instead of volume
+SMUGGLE_OMEGA_WEIGHT_SN                    #feedback energy weighted by solid angle instead of volume
+#SMUGGLE_VAR_SN_EFF	                    #SN efficiency scales with neighboring gas metallicity
+SMUGGLE_MOLEC_COOLING                      #approx extra molecular cooling contribution addition based on fit to CLOUDY cooling curves
+#SMUGGLE_DUST_HEATING_COOLING               #approx extra gas-dust collisional heating cooling (Meijerink & Spaans 2005)
+SMUGGLE_COSMIC_RAY_HEATING                 #approx cosmic rate heating based on formula of Guo & Oh (2008)
+SMUGGLE_PHOTOELECTRIC_HEATING              #approx photoelectric heating based on formula of Wolfire (2003)
+SMUGGLE_SN_COOLING_RADIUS_BOOST            #returns momentum and energy to the ISM accounting for an unresolved energy conserving early ST blast wave phase
+SMUGGLE_DISCRETE_SN                        #SN feedback is done in discrete SN rather then as a continuous injection
+SMUGGLE_AGB_WINDS                          #returns momentum and energy to the ISM accounting OB and AGB stellar winds
+SMUGGLE_STOCHASTIC_HII_PHOTOIONIZATION=0   #stochastic photoionization based on ionizing photon budget (0=each time step; 1=one ionization event per star particle)
+#SMUGGLE_SUPERBUBBLE_LIMITER                #sets feedback coupling radius according to estimates of superbubble sizes
 
 
 #-------------------------------------- Conduction
@@ -824,36 +817,47 @@ GFM_RPROCESS                           #see documentation/modules_GFM_chemtags, 
 #-------------------------------------- MRT
 #MRT                           # Moment based RT - currently support M1 closure
 #MRT_COMOVING                  # Solve the RT equations in the comoving reference frame
-#PHOTDENS_IN_ICS               # Read and write photon density in ICs
+#MRT_SUBCYCLE                  # Subcycle the RT step
+#MRT_INIT_IONIZATION           # initialize ionization
 #MRT_OUTPUT_FLUX               # output photon fluxes
 #MRT_TIME_EXTRAPOLATION        # Include the Runge Kutta time extrapolation - needed for second order convergence
 #MRT_FLUX_EXTRAPOLATION        # Extrapolate the photon flux as well - right now induces a bit of noise
-#MRT_COOLING_HEATING           # Cooling and Heating 
+#MRT_COOLING_HEATING           # Cooling and Heating
 #MRT_RADIATION_PRESSURE        # Include radition pressure as soucre term for the momentum conservation equation
 #MRT_INCLUDE_HE                # Include Helium in heating and cooling
 #MRT_LSF_GRADIENTS             # Use the least square fit gradient estimates
 #MRT_RIEMANN_ROSUNOV           # Use the Rosunov (GLF) riemann solver
+#MRT_RIEMANN_ROSUNOV_NEW       # Use the Rosunov (GLF) riemann solver (accounts mesh motion via advection step)
 #MRT_RIEMANN_HLLE              # Use the Harten-Lax-van Leer flux function
+#MRT_RIEMANN_HLLE_NEW          # Use the Harten-Lax-van Leer flux function (accounts mesh motion via advection step)
 #MRT_MULTI_FREQUENCY           # Multi Frequency radiative transfer
 #MRT_CHEMISTRY_PS2009          # Petkova & Springel 2009 Chemistry
 #MRT_CHEMISTRY_PS2011          # Petkova & Springel 2011 Chemistry
+#MRT_COUPLED_THERMOCHEMISTRY   # Solve the coupled chemistry and cooling equations
 #MRT_NO_OTSA                   # Do not apply On The Spot Approximation (OTSA)
 #MRT_NOCOLLISION_IONIZATION    # No Collisional ionisation
 #MRT_SLOWLIGHT                 # Reduce speed of light
+#MRT_DUAL_LIGHTSPEED           # Use dual speed of light reduced c for porpogation equations full c for the chemistry network
 #MRT_CONSTANT_KAPPA            # Constant Kappa
 #MRT_IR                        # Include IR radiative transfer - ala Rosdahl+15
 #MRT_IR_ONLY_CHEMISTRY         # Only do absorption terms and not the cooling terms - assume there is no absorption of energy, only the flux is absorbed
 #MRT_IR_LTE                    # Do gas heating and cooling according to single fluid gas-dust-IR radiation LTE assumption
 #MRT_IR_LTE_SEMI_IMPLICIT      # Follows  Rosdahl+15 iterative approach. Can lead to large number of interative steps (sometimes infinite)
-#MRT_IR_LTE_GSL                # Use the GSL provided Implicit Bulirsch-Stoer method of Bader and Deuflhard to solve the energy equation (Prefered Method) 
+#MRT_IR_LTE_GSL                # Use the GSL provided Implicit Bulirsch-Stoer method of Bader and Deuflhard to solve the energy equation (Prefered Method)
 #MRT_IR_PHOTON_TRAPPING        # Trap unresolved IR photons - not compatible with gradient extrapolations (hardcoded - no need to turn off time and space extrapolations)
 #MRT_IR_GRAIN_KAPPA            # Use grain opacities calculated from Draine & Lee 1984, Laor & Draine 1993, requires local dust-to-gas ratio from GFM_DUST
 #MRT_UV_ONLY_DUST              # Let UV radiation only interact with dust
 #MRT_NO_UV                     # Do not include UV RT (mainly for testing purposes)
 #MRT_SETUP_SPECIAL_BOUNDARIES  # Setup special boundary conditions (mainly for testing purposes)
 #MRT_LEVITATION_TEST           # Enable external gravity for levitation test
-#MRT_SOURCES                   # Enable source treatment for GFM stellar particles and black holes
-
+#MRT_SOURCES=0                 # Enable source treatment for GFM stellar particles and black holes
+#MRT_REDUCE_OUTPUT             # less output from MRT
+#MRT_EQUIL_CHEM_COOL           # Do equilibrium chemistry + cooling
+#MRT_MOLECULAR_COOLING         # Molecular cooling  - fit from grackle
+#MRT_PHOTOELECTRIC_HEATING     # Photo electric heating
+#MRT_METAL_COOLING             # Add tabulated metal cooling
+#MRT_UVB                       # Add contribution from UVB - only z=0 for now
+#MRT_UPDATE_AT_END_OF_STEP     # update the hydro primitive varibales only at the end of hydro loop
 #-------------------------------------- MRT - STARS
 #MRT_STARS                     # Include ionizing photons from GFM stellar particles
 #MRT_STARS_EXACT_NGB           # no ngb mass-weighting
@@ -861,7 +865,19 @@ GFM_RPROCESS                           #see documentation/modules_GFM_chemtags, 
 #-------------------------------------- MRT - AGN
 #MRT_BH                        # Include photons from black hole particles
 #MRT_BH_EXACT_NGB              # no ngb mass-weighting
-#MRT_BH_PULSED                 # pulsed radiation injection 
+#MRT_BH_PULSED                 # pulsed radiation injection
+#MRT_BH_UV_INJECTION           # Inject photons in UV bin(s)
+#MRT_BH_IR_INJECTION           # Inject photons in IR bin
+#MRT_BH_BIPOLAR                # Inject photons in a bipolar manner
+#MRT_BH_BIPOLAR_SET_FLUX       # set photon flux for bipolar injection
+#MRT_BH_OMEGA_WEIGHT           # Weight photon injection by solid angle subtended by the cell
+
+#-------------------------------------- MRT - LOCAL FEEDBACK
+#MRT_LOCAL_FEEDBACK            # Main switch to couple to local feedback module
+#MRT_CHEM_SG                   # Switch to couple to SGchem module
+#MRT_INJECT_PHOTONS_EVERY_STEP # Inject photons every step regardless of wether the particle is active or not
+#MRT_SINGLE_STAR               # Setup to simulate single star feedback
+
 
 #-------------------------------------- OTVET IMPLEMENTATION
 #OTVET                                 #Master switch
@@ -892,6 +908,7 @@ GFM_RPROCESS                           #see documentation/modules_GFM_chemtags, 
 #TGCHEM_TEST                           #primordial chemistry and cooling network test (Greif 2014)
 #HEALRAY                               #adaptive ray-tracing (Greif 2014)
 #SINKS                                 #sink particles (under construction)
+#SINKS_MERGERS                         #enable mergers for sink particles
 
 
 #-------------------------------------- SIDM - Self-Interacting DM
@@ -906,18 +923,9 @@ GFM_RPROCESS                           #see documentation/modules_GFM_chemtags, 
 #SIDM_NO_MASSCHANGE                    #DEBUG: no mass change during inelastic scattering
 #SIDM_NO_ENERGYCHANGE                  #DEBUG: no energy change during inelastic scattering   NOTE: to get fully inelastic behaviour turn on SIDM_NO_MASSCHANGE and SIDM_NO_ENERGYCHANGE
 
-#-------------------------------------- ISM - new detailed ISM/stellar feedback model
-#ISM                                   #master switch (needs at minimum also GFM and GFM_STELLAR_EVOLUTION)
-#ISM_LOCAL_RADIATION_PRESSURE          #local stellar radiation pressure from star forming clumps (GMC)
-#ISM_LONG_RANGE_RADIATION_PRESSURE     #tbd
-#ISM_HII_PHOTO_HEATING                 #tbd
-#ISM_H2_SFR                            #tbd
-#ISM_OUTPUT_FIELDS=1+2+4
-
-
 #-------------------------------------- On-the-fly shock finder
 
-SHOCK_FINDER_BEFORE_OUTPUT             #Use this flag if you want to run the shock finder before a snapshot dump, no additional flags or parameters needed.
+#SHOCK_FINDER_BEFORE_OUTPUT             #Use this flag if you want to run the shock finder before a snapshot dump, no additional flags or parameters needed.
 #SHOCK_FINDER_ON_THE_FLY                #Run the shock finder at every local timestep, no additional flags or parameters needed.
 
 
@@ -1014,6 +1022,7 @@ SHOCK_FINDER_BEFORE_OUTPUT             #Use this flag if you want to run the sho
 #SNE_FEEDBACK
 #CLUSTERED_SNE
 #INJECT_TRACER_INTO_SN
+#SNE_solarring
 
 #-----------------Deprecated
 #CONDUCTION
@@ -1034,35 +1043,112 @@ SHOCK_FINDER_BEFORE_OUTPUT             #Use this flag if you want to run the sho
 #BAROTROPIC
 #PRIMCHEM
 
-# SINK particles                                                                                                                                                    
+# SINK particles
 #SINK_PARTICLES
 #DUMP_SINK_PARTICLE_INFO
 #SINK_PARTICLES_SKIM_CELL_MASS
 #SINK_PARTICLES_VARIABLE_ACC_RADIUS
+#SINK_PARTICLES_VARIABLE_CREATION
 #SINK_PARTICLES_LIMIT_TIMESTEP
 #SINK_PARTICLES_FEEDBACK
+#SINK_PHOTOION_FEEDBACK
+#SINK_PARTICLES_FEEDBACK_RETURN_MASS
 #SINK_PARTICLES_REFINEMENT_LIMIT
+#ALLOW_MULTIPLE_SINK_CREATION_PER_TIMESTEP
+#DEBUG_SINK_PARTICLES
+#SINK_PARTICLE_FREE_FALL_TEST
 
-
-#-------------------------------------- TreeCol
-#TREE_RAD
-#TREE_RAD_H2
-#TREE_RAD_CO
+#-------------------------------------- TreeColV2
+#TREECOLV2
+#TREECOLV2_C
+#TREECOLV2_CO
+#TREECOLV2_H2
+#TREECOLV2_VEL
 #NSIDE=2
-#TREE_RAD_NO_GAS_SELFGRAVITY
+#OUTPUTCOLUMN
 
 #TURBULENT_METALDIFFUSION
 #TURBULENT_METALDIFFUSION_EXPLICIT
 
+#------------------------------------- Model for subgrid-scale turbulence
+#SGS_TURBULENCE
+#SGS_TURBULENCE_IN_ICS
+#SGS_TURBULENCE_VIEW_CELLS_AS_CUBES
+#SGS_TURBULENCE_VIEW_CELLS_AS_SPHERES
+#SGS_TURBULENCE_EDDY_VISCOSITY
+#SGS_TURBULENCE_CONSTANT_EDDY_VISCOSITY
+#SGS_TURBULENCE_RIEMANN_PRESSURE
+#SGS_TURBULENCE_STRESS_TENSOR
+#SGS_TURBULENCE_TURBULENT_PRODUCTION
+#SGS_TURBULENCE_VISCOUS_DISSIPATION
+#SGS_TURBULENCE_LOG_PRODUCTION_DISSIPATION
+#SGS_TURBULENCE_MAKE_PRODUCTION_DISSIPATION_SPECTRUM
+#SGS_TURBULENCE_OUTPUT_SGS_PRESSURE
+#OUTPUT_SGS_T_PRESSURE_GRADIENT
+#OUTPUT_DENSTROPHY
+
 #------------------------------------- external Galaxy potential
-#GALPOT                               
+#GALPOT
 
 #------------------------------------- SGChem chemistry module
 #SGCHEM
 #CHEMISTRYNETWORK=5
-#MCMA 
+#MCMA
 #CHEM_IMAGE
 #IMAGE_FOOTERS
 #SGCHEM_VARIABLE_Z                     #Allow metallicity and dust-to-gas ratio to vary between different cells
 #SGCHEM_VARIABLE_ISRF                  #Allow interstellar radiation field strength to vary spatially
 #SGCHEM_VARIABLE_CRION                 #Allow cosmic ray ionization rate to vary spatially
+#SGCHEM_TEMPERATURE_FLOOR
+
+#------------------------------------- CHIMES Chemistry module
+#CHIMES
+#CHIMES_JEANS_SHIELDING
+#CHIMES_SOBOLEV_SHIELDING
+#CHIMES_PREENRICH_AT_START
+#CHIMES_PTHREADS
+#CHIMES_INITIALISE_IN_EQM
+#CHIMES_ADVECT_ABUNDANCES
+#CHIMES_DISABLE_SHIELDING_ON_EOS
+#CHIMES_DISABLE_ZCOOL_ON_EOS
+#CHIMES_REDSHIFT_DEPENDENT_UVB
+
+#------------------------------------- AGB_WIND
+#AGB_WIND
+
+#------------------------------------- SFR_MCS (Matthew C. Smith, private but collaboration encouraged)
+#SFR_MCS                               #master switch, requires USE_SFR
+#SFR_MCS_LOG                           #Histogram of SF site densities
+#SFR_MCS_LOG_N=200                     #Number of density bins in log10 H/cc
+#SFR_MCS_LOG_MIN=0
+#SFR_MCS_LOG_MAX=8
+
+#JEANS_PRESSURE_LIMIT_MCS=8            #Pressure floor
+
+#SN_MCS                                #SN master switch, requires SFR_MCS
+#MECHANICAL_FEEDBACK
+#SN_NO_ENERGY                          #Mass return etc. but no energy/momentum injection
+#SN_MCS_LOG                            #Histogram of SN site densities
+#SN_MCS_LOG_N=200                      #Number of density bins in log10 H/cc
+#SN_MCS_LOG_MIN=0
+#SN_MCS_LOG_MAX=8
+#SB99_FIXED_Z                          #Use Starburst99 rates at a fixed metallicity
+
+#SN_MCS_DEBUG                          #Debug switches
+#MCS_UTHERM_CATCH
+#METAL_ERROR_CATCH
+#SN_MCS_CELL_VERBOSE
+#SN_MCS_WEIGHTS_VERBOSE
+
+#------------------------------------- SPRAI (SimpleX Radiation Transfer)
+#SIMPLEX
+#SX_CHEMISTRY=3
+#SX_NDIR=84
+#SX_SOURCES=10
+#SX_NUM_ROT=5
+#SX_HYDROGEN_ONLY
+#SX_DISPLAY_STATS
+#SX_DISPLAY_TIMERS
+#SX_OUTPUT_IMAGE
+#SX_OUTPUT_IMAGE_ALL
+#SX_OUTPUT_FLUX

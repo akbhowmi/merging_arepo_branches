@@ -1,6 +1,6 @@
-#! /usr/bin/env python
+#!/usr/bin/env python3
 """ Idealized test, AMR sedov in 2D. """
-import os
+import os.path
 import h5py
 import numpy as np
 import sys

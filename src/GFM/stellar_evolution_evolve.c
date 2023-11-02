@@ -765,7 +765,7 @@ void evolve_OB_winds(MyDouble log_min_mass, MyDouble log_max_mass, MyFloat age_o
 
   /* mass released is too small to have an appreciable effect (1e-4 the initial stellar mass would be returned) */
   /* the factor is the same used for GFM_DISCRETE_ENRICHMENT threshold */
-  if(ejected_mass < 1e-5)
+  if(ejected_mass < 1e-4)
     return;
 
   if(ejected_mass >= 0)

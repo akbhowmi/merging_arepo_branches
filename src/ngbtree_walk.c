@@ -194,7 +194,6 @@ int ngb_treefind_variable_threads(MyDouble searchcenter[3], MyFloat hsml, int ta
   return numngb;
 }
 
-
 /*! \brief Prepares export of ngb-tree node.
  *
  *  \param[in] no Pseudoparticle node to be exported.

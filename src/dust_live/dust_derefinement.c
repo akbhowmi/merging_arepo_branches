@@ -204,7 +204,8 @@ void exchange_derefine_results(void)
           ncount1++;
         }
 
-  Tree_SimpleDerefineImported = mymalloc("Tree_SimpleDerefineImported", ncount * sizeof(struct simple_derefineimported_data));
+  Tree_SimpleDerefineImported = (struct simple_derefineimported_data *)mymalloc("Tree_SimpleDerefineImported",
+                                                                                ncount * sizeof(struct simple_derefineimported_data));
 
   memset(Tree_SimpleDerefineImported, 0, ncount * sizeof(struct simple_derefineimported_data));
 
@@ -310,7 +311,8 @@ void exchange_derefine_results(void)
         }
     }
 
-  tmp_simple_results = mymalloc("tmp_simple_results", nexport * sizeof(struct simple_derefineimported_data));
+  tmp_simple_results =
+      (struct simple_derefineimported_data *)mymalloc("tmp_simple_results", nexport * sizeof(struct simple_derefineimported_data));
   memset(tmp_simple_results, -1, nexport * sizeof(struct simple_derefineimported_data));
 
   for(ngrp = 1; ngrp < (1 << PTask); ngrp++)
@@ -365,7 +367,8 @@ void exchange_derefine_results(void)
           ncount1++;
         }
 
-  Tree_DerefineImported = mymalloc("Tree_DerefineImported", ncount * sizeof(struct derefineimported_data));
+  Tree_DerefineImported =
+      (struct derefineimported_data *)mymalloc("Tree_DerefineImported", ncount * sizeof(struct derefineimported_data));
 
   memset(Tree_DerefineImported, 0, ncount * sizeof(struct derefineimported_data));
 
@@ -507,7 +510,7 @@ void exchange_derefine_results(void)
         }
     }
 
-  tmp_results = mymalloc("tmp_results", nexport * sizeof(struct derefineimported_data));
+  tmp_results = (struct derefineimported_data *)mymalloc("tmp_results", nexport * sizeof(struct derefineimported_data));
   memset(tmp_results, -1, nexport * sizeof(struct derefineimported_data));
 
   for(ngrp = 1; ngrp < (1 << PTask); ngrp++)

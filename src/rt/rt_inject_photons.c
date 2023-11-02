@@ -71,13 +71,6 @@ void rt_advect_main(void)
   All.Ti_LastRadTransfer = All.Ti_Current;
 }
 
-struct diff_list
-{
-  int sourceid;
-  double dPhotons;
-  MyFloat sourcepos[3];
-} * diff;
-
 #if !defined(RT_SPREAD_SOURCE) && !defined(USE_SFR)
 void rt_inject_photons_single(tessellation *T, double dt)
 {
@@ -144,7 +137,7 @@ void rt_inject_photons_single(tessellation *T, double dt)
                   /* note: this may have destroyed the order according to source ID (needed for gradient estimate),
                      so let's recreate this */
 
-                  struct diff_list *data_for_sort = mymalloc("to_sort", RT_N_DIR * sizeof(struct diff_list));
+                  struct diff_list *data_for_sort = (struct diff_list *)mymalloc("to_sort", RT_N_DIR * sizeof(struct diff_list));
 
                   for(j = 1; j < RT_N_DIR; j++)
                     {

@@ -185,7 +185,7 @@ if makeplots:
         filename = 'snap_%03d.hdf5' % i_file
         try:
             data = h5py.File(os.path.join(directory, filename), 'r')
-        except:
+        except (OSError, IOError):
             break
 
         print(filename)
@@ -229,7 +229,7 @@ if makeplots:
                     dpi=300)
         plt.close(fig)
 # criteria for failing the test
-if np.max([err_vx, err_vy, err_rho, err_p]) > tol:
+if np.max([err_vx, err_vy, err_rho, err_p]) <= tol:
+    print('normal exit')
+else:
     sys.exit(1)
-
-print('normal exit')

@@ -75,7 +75,7 @@ while True:
                       zPosFromCenter3**2)
     # disk height
     h_disp = np.std(zPosFromCenter2)
-    if h_disp > 1.2:
+    if not h_disp <= 1.2:
         status = 1
         print('ERROR: %d disk height: %g' % (i_file, h_disp))
     # rotation curve/enclosed mass
@@ -176,7 +176,7 @@ while True:
         fig.savefig(os.path.join(directory,
                                  'rotation_curve_%03d.pdf' % i_file))
 
-    ## comparision to first snapshot (ICs)
+    ## comparison to first snapshot (ICs)
     if i_file == 0:
         mEnc1Grid_ref[:] = mEnc1Grid[:]
         mEnc2Grid_ref[:] = mEnc2Grid[:]
@@ -184,7 +184,7 @@ while True:
     else:
         tolerance = 1.0
         delta_mEnc = mEnc1Grid_ref - mEnc1Grid
-        if np.max(abs(delta_mEnc)) > tolerance:
+        if not np.max(abs(delta_mEnc)) <= tolerance:
             status = 1
             print(
                 'ERROR: i_file: %d: enclosed mass difference in halo (part1) exceeds tolerance %g'
@@ -192,7 +192,7 @@ while True:
             print(delta_mEnc)
 
         delta_mEnc = mEnc2Grid_ref - mEnc2Grid
-        if np.max(abs(delta_mEnc)) > tolerance:
+        if not np.max(abs(delta_mEnc)) <= tolerance:
             status = 1
             print(
                 'ERROR: i_file: %d: enclosed mass difference in disc (part2) exceeds tolerance %g'
@@ -200,7 +200,7 @@ while True:
             print(delta_mEnc)
 
         delta_mEnc = mEnc3Grid_ref - mEnc3Grid
-        if np.max(abs(delta_mEnc)) > tolerance:
+        if not np.max(abs(delta_mEnc)) <= tolerance:
             status = 1
             print(
                 'ERROR: i_file: %d: enclosed mass difference in bulge (part3) exceeds tolerance %g'

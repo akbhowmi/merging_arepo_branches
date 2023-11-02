@@ -480,12 +480,6 @@ void gfm_spawn_wind_from_cell(int igas, double v, double utherm, int istar, MyFl
   gfm_add_star(istar, igas, P[istar].Mass, -All.WindFreeTravelMaxTimeFactor / All.cf_hubble_a, 1.5 * get_cell_radius(igas));
 #endif
 
-#ifdef GAS_BASED_SEED_MODEL
-  StarP[P[istar].AuxDataID].Parent_GasID = P[igas].ID;
-  StarP[P[istar].AuxDataID].Spawned = 3;
-#endif
-
-
 #ifdef MHD
   double Emag = 0.5 * (SphP[igas].B[0] * SphP[igas].B[0] + SphP[igas].B[1] * SphP[igas].B[1] + SphP[igas].B[2] * SphP[igas].B[2]) *
                 SphP[igas].Volume * All.cf_atime;

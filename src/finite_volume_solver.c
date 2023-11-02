@@ -270,8 +270,8 @@ void compute_interface_fluxes(tessellation *T)
 
       struct geometry geo;
 
-      struct state state_L, state_center_L, delta_time_L, delta_space_L;
-      struct state state_R, state_center_R, delta_time_R, delta_space_R;
+      struct state state_L, state_center_L, state_comoving_L, delta_time_L, delta_space_L;
+      struct state state_R, state_center_R, state_comoving_R, delta_time_R, delta_space_R;
 
 #if defined(SECOND_DERIVATIVES) && defined(RECONSTRUCT_GRADIENTS)
       struct grad_data delta_grad_time_L, delta_grad_space_L;
@@ -370,17 +370,26 @@ void compute_interface_fluxes(tessellation *T)
       face_space_extrapolate_gradients(&delta_grad_space_R, &state_center_R);
 #endif
 
-      /*initialize st->velx/y/z as fluid velocity in frame moving with interface velocity*/
-      state_convert_to_local_frame(&state_center_L, vel_face, hubble_a, atime);
-      state_convert_to_local_frame(&state_center_R, vel_face, hubble_a, atime);
-
       /* copy center state to state at interface, then add extrapolation terms */
-      state_L = state_center_L;
-      state_R = state_center_R;
+      state_comoving_L = state_center_L;
+      state_comoving_R = state_center_R;
+
+      /* convert state_center_L/R to the frame in which we want to do spatial and time extrapolation
+         this has to be called on each state, because it initialises velx/vely/velz */
+#ifndef FINITE_VOLUME_EXTRAPOLATION_IN_LABFRAME
+      /* default is moving frame of the gas */
+      state_convert_to_moving_frame(&state_comoving_L, state_center_L.velGas, hubble_a, atime);
+      state_convert_to_moving_frame(&state_comoving_R, state_center_R.velGas, hubble_a, atime);
+#else
+      /* still call this, because it also does hubble flow corrections */
+      double velLabFrame[3] = {0., 0., 0.};
+      state_convert_to_moving_frame(&state_comoving_L, velLabFrame, hubble_a, atime);
+      state_convert_to_moving_frame(&state_comoving_R, velLabFrame, hubble_a, atime);
+#endif
 
       /*time extrapolation of primitive variables, only applied in second flux computation with new mesh*/
-      face_do_time_extrapolation(&delta_time_L, &state_center_L, atime);
-      face_do_time_extrapolation(&delta_time_R, &state_center_R, atime);
+      face_do_time_extrapolation(&delta_time_L, &state_comoving_L, atime);
+      face_do_time_extrapolation(&delta_time_R, &state_comoving_R, atime);
 
 #if defined(VISCOSITY) && defined(SECOND_DERIVATIVES)
       /*modify the predictor step (MUSCL-Hancock) or time extrapolation (Runge-Kutta) with a viscous kick (source term) */
@@ -401,9 +410,16 @@ void compute_interface_fluxes(tessellation *T)
       face_extrapolate_sgs_turbulence_viscous_kick(&delta_time_R, &state_center_R);
 #endif
 
+      /* now convert the center state to the moving frame of the interface */
+      state_convert_to_moving_frame(&state_center_L, vel_face, hubble_a, atime);
+      state_convert_to_moving_frame(&state_center_R, vel_face, hubble_a, atime);
+
+      state_L = state_center_L;
+      state_R = state_center_R;
+
       /*extrapolate primitive variables in space from cell center to interface*/
-      face_do_spatial_extrapolation(&delta_space_L, &state_center_L, &state_center_R);
-      face_do_spatial_extrapolation(&delta_space_R, &state_center_R, &state_center_L);
+      face_do_spatial_extrapolation(&delta_space_L, &state_comoving_L, &state_comoving_R);
+      face_do_spatial_extrapolation(&delta_space_R, &state_comoving_R, &state_comoving_L);
 
       face_add_extrapolations(&state_L, &delta_time_L, &delta_space_L, &stat);
       face_add_extrapolations(&state_R, &delta_time_R, &delta_space_R, &stat);
@@ -901,7 +917,7 @@ void compute_interface_fluxes(tessellation *T)
                   qother       = VF[i].p2;
 #endif
 #if(defined(MHD_POWELL) && !defined(MHD_POWELL_SPLIT)) || defined(MHD_DEDNER)
-                  state_center = &state_center_L;
+                  state_center = &state_comoving_L;
                   delta_time   = &delta_time_L;
 #endif
                 }
@@ -914,7 +930,7 @@ void compute_interface_fluxes(tessellation *T)
                   qother       = VF[i].p1;
 #endif
 #if(defined(MHD_POWELL) && !defined(MHD_POWELL_SPLIT)) || defined(MHD_DEDNER)
-                  state_center = &state_center_R;
+                  state_center = &state_comoving_R;
                   delta_time   = &delta_time_R;
 #endif
                 }
@@ -1050,9 +1066,9 @@ void compute_interface_fluxes(tessellation *T)
                   SphP[p].AConserved[2] += dir * flux.A[2];
 #endif
 #if defined(MHD_POWELL) && !defined(MHD_POWELL_SPLIT)
-                  double Velx = state_center->velx + delta_time->velx + vel_face[0];
-                  double Vely = state_center->vely + delta_time->vely + vel_face[1];
-                  double Velz = state_center->velz + delta_time->velz + vel_face[2];
+                  double Velx = state_center->velGas[0] + delta_time->velx;
+                  double Vely = state_center->velGas[1] + delta_time->vely;
+                  double Velz = state_center->velGas[2] + delta_time->velz;
 
                   if(All.ComovingIntegrationOn)
                     {
@@ -1262,9 +1278,9 @@ void compute_interface_fluxes(tessellation *T)
                   FluxList[Nflux].dA[2] = dir * flux.A[2];
 #endif
 #if defined(MHD_POWELL) && !defined(MHD_POWELL_SPLIT)
-                  double Velx           = state_center->velx + delta_time->velx + vel_face[0];
-                  double Vely           = state_center->vely + delta_time->vely + vel_face[1];
-                  double Velz           = state_center->velz + delta_time->velz + vel_face[2];
+                  double Velx           = state_center->velGas[0] + delta_time->velx;
+                  double Vely           = state_center->velGas[1] + delta_time->vely;
+                  double Velz           = state_center->velGas[2] + delta_time->velz;
 
                   if(All.ComovingIntegrationOn)
                     {
@@ -1626,18 +1642,18 @@ int face_get_state(tessellation *T, int p, int i, struct state *st)
   if(particle >= NumGas && DP[p].task == ThisTask)
     particle -= NumGas;
 
-  /* interpolation vector for the left state */
+  /* interpolation vector for the left state, starting from the position where we estimated the gradients! */
   if(DP[p].task == ThisTask)
     {
-      st->dx = VF[i].cx - SphP[particle].Center[0];
-      st->dy = VF[i].cy - SphP[particle].Center[1];
-      st->dz = VF[i].cz - SphP[particle].Center[2];
+      st->dx = VF[i].cx - SphP[particle].Grad.Center[0];
+      st->dy = VF[i].cy - SphP[particle].Grad.Center[1];
+      st->dz = VF[i].cz - SphP[particle].Grad.Center[2];
     }
   else
     {
-      st->dx = VF[i].cx - PrimExch[particle].Center[0];
-      st->dy = VF[i].cy - PrimExch[particle].Center[1];
-      st->dz = VF[i].cz - PrimExch[particle].Center[2];
+      st->dx = VF[i].cx - GradExch[particle].Center[0];
+      st->dy = VF[i].cy - GradExch[particle].Center[1];
+      st->dz = VF[i].cz - GradExch[particle].Center[2];
     }
 
     /* correct for periodicity */
@@ -1651,15 +1667,15 @@ int face_get_state(tessellation *T, int p, int i, struct state *st)
   {
     if(DP[p].task == ThisTask)
       {
-        st->dxL = NEAREST_X(VF[i].cx - SphP[particle].Center[0] - SphP[particle].CenterOffset[0]);
-        st->dyL = NEAREST_Y(VF[i].cy - SphP[particle].Center[1] - SphP[particle].CenterOffset[1]);
-        st->dzL = NEAREST_Z(VF[i].cz - SphP[particle].Center[2] - SphP[particle].CenterOffset[2]);
+        st->dxL = NEAREST_X(VF[i].cx - SphP[particle].Grad.Center[0] - SphP[particle].CenterOffset[0]);
+        st->dyL = NEAREST_Y(VF[i].cy - SphP[particle].Grad.Center[1] - SphP[particle].CenterOffset[1]);
+        st->dzL = NEAREST_Z(VF[i].cz - SphP[particle].Grad.Center[2] - SphP[particle].CenterOffset[2]);
       }
     else
       {
-        st->dxL = NEAREST_X(VF[i].cx - PrimExch[particle].Center[0] - PrimExch[particle].CenterOffset[0]);
-        st->dyL = NEAREST_Y(VF[i].cy - PrimExch[particle].Center[1] - PrimExch[particle].CenterOffset[1]);
-        st->dzL = NEAREST_Z(VF[i].cz - PrimExch[particle].Center[2] - PrimExch[particle].CenterOffset[2]);
+        st->dxL = NEAREST_X(VF[i].cx - GradExch[particle].Center[0] - PrimExch[particle].CenterOffset[0]);
+        st->dyL = NEAREST_Y(VF[i].cy - GradExch[particle].Center[1] - PrimExch[particle].CenterOffset[1]);
+        st->dzL = NEAREST_Z(VF[i].cz - GradExch[particle].Center[2] - PrimExch[particle].CenterOffset[2]);
       }
   }
 #endif
@@ -2009,7 +2025,7 @@ int face_get_state(tessellation *T, int p, int i, struct state *st)
  *
  *  \return void
  */
-void face_boundary_check_vertex(tessellation *T, int p, MyFloat *velx, MyFloat *vely, MyFloat *velz)
+void face_boundary_check_vertex(tessellation *T, int p, double *velx, double *vely, double *velz)
 {
   /* check for reflecting or outflowing boundaries */
 #if defined(REFLECTIVE_X)
@@ -2193,18 +2209,14 @@ double face_timestep(struct state *state_L, struct state *state_R, double *hubbl
   return face_dt;
 }
 
-/*! \brief Converts the velocities to local frame, compensating for the
- *         movement of the face.
+/*! \brief Converts the state to moving frame. Also recomputes dx relative to interface from new center position.
  *
- *  \param[in, out] st State to be converted to local frame.
- *  \param[in] vel_face Face velocity.
- *  \param[in] hubble_a Value of Hubble function at scalefactor
- *             a (cosmological).
- *  \param[in] atime Scalefactor (cosmological).
+ *  \param[in, out] st State to be converted to moving frame frame.
+ *  \param[in] vel_ref Velocity of moving frame we transform into.
  *
  *  \return void
  */
-void state_convert_to_local_frame(struct state *st, double *vel_face, double hubble_a, double atime)
+void state_convert_to_moving_frame(struct state *st, double *vel_ref, double hubble_a, double atime)
 {
   if(All.ComovingIntegrationOn)
     {
@@ -2213,9 +2225,22 @@ void state_convert_to_local_frame(struct state *st, double *vel_face, double hub
       st->velGas[2] /= atime;
     }
 
-  st->velx = st->velGas[0] - vel_face[0];
-  st->vely = st->velGas[1] - vel_face[1];
-  st->velz = st->velGas[2] - vel_face[2];
+  st->velx = st->velGas[0] - vel_ref[0];
+  st->vely = st->velGas[1] - vel_ref[1];
+  st->velz = st->velGas[2] - vel_ref[2];
+
+  double dt = st->dtExtrapolation;
+  if(All.ComovingIntegrationOn)
+    dt /= atime;
+
+#ifndef ONEDIMS_SPHERICAL
+  st->dx = nearest_x(st->dx - dt * vel_ref[0]);
+#else
+  st->dx = st->dx - dt * vel_ref[0];
+#endif
+
+  st->dy = nearest_y(st->dy - dt * vel_ref[1]);
+  st->dz = nearest_z(st->dz - dt * vel_ref[2]);
 
   if(All.ComovingIntegrationOn)
     {

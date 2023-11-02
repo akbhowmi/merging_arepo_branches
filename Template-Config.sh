@@ -7,7 +7,6 @@
 #--------------------------------------- Basic operation mode of the code
 NTYPES=6                       # number of particle types
 #RANDOM_REALIZATION
-#PERIODIC
 #TWODIMS
 #AXISYMMETRY                   # This is for axisymmetry in cylindrical coordinates (requires TWODIMS and a stationary mesh)
 #ONEDIMS
@@ -108,6 +107,7 @@ VORONOI
 #COSMIC_RAYS_DIFFUSION_BOUNDARY_Z
 #COSMIC_RAYS_DIFFUSION_LIMITER
 #COSMIC_RAYS_DIFFUSION_OLD
+#COSMIC_RAYS_DIFFUSION_RELATIVE_CR_ENERGY_THRESHOLD
 #COSMIC_RAYS_SN_INJECTION
 #COSMIC_RAYS_SHOCK_ACCELERATION
 #COSMIC_RAYS_IN_ICS
@@ -140,6 +140,7 @@ VORONOI
 #GRADIENT_LIMITER_DUFFELL
 #DISABLE_TIME_EXTRAPOLATION              # use only when you know exactly what you are doing; activating this option will make your results wrong but can tell you about the behavior of your code
 #DISABLE_SPATIAL_EXTRAPOLATION           # use only when you know exactly what you are doing; activating this option will make your results wrong but can tell you about the behavior of your code
+#FINITE_VOLUME_EXTRAPOLATION_IN_LABFRAME # do extrapolation in labframe instead of moving frame of the gas
 #DISABLE_SPATIAL_RECONSTRUCTION
 #NO_SCALAR_GRADIENTS                     # disables time and spatial extrapolation for passive scalar fields
 #GRADIENTS_GREEN_GAUSS                   # original (now deprecated) gradient estimate, reduced hydro scheme to first order
@@ -206,10 +207,12 @@ TREE_BASED_TIMESTEPS      # non-local time step criterion (take â€œsignal speedâ
 #--------------------------------------- Refinement and derefinement
 REFINEMENT_SPLIT_CELLS
 REFINEMENT_MERGE_CELLS
+#REFINEMENT_LIMIT_STARFORMING_GAS
 #GRADIENTREFINEMENT
 #REFINEMENT_SPLIT_MOST_DISTANCE_NEIGHBOUR
 #REFINEMENT_MERGE_PAIRS
 #REFINEMENT_VOLUME_LIMIT
+#REFINEMENT_KEEP_INITIAL_VOLUME
 #REFINEMENT_HIGH_RES_GAS
 #REFINEMENT_CGM
 #REFINEMENT_CGM_USE_R200M
@@ -349,6 +352,7 @@ DOUBLEPRECISION_FFTW
 
 #-------------------------------------- AGN stuff
 #BLACK_HOLES               # enables Black-Holes (master switch)
+#BH_CONSTANT_EDDINGTON_RATIO
 #BH_THERMALFEEDBACK        # quasar-mode: couple a fraction of the BH luminosity into surrounding
 #BH_THERMALFEEDBACK_ACC    # quasar-mode: bursty quasar-mode, accumulate thermal energy
 #BH_NF_RADIO               # radio-mode model based on Nulsen & Fabian theory
@@ -374,65 +378,10 @@ DOUBLEPRECISION_FFTW
 #BH_FRICTION_AGGRESSIVE
 #BH_HARMONIC_OSCILLATOR_FORCE
 BH_INFLOW_RATE
-#------------------------------------
-#SEED_BLACKHOLES_IN_SUBHALOS
-#CREATE_SUBFOFS
-#BFOFS_AS_GASCLUMPS	  # bFOFs are actually identified as dense gas clumps, use this only with CREATE_SUBFOFS
-#GAS_CLUMP_PRIMARY_LINK_TYPES=1
-#INCLUDE_MERGERS_OF_UNRESOLVED_SEED_BHS
-#POWERLAW_MODEL_FOR_UNRESOLVED_MERGERS
-#GAS_CLUMP_SECONDARY_LINK_TYPES=16
-#------------------------------------- Gas-based BH seeding
-#GAS_BASED_SEED_MODEL      # seed BHs based on local gas properties (overrides default seeding criterion based only on FOF halo mass)
-#ONLY_SEED_IN_VALID_FOFS   # makes sure BHs are seeded only in FOFs that have sufficient number of dark matter particles
-#SEED_GAS_DENSITY_CRITERION = 0     # 0: default, form seed from densest gas cell above SF threshold, 1: form seed from densest star-forming gas cell
-#SEED_GAS_METALLICITY_CRITERION     # impose gas metallicity constraints on the seed parent cell (requires parameters MinMetallicityForNewSeed & MaxMetallicityForNewSeed)
-#SEED_MASS_HALO_MASS_RATIO_CRITERION # minumum ratio between the FOF mass and the BH seed mass for seeding to occur
-#SEED_STARFORMINGGASMASS_CRITERION
-#SEED_STARFORMINGMETALFREEGASMASS_CRITERION
-#SEED_STARFORMINGMETALFREELYMANWERNERGASMASS_CRITERION
-#SEED_LYMANWERNERGASMASS_CRITERION
-#SEED_GASSPIN_CRITERION
-#SEED_STARFORMINGGASMETALLICITY_CRITERION
-#SEED_LYMAN_WERNER_INTENSITY_CRITERION
-SEED_HALO_ENVIRONMENT_CRITERION
-SEED_HALO_ENVIRONMENT_CRITERION1
-SEED_HALO_ENVIRONMENT_CRITERION2
-#PROBABILISTIC_SEEDING
-#NO_SEEDING_IN_LOW_RESOLUTION_CONTAMINATED_HALOS
-#-----------------------------------------------
-#SEED_BASED_ON_PROBABLISTIC_HALO_PROPERTIES
-#PROBABILISTIC_SEED_MASS_HALO_MASS_RATIO_CRITERION
-#EVOLVING_SEEDHALOMASS_DISTRIBUTION
-#EVOLVING_SEEDHALOMASS_DISTRIBUTION_METALENRICHMENT
-#EVOLVING_SEEDHALOMASS_DISTRIBUTION_QUADRATIC_MODEL
-#EVOLVING_SEEDHALOMASS_DISTRIBUTION_DOUBLE_POWERLAW_MODEL
-#EVOLVING_SEEDHALOMASS_DISTRIBUTION_DOUBLE_POWERLAW_MODEL2
-#EVOLVING_SEEDING_PROBABILITY
-#CORRECT_FOR_HALO_MASS_BIAS_IN_ENVIRONMENT_BASED_SEEDING
-#------------------------------------ Seedmass criterion
-#UNIFORM_SEEDMASS_DISTRIBUTION
-#------------------------------------ Additional BH outputs
-#PTYPE_USED_FOR_ENVIRONMENT_BASED_SEEDING = 0
-#BUILD_NGBTREE_FOR_ALL_PARTICLES
-#CONSTRUCT_FOF_NGBTREE
-#STORE_MERGERS_IN_SNAPSHOT
-#OUTPUT_LOG_FILES_FOR_SEEDING
-#OUTPUT_HOST_PROPERTIES_FOR_BH_MERGERS
-#PREVENT_SPURIOUS_RESEEDING
-#PREVENT_SPURIOUS_RESEEDING2
-#PREVENT_SEEDING_AROUND_BLACKHOLE_NEIGHBORS2
-#ACCOUNT_FOR_SWALLOWED_PAINTED_GAS
-#SUPPRESS_STARFORMATION_ABOVE_CRITICAL_LYMANWERNERFLUX
-#CHECK_FOR_ENOUGH_GAS_MASS_IN_DCBH_FORMING_POCKETS
-#OUTPUT_STELLAR_AGE
-#SEED_BHS_FROM_ELIGIBLE_GAS_CELLS
-#------------------------------------
-#CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_SOURCES
-#CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS=0
-#CALCULATE_SPIN_STARFORMINGGAS
-#CALCULATE_LYMAN_WERNER_INTENSITY_ALL_SOURCES
-#CALCULATE_LYMAN_WERNER_INTENSITY_ALL_STARFORMINGGAS
+# -- LZK
+#BH_NEW_LOGS               # Create blackhole log files ('mergers' and 'details') separated by snapshot and including additional information
+#BH_DF_DISCRETE            # Use [Ma, Hopkins, Kelley, Fauche-Giguere] discrete dynamical friction prescription for BH particles
+
 #-------------------------------------- AGN spin evolution and recoil merger kicks
 #BH_RECOIL_KICK             # Includes the remnant recoil of a BH merger
 #BH_SPIN_EVOLUTION          # When this is enabled, spin evolution of black holes is computed
@@ -443,6 +392,8 @@ SEED_HALO_ENVIRONMENT_CRITERION2
 #BH_BUBBLES              # calculate bubble energy directly from the black hole accretion rate (-->OBSOLETE: replaced by BH_NEW_RADIO)
 #BH_MAGNETIC_BUBBLES     # inject part of the  bubble energy as magnetic energy
 #BH_MAGNETIC_DIPOLAR_BUBBLES #inject part of the bubble energy as magnetic energy, field arranged as a dipole with random orientation
+#BH_FAST_WIND
+#BH_FAST_WIND_STOCHASTIC
 #BH_ADIOS_WIND
 #BH_ADIOS_DENS_DEP_EFFICIANCY  # makes the radiative efficiency density dependend
 #BH_ADIOS_WIND_WITH_QUASARTHRESHOLD  # use a threshold value ("qusarthrehold") of bondi-rate over Eddington rate to decide about quasar mode vs. adios wind
@@ -457,10 +408,6 @@ SEED_HALO_ENVIRONMENT_CRITERION2
 #SUPPRESS_SF_IN_REFINEMENT_REGION
 #BH_BIPOLAR_FEEDBACK
 
-
-#DMPIC
-#SOFTDOUBLEDOUBLE
-#X86FIX
 
 #---------------------------------------- Passive Tracers
 #TRACER_FIELD                        # passive scalar field which is advected in proportion to fluid mass fluxes
@@ -743,7 +690,6 @@ MEMORY_MANAGER_USE_MPROTECT    # mark memory for unallocated memory blocks as
 #RT_INCLUDE_HE
 #RT_SHORT_CHARACTERISTICS
 #RT_OUTPUT_COL_DENS
-#RT_SFR_SOURCES
 #SOURCE_PERIODIC
 
 #DO_NOT_MOVE_GAS
@@ -793,6 +739,12 @@ MEMORY_MANAGER_USE_MPROTECT    # mark memory for unallocated memory blocks as
 #WINDTUNNEL_FIXVARIABLESININJECTIONREGION # enables a region with fixed properties
 #WINDTUNNEL_REFINEMENT_VOLUME_LIMIT # Volume refinement option for windtunnel setup. REFINEMENT_VOLUME_LIMIT should also be enabled.
 #WINDTUNNEL_READ_IN_BFIELD # Overwrites B-field in injection region with a field specified in a separate file.
+
+
+#--------------------------------------- Dark Matter Windtunnel
+#DM_WINDTUNNEL                         # Master switch
+#DM_WINDTUNNEL_EXTERNAL_SOURCE         # Reads injection region parameters from a separate file
+#DM_WINDTUNNEL_STARS
 
 
 #--------------------------------------- Boundaries with optional inflow/outflow
@@ -1184,18 +1136,23 @@ MEMORY_MANAGER_USE_MPROTECT    # mark memory for unallocated memory blocks as
 #CONDUCTION
 #CONDUCTION_CRANK_NICOLSON
 #CONDUCTION_PCG
+#MAX_COND_ITER=400
+#COND_ITER_ACCURACY=1.0e-10
 
 #WG15_INTPL
 #SUNRISE
 
 
-#--------------------------------------- Grackle (DO NOT USE, UNTESTED, SEE README)
+#--------------------------------------- Grackle
 #GRACKLE                               #master switch
 #GRACKLE_H2                            #Turn on H2 cooling and chemistry
 #GRACKLE_D                             #Turn on Deuterium cooling and chemistry
 #GRACKLE_TAB                           #Run in tabulated mode
 #GRACKLE_ABUNDANCE_IN_ICS              #Use abundances in ICs instead of converging on startup
-#GRACKLE_VERBOSE
+#GRACKLE_PHOTOELECTRIC                 #Use global volumetric heating rate
+#GRACKLE_TEMPERATURE_FLOOR             #Obey temperature floor set by MinGasTemp or MinEgySpec (only with GRACKLE_TAB)
+#GRACKLE_VERBOSE                       #Turn on Grackle internal print statements
+#GRACKLE_UNCONVERGED_IGNORE            #On startup, proceed even if Grackle failed to find an equilibrium within iter limit.
 
 
 #--------------------------------------- Modified gravity solver (Private to Ewald Puchwein, Volker Springel and Christian Arnold)
@@ -1225,6 +1182,9 @@ MEMORY_MANAGER_USE_MPROTECT    # mark memory for unallocated memory blocks as
 #ALLOW_MULTIPLE_SINK_CREATION_PER_TIMESTEP
 #DEBUG_SINK_PARTICLES
 #SINK_PARTICLE_FREE_FALL_TEST
+#SINK_MERGERS
+#SINK_MERGERS_DEBUG
+#STORE_SINK_PARTICLE_SPIN
 
 
 #--------------------------------------- TreeColV2
@@ -1259,12 +1219,10 @@ MEMORY_MANAGER_USE_MPROTECT    # mark memory for unallocated memory blocks as
 #OUTPUT_SGS_T_PRESSURE_GRADIENT
 #OUTPUT_DENSTROPHY
 
+#------------------------------------- external Galaxy potential
+#GALPOT
 
-#--------------------------------------- external Galaxy potential
-#GALPOT                               
-
-
-#--------------------------------------- SGChem chemistry module
+#------------------------------------- SGChem chemistry module
 #SGCHEM
 #CHEMISTRYNETWORK=5
 #MCMA
@@ -1298,9 +1256,9 @@ MEMORY_MANAGER_USE_MPROTECT    # mark memory for unallocated memory blocks as
 #DEBUG_EVOLVE
 
 
-#--------------------------------------- CHIMES Chemistry module
-#CHIMES 
-#CHIMES_JEANS_SHIELDING 
+#------------------------------------- CHIMES Chemistry module
+#CHIMES
+#CHIMES_JEANS_SHIELDING
 #CHIMES_SOBOLEV_SHIELDING
 #CHIMES_PREENRICH_AT_START
 #CHIMES_PTHREADS
@@ -1310,36 +1268,61 @@ MEMORY_MANAGER_USE_MPROTECT    # mark memory for unallocated memory blocks as
 #CHIMES_DISABLE_ZCOOL_ON_EOS
 #CHIMES_REDSHIFT_DEPENDENT_UVB
 
-
-
-#--------------------------------------- AGB_WIND
+#------------------------------------- AGB_WIND
 #AGB_WIND
 
+#------------------------------------- SFR_MCS (Matthew C. Smith, private but collaboration encouraged)
+#SFR_MCS                         #master switch, requires USE_SFR
+#SFR_MCS_SELECT_CRITERIA=0       #Criteria that selects SF gas (see sfr_criteria_announce())
+#SFR_MCS_RATE_CRITERIA=0         #SF rate deterination method (see sfr_criteria_announce())
+#IMF_SAMPLING_MCS                #Explicitly sample the IMF instead of using Starburst99 properties
+#N_STAR_SLOTS=8                  #Number of available slots for massive stars per star particle
+#SFR_MCS_LOG                     #Histogram of SF site densities recorded and output
+#SFR_MCS_LOG_N=200               #Number of density bins in log10 H/cc
+#SFR_MCS_LOG_MIN=0               #log10 min density in H/cc
+#SFR_MCS_LOG_MAX=8               #log10 max density in H/cc
+#SFR_MCS_BIRTH_RECORDS           #Information about individual star particle birth written to snapshot
+#SFR_MCS_LOG_DETAILS             #Information about individual star particle birth written to output file
 
-#--------------------------------------- SFR_MCS (Matthew C. Smith, private but collaboration encouraged)
-#SFR_MCS                               # master switch, requires USE_SFR
-#SFR_MCS_LOG                           # Histogram of SF site densities
-#SFR_MCS_LOG_N=200                     # Number of density bins in log10 H/cc
-#SFR_MCS_LOG_MIN=0
-#SFR_MCS_LOG_MAX=8
+#JEANS_PRESSURE_LIMIT_MCS=8      #Pressure floor, enforce resolution of Jeans length by N cells
+#JEANS_MASS_PRESSURE_LIMIT_MCS   #Instead enforce resolution of Jeans mass (instead of length)
+#SMAUG_PRESSURE_FLOOR            #Ramses-like pressure floor formulation
 
-#JEANS_PRESSURE_LIMIT_MCS=8            # Pressure floor
+#SN_MCS                          #SN master switch, requires SFR_MCS
+#SN_MCS_MECHANICAL               #Use mechanical feedback scheme
+#SN_MCS_NNGB_MAX=64              #Buffer size for neighbours (and terminate if exceeded)
+#SN_MCS_NO_ENERGY                #Mass return etc. but no energy/momentum injection
+#SN_MCS_CHANCE=1                 #SN Energy boosted by SN_MCS_CHANCE, occur with prob. 1/SN_MCS_CHANCE
+#SN_MCS_LOG                      #Histogram of SN site densities
+#SN_MCS_LOG_N=200                #Number of density bins in log10 H/cc
+#SN_MCS_LOG_MIN=0                #log10 min density in H/cc
+#SN_MCS_LOG_MAX=8                #log10 max density in H/cc
+#SN_MCS_LOCATION_RECORDS         #Information about individual SNe written to snapshot
+#SN_MCS_LOG_DETAILS              #Information about individual SNe written to output file
+#SN_MCS_VARIABLE_EJECTA          #Ejecta mass and metallicity also interpolated from tables
+#SN_MCS_PROMPT                   #Only works with IMF_SAMPLING_MCS, SNe explode immediately
+#SN_MCS_SINGLE_INJECTION         #One SN event per star particle after fixed delay time.
+#SN_MCS_INITIAL_DRIVING          #Inject SNe directly from gas, used to settle an isolated simulation
 
-#SN_MCS                                # SN master switch, requires SFR_MCS
-#MECHANICAL_FEEDBACK
-#SN_NO_ENERGY                          # Mass return etc. but no energy/momentum injection
-#SN_MCS_LOG                            # Histogram of SN site densities
-#SN_MCS_LOG_N=200                      # Number of density bins in log10 H/cc
-#SN_MCS_LOG_MIN=0
-#SN_MCS_LOG_MAX=8
-#SB99_FIXED_Z                          # Use Starburst99 rates at a fixed metallicity
+#HII_MCS                         #Photoionization using overlapping Stromgren approximation
+#HII_MCS_ANISO                   #Solve Stromgren radius using independent healpix bins
+#HII_MCS_LR                      #Long range photoionisation/photoheating, tree based
+#HII_MCS_EVERY_SYNCPOINT         #Recalculate Hii regions every timestep
+#HII_MCS_DENSCUT                 #Exclude low density gas from HII calculation
+#HII_MCS_LOG                     #Turn on log file
 
-#SN_MCS_DEBUG                          # Debug switches
-#MCS_UTHERM_CATCH
-#METAL_ERROR_CATCH
-#SN_MCS_CELL_VERBOSE
-#SN_MCS_WEIGHTS_VERBOSE
+#PE_MCS                          #Photoelectric heating, ISRF calculated using tree
+#PE_MCS_PRESHIELD=0              #Attenuation at star particle. 0 = none, 1 = Jeans length
+#PE_MCS_POSTSHIELD=0             #Attenuation at gas cell. 0 = none, 1 = Jeans length
+#PE_MCS_LINEAR_DGR               #Make dust to gas ratio depend linearly on metallicity instead of broken power law
+#PE_MCS_FIXED_EPS                #Use a fixed efficiency supplied in parameterfile instead of varying with density
 
+#TURB_APPROX_MCS                 #ILES model, tracking generation and dissipation of unresolved turbulence
+#TURB_APPROX_MCS_GRAD_UNLIM      #Use unlimited velocity gradients
+#TURB_APPROX_MCS_RENORM          #Renormalise turb. energy as filter scale (from volume) changes
+#TURB_APPROX_MCS_SEED            #On startup, initialise turbulent energy from velocity shear
+#TURB_APPROX_MCS_KEEP_ICS        #On startup, use the turbulent energy from the ICs
+#TURB_APPROX_MCS_OUTPUT_RATES    #Output related quantities to snapshots
 
 #--------------------------------------- SPRAI (SimpleX Radiation Transfer)
 #SIMPLEX
@@ -1360,3 +1343,9 @@ MEMORY_MANAGER_USE_MPROTECT    # mark memory for unallocated memory blocks as
 #DURRIVE_BATTERY                       # activate Durrive & Langer (2015)
 #GFM_INJECT_B_FROM_SN                  # inject a dipolar magnetic field during SN events
 #MAGNETIC_BATTERIES_OUTPUT_GRADIENTS   # output gradients of electron number density, pressure, and momentum transfer rate
+
+#--------------------------------------- STELLAR RADIATIVE TRANSFER
+#SOLAR
+#SOLAR_RADIATIVE_TRANSFER_DIFF
+#SOLAR_RADIATIVE_TRANSFER_EDD
+#OUTPUT_QRAD

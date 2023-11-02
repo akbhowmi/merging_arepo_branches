@@ -42,7 +42,7 @@ void sx_phot_copy_PP_to_QPP( int dp, int d, MySxDouble nPhotons[SX_NFREQ] )
 	  //printf("SX: (%d) QPP realloc max %d old %d new %d \n",ThisTask,
 	  // 	 sxNumTotEDPD, sxMaxNumQPP, newNum);
 	  sxMaxNumQPP = newNum;
-	  sxQPP = myrealloc_movable(sxQPP, sxMaxNumQPP * sizeof(struct sxQPP_struct));
+	  sxQPP = (struct sxQPP_struct *)myrealloc_movable(sxQPP, sxMaxNumQPP * sizeof(struct sxQPP_struct));
 #ifdef SX_DISPLAY_MEMORY
 	  sxNumReallocQPP++;
 #endif
@@ -92,7 +92,7 @@ void sx_phot_exchange_photons(void)
   }
 
   // Create an export photon packet list
-  sxExportPP = mymalloc("sxExportPP", sxNumExportPP * sizeof(struct sxEPP_struct));
+  sxExportPP = (struct sxEPP_struct *)mymalloc("sxExportPP", sxNumExportPP * sizeof(struct sxEPP_struct));
   for( t=0, i=0; t<NTask; t++)
     {
       for( d=0; d<SX_NDIR; d++)
@@ -217,9 +217,9 @@ void sx_phot_exchange_photons(void)
 void sx_phot_exchange_start_run(void)
 {
   // Find all External DP and sort them by the Task
-  sxNumEDP = mymalloc("sxNumEDP", NTask * sizeof(int));
+  sxNumEDP = (int *)mymalloc("sxNumEDP", NTask * sizeof(int));
   memset(sxNumEDP, 0, NTask * sizeof(int));
-  sxDPtoEDP = mymalloc("sxDPtoEDP", Mesh.Ndp * sizeof(int));
+  sxDPtoEDP = (int *)mymalloc("sxDPtoEDP", Mesh.Ndp * sizeof(int));
   memset(sxDPtoEDP, -1, NTask * sizeof(int));
 
   for( int dp=0; dp<Mesh.Ndp; dp++ )
@@ -240,7 +240,7 @@ void sx_phot_exchange_start_run(void)
     }
 
   // Calculate total numbers of EDP/EDPD and their offsets with respect to the Task
-  sxOffEDP = mymalloc("sxOffEDP", NTask * sizeof(int));
+  sxOffEDP = (int *)mymalloc("sxOffEDP", NTask * sizeof(int));
   memset(sxOffEDP, 0, NTask * sizeof(int));
   sxNumTotEDP = 0;
   for( int i=0; i<NTask; i++ )
@@ -254,7 +254,7 @@ void sx_phot_exchange_start_run(void)
   sxNumTotEDPD = sxNumTotEDP * SX_NDIR;
 
   // Create an array that will keep track of the connection between EDPD and QPP
-  sxEDPDtoQPP = mymalloc("sxEDPDtoQPP", sxNumTotEDPD * sizeof(int));
+  sxEDPDtoQPP = (int *)mymalloc("sxEDPDtoQPP", sxNumTotEDPD * sizeof(int));
   memset(sxEDPDtoQPP, -1, sxNumTotEDPD * sizeof(int));
   sxNumExportPP = 0;
   sxNumImportPP = 0;

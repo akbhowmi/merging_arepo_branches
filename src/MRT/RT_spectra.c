@@ -76,7 +76,7 @@ void mrt_load_spectrum_table(void)
       my_H5Dclose(dataset, "N_age");
 
       /* read in the age array */
-      LogAge  = mymalloc("LogAge", N_age * sizeof(double));
+      LogAge  = (double *)mymalloc("LogAge", N_age * sizeof(double));
       dataset = my_H5Dopen(file_id, "age");
       my_H5Dread(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, LogAge, "age");
       my_H5Dclose(dataset, "age");
@@ -101,7 +101,7 @@ void mrt_load_spectrum_table(void)
       my_H5Dclose(dataset, "N_metallicity");
 
       /* read in the metallicity array */
-      LogMetallicity = mymalloc("LogMetallicity", N_metallicity * sizeof(double));
+      LogMetallicity = (double *)mymalloc("LogMetallicity", N_metallicity * sizeof(double));
       dataset        = my_H5Dopen(file_id, "metallicity");
       my_H5Dread(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, LogMetallicity, "metallicity");
       my_H5Dclose(dataset, "metallicity");
@@ -110,18 +110,18 @@ void mrt_load_spectrum_table(void)
     }
 
   /* allocate luminosity table */
-  lum_tab = mymalloc("lum_tab", UV_BINS * N_age * N_metallicity * sizeof(double));
+  lum_tab = (double *)mymalloc("lum_tab", UV_BINS * N_age * N_metallicity * sizeof(double));
   for(int i = 0; i < UV_BINS * N_age * N_metallicity; i++)
     lum_tab[i] = 0;
 
   /* allocate and read energy array */
-  PhotEnergy = mymalloc("PhotEnergy", Nfreq * sizeof(double));
+  PhotEnergy = (double *)mymalloc("PhotEnergy", Nfreq * sizeof(double));
   dataset    = my_H5Dopen(file_id, "Energy");
   my_H5Dread(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, PhotEnergy, "Energy");
   my_H5Dclose(dataset, "Energy");
 
   /* allocate and read photon array */
-  LumPhotons = mymalloc("LumPhotons", Nfreq * N_age * N_metallicity * sizeof(double));
+  LumPhotons = (double *)mymalloc("LumPhotons", Nfreq * N_age * N_metallicity * sizeof(double));
   dataset    = my_H5Dopen(file_id, "Lnu");
   my_H5Dread(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, LumPhotons, "Lnu");
   my_H5Dclose(dataset, "Lnu");

@@ -1,6 +1,8 @@
+#!/usr/bin/env python3
 """ Idealized test, AMR Kelvin-Helmholtz (static) in 2D. """
-import numpy as np
+import os.path
 import sys
+import numpy as np
 
 sys.path.append('./')  # test.py
 sys.path.append('./examples/')  # test.sh
@@ -82,16 +84,10 @@ def create_ics(path, filename='ics.hdf5'):
     }
     h = {'Flag_DoublePrecision': 1}
 
-    utils.write_ic_file(path + filename, {'PartType0': pt0},
+    utils.write_ic_file(os.path.join(path, filename), {'PartType0': pt0},
                         boxSize=Lx,
                         headerAttrs=h)
 
 
 if __name__ == '__main__':
-
-    try:
-        create_ics(path=sys.argv[1])
-    except:
-        sys.exit(1)
-
-    sys.exit(0)  # normal exit
+    create_ics(sys.argv[1])

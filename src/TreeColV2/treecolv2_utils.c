@@ -39,7 +39,7 @@ int treecolv2_read_and_setup_lookup_table(void)
   mpi_printf("TREECOL-V2: angle to pix map nang_theta %d nang_phi %d total num angles %d  \n", TCV2_nang_theta, TCV2_nang_phi,
              TCV2_nang_theta * TCV2_nang_phi);
 
-  TCV2_map_theta_phi_to_ipix = mymalloc("TCV2_map_theta_phi_to_ipix", TCV2_nang_theta * TCV2_nang_phi * sizeof(int));
+  TCV2_map_theta_phi_to_ipix = (int *)mymalloc("TCV2_map_theta_phi_to_ipix", TCV2_nang_theta * TCV2_nang_phi * sizeof(int));
   my_fread(&TCV2_map_theta_phi_to_ipix[0], sizeof(int), TCV2_nang_theta * TCV2_nang_phi, fd);
   mpi_printf("TREECOL-V2: allocated and read in TCV2_map_theta_phi_to_ipix \n");
 
@@ -53,16 +53,16 @@ int treecolv2_read_and_setup_lookup_table(void)
   mpi_printf("TREECOL-V2: npos %d nang %d nentries %d min nodesize %g max nodesize %g \n", TCV2_npos, TCV2_nang, TCV2_nentries,
              TCV2_min_nodesize, TCV2_max_nodesize);
 
-  TCV2_start_ind = mymalloc("TCV2_start_ind", TCV2_npos * TCV2_nang * sizeof(int));
+  TCV2_start_ind = (int *)mymalloc("TCV2_start_ind", TCV2_npos * TCV2_nang * sizeof(int));
   my_fread(&TCV2_start_ind[0], sizeof(int), TCV2_npos * TCV2_nang, fd);
 
-  TCV2_npix = mymalloc("TCV2_npix", TCV2_npos * TCV2_nang * sizeof(int));
+  TCV2_npix = (int *)mymalloc("TCV2_npix", TCV2_npos * TCV2_nang * sizeof(int));
   my_fread(&TCV2_npix[0], sizeof(int), TCV2_npos * TCV2_nang, fd);
 
-  TCV2_pixel_list = mymalloc("TCV2_pixel_list", TCV2_nentries * sizeof(int));
+  TCV2_pixel_list = (int *)mymalloc("TCV2_pixel_list", TCV2_nentries * sizeof(int));
   my_fread(&TCV2_pixel_list[0], sizeof(int), TCV2_nentries, fd);
 
-  TCV2_pixel_values = mymalloc("TCV2_pixel_values", TCV2_nentries * sizeof(double));
+  TCV2_pixel_values = (double *)mymalloc("TCV2_pixel_values", TCV2_nentries * sizeof(double));
   my_fread(&TCV2_pixel_values[0], sizeof(double), TCV2_nentries, fd);
 
   fclose(fd);

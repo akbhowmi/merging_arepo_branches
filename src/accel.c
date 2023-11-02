@@ -87,7 +87,7 @@ void gravity(int timebin, int fullflag)
 {
   double tstart = second();
 
-#if defined(SELFGRAVITY) || defined(TREECOLV2) || defined(RADCOOL)
+#if defined(SELFGRAVITY) || defined(TREECOLV2) || defined(RADCOOL) || defined(PE_MCS) || defined(HII_MCS_LR)
   /* set new softening lengths on global steps to take into account possible cosmological time variation */
   if(timebin == All.HighestOccupiedGravTimeBin)
     set_softenings();
@@ -154,7 +154,7 @@ void gravity(int timebin, int fullflag)
 #endif /* #ifdef ONEDIMS_SPHERICAL #else */
     }
 
-#else /* #if defined(SELFGRAVITY) || defined(TREECOLV2) || defined(RADCOOL) */
+#else /* #if defined(SELFGRAVITY) || defined(TREECOLV2) || defined(RADCOOL) || defined(PE_MCS) || defined(HII_MCS_LR) */
 
   /* self-gravity is switched off */
   int idx, i, j;

@@ -9,8 +9,12 @@ ifneq (COSMIC_RAYS_DIFFUSION, $(findstring COSMIC_RAYS_DIFFUSION, $(CONFIGVARS))
 ifneq (COSMIC_RAYS_STREAMING, $(findstring COSMIC_RAYS_STREAMING, $(CONFIGVARS)))
 ifneq (IMPLICIT_TI, $(findstring IMPLICIT_TI, $(CONFIGVARS)))
 ifneq (IMPLICIT_OHMIC_DIFFUSION, $(findstring IMPLICIT_OHMIC_DIFFUSION, $(CONFIGVARS)))
+ifneq (SOLAR_RADIATIVE_TRANSFER_DIFF, $(findstring SOLAR_RADIATIVE_TRANSFER_DIFF, $(CONFIGVARS)))
+ifneq (SOLAR_RADIATIVE_TRANSFER_EDD, $(findstring SOLAR_RADIATIVE_TRANSFER_EDD, $(CONFIGVARS)))
   HYPRE_INCL =
   HYPRE_LIB =
+endif
+endif
 endif
 endif
 endif
@@ -43,7 +47,10 @@ ifeq (MCMA, $(findstring MCMA, $(CONFIGVARS)))
   LAPACK_LIB = -llapack
 endif
 
-ifneq (GRACKLE, $(findstring GRACKLE, $(CONFIGVARS)))
+ifeq (GRACKLE, $(findstring GRACKLE, $(CONFIGVARS)))
+  GRACKLE_INCL = -I$(HOME)/local/include
+  GRACKLE_LIBS = -L$(HOME)/local/lib -lgrackle -Xlinker -rpath=$(HOME)/local/lib
+else
   GRACKLE_INCL =
   GRACKLE_LIBS =
 endif

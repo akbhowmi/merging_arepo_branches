@@ -23,7 +23,7 @@ def verify_result(path):
     ## open initial conditions to get parameters
     try:
         data = h5py.File(os.path.join(path, IC_FILENAME), 'r')
-    except:
+    except (OSError, IOError):
         return False, ['Could not open initial conditions!']
 
     Boxsize = FloatType(data['Header'].attrs['BoxSize'])
@@ -55,7 +55,11 @@ def verify_result(path):
         filename = 'snap_%03d.hdf5' % i_snap
         try:
             data = h5py.File(os.path.join(directory, filename), 'r')
-        except:
+        except (OSError, IOError):
+            # should have at least 9 snapshots
+            if i_snap <= 8:
+                msg.append('Could not find snapshot ' + filename + '!')
+                return False, msg
             break
         Pos = np.array(data['PartType0']['Coordinates'], dtype=FloatType)[:, 0]
         Density = np.array(data['PartType0']['Density'], dtype=FloatType)
@@ -90,7 +94,12 @@ def verify_result(path):
             '\t tolerance: %g for %d cells' % (DeltaMaxAllowed, NumberOfCells)
         ]
         # criteria for failing the test
-        if L1_dens > DeltaMaxAllowed or L1_vel > DeltaMaxAllowed or L1_uthermal > DeltaMaxAllowed:
+        success = (
+            L1_dens <= DeltaMaxAllowed and
+            L1_vel <= DeltaMaxAllowed and
+            L1_uthermal <= DeltaMaxAllowed
+        )
+        if not success:
             return False, msg
 
     return True, msg
@@ -119,7 +128,7 @@ def visualize_result(path, Lx, Ly):
         filename = 'snap_%03d.hdf5' % i_snap
         try:
             data = h5py.File(os.path.join(directory, filename), 'r')
-        except:
+        except (OSError, IOError):
             break
         Pos = np.array(data['PartType0']['Coordinates'], dtype=FloatType)[:, 0]
         Density = np.array(data['PartType0']['Density'], dtype=FloatType)

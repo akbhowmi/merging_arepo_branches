@@ -281,7 +281,7 @@ void ReadPhotoIonTables_parallel(struct globalVariables *myGlobalVars, char *pho
       myNonEqIon->H2CO_shielding_N   = (double *)mymalloc("ChimesH2CO_N", myNonEqIon->shielding_dimensions[1] * sizeof(double));
       myNonEqIon->CO_shielding_S     = (double **)mymalloc("ChimesCO_S_dim0", myNonEqIon->shielding_dimensions[0] * sizeof(double *));
       myNonEqIon->CO_shielding_S[0]  = (double *)mymalloc(
-          "ChimesCO_S_dim1", myNonEqIon->shielding_dimensions[0] * myNonEqIon->shielding_dimensions[1] * sizeof(double));
+           "ChimesCO_S_dim1", myNonEqIon->shielding_dimensions[0] * myNonEqIon->shielding_dimensions[1] * sizeof(double));
       for(i = 0; i < myNonEqIon->shielding_dimensions[0]; i++)
         myNonEqIon->CO_shielding_S[i] = &(myNonEqIon->CO_shielding_S[0][i * myNonEqIon->shielding_dimensions[1]]);
 
@@ -1398,19 +1398,19 @@ void initialise_bens_tables_parallel(struct globalVariables *myGlobalVars, struc
 
       /* Read multidimensional arrays into buffers first. */
       alpharad  = (double *)mymalloc("Chimes_alpharad",
-                                    chimesRateTables.NonEqIon->N_Ions[i] * chimesRateTables.NonEqIon->N_Temperatures * sizeof(double));
+                                     chimesRateTables.NonEqIon->N_Ions[i] * chimesRateTables.NonEqIon->N_Temperatures * sizeof(double));
       alphadi   = (double *)mymalloc("Chimes_alphadi",
-                                   chimesRateTables.NonEqIon->N_Ions[i] * chimesRateTables.NonEqIon->N_Temperatures * sizeof(double));
+                                     chimesRateTables.NonEqIon->N_Ions[i] * chimesRateTables.NonEqIon->N_Temperatures * sizeof(double));
       betacoll  = (double *)mymalloc("Chimes_beta",
-                                    chimesRateTables.NonEqIon->N_Ions[i] * chimesRateTables.NonEqIon->N_Temperatures * sizeof(double));
+                                     chimesRateTables.NonEqIon->N_Ions[i] * chimesRateTables.NonEqIon->N_Temperatures * sizeof(double));
       cool      = (double *)mymalloc("Chimes_cool",
-                                chimesRateTables.NonEqIon->N_Ions[i] * chimesRateTables.NonEqIon->N_Temperatures * sizeof(double));
+                                     chimesRateTables.NonEqIon->N_Ions[i] * chimesRateTables.NonEqIon->N_Temperatures * sizeof(double));
       CTHrecof  = (double *)mymalloc("Chimes_CTHrecof",
-                                    chimesRateTables.NonEqIon->N_Ions[i] * chimesRateTables.NonEqIon->N_Temperatures * sizeof(double));
+                                     chimesRateTables.NonEqIon->N_Ions[i] * chimesRateTables.NonEqIon->N_Temperatures * sizeof(double));
       CTHerecof = (double *)mymalloc(
           "Chimes_CTHerecof", chimesRateTables.NonEqIon->N_Ions[i] * chimesRateTables.NonEqIon->N_Temperatures * sizeof(double));
       CTHionof  = (double *)mymalloc("Chimes_CTHionof",
-                                    chimesRateTables.NonEqIon->N_Ions[i] * chimesRateTables.NonEqIon->N_Temperatures * sizeof(double));
+                                     chimesRateTables.NonEqIon->N_Ions[i] * chimesRateTables.NonEqIon->N_Temperatures * sizeof(double));
       CTHeionof = (double *)mymalloc(
           "Chimes_CTHeionof", chimesRateTables.NonEqIon->N_Ions[i] * chimesRateTables.NonEqIon->N_Temperatures * sizeof(double));
 

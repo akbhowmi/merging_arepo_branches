@@ -20,7 +20,7 @@ IntType = np.int32
 
 Boxsize = FloatType(6.0)
 CellsPerDimension = IntType(30)
-NumberOfCells = CellsPerDimension * CellsPerDimension * CellsPerDimension
+NumberOfCells = CellsPerDimension**3
 
 ## initial state
 density_0 = 1.0

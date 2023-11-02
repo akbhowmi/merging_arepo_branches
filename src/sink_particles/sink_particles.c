@@ -76,6 +76,12 @@ void sink_particles(void)
 
 #endif /*ALLOW_MULTIPLE_SINK_CREATION_PER_TIMESTEP*/
 
+#ifdef SINK_MERGERS
+  perform_mergers();
+  num_sinks = get_all_sink_particle_info(1);
+  mpi_printf("SINK MERGERS new Nsink = %d \n", num_sinks);
+#endif
+
 #ifdef DUMP_SINK_PARTICLE_INFO
   /* Dump the sink particle data to a file
    */

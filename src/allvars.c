@@ -16,9 +16,6 @@
  */
 
 #include "allvars.h"
-#ifdef STORE_MERGERS_IN_SNAPSHOT
-#include "./blackhole/store_mergers_in_snapshot/mergers_io.h"
-#endif
 
 struct data_nodelist *DataNodeList; /* to be deleted */
 
@@ -51,10 +48,6 @@ long long MemoryOnNode;
 double CPUThisRun; /*!< Sums CPU time of current process */
 
 int MaxTopNodes; /*!< Maximum number of nodes in the top-level tree used for domain decomposition */
-
-#ifdef CONSTRUCT_FOF_NGBTREE
-int MaxTopNodes_groups;
-#endif
 
 int RestartFlag; /*!< taken from command line used to start code. 0 is normal start-up from
                     initial conditions, 1 is resuming a run from a set of restart files, while 2
@@ -113,10 +106,6 @@ double TimeBin_BH_Mdot[TIMEBINS];
 double TimeBin_BH_Medd[TIMEBINS];
 #endif
 
-#ifdef STORE_MERGERS_IN_SNAPSHOT
-struct merger_properties *MergerEvents, *DomainMergerBuf;
-#endif
-
 #ifdef SINKS
 struct TimeBinData TimeBinsSinksAccretion;
 #endif
@@ -125,8 +114,8 @@ struct TimeBinData TimeBinsSinksAccretion;
 struct TimeBinData TimeBinsDust;
 #endif
 
-char DumpFlag              = 1;
-char DumpFlagNextSnap      = 1;
+char DumpFlag              = DUMP_BOTH;
+char DumpFlagNextSnap      = DUMP_BOTH;
 char WroteSnapThisTimestep = 0;
 
 int FlagNyt = 0;
@@ -144,7 +133,7 @@ int NumGas;  /*!< number of gas particles on the LOCAL processor  */
 #ifdef TRACER_MC
 int N_tracer; /*!< number of tracer particles on the LOCAL processor  */
 #endif
-#ifdef GFM
+#if defined(GFM) || defined(SFR_MCS)
 int N_star; /*!< number of star particles on the LOCAL processor  */
 #endif
 #ifdef BLACK_HOLES
@@ -209,6 +198,11 @@ double *SubboxXmin, *SubboxXmax, *SubboxYmin, *SubboxYmax, *SubboxZmin, *SubboxZ
 double opal_rhomax, opal_rhomin; /**< boundaries of eos table */
 #endif
 
+#if defined(SN_MCS) && defined(IMF_SAMPLING_MCS)
+int NumSNLocal;  /** Number of SN events this timestep on this processor **/
+int NumSNGlobal; /** Number of SN events this timestep everywhere **/
+#endif
+
 double TimeOfLastDomainConstruction; /*!< holds what it says */
 
 int *Ngblist; /*!< Buffer to hold indices of neighbours retrieved by the neighbour search
@@ -231,10 +225,6 @@ int domain_hydro_weight[TIMEBINS];
 int domain_to_be_balanced[TIMEBINS];
 
 int *DomainTask;
-#ifdef CONSTRUCT_FOF_NGBTREE
-int *DomainTask_groups;
-#endif
-
 int *DomainNewTask;
 int *DomainNodeIndex;
 
@@ -242,16 +232,7 @@ peanokey *Key, *KeySorted;
 
 struct topnode_data *TopNodes;
 
-#ifdef CONSTRUCT_FOF_NGBTREE
-struct topnode_data *TopNodes_groups;
-#endif
-
-
 int NTopnodes, NTopleaves;
-
-#ifdef CONSTRUCT_FOF_NGBTREE
-int NTopnodes_groups, NTopleaves_groups;
-#endif
 
 /* variables for input/output , usually only used on process 0 */
 
@@ -306,20 +287,18 @@ struct pair_data *Pairlist;
 FILE *FdBlackHoles; /*!< file handle for blackholes.txt log-file. */
 FILE *FdBlackHolesDetails;
 FILE *FdBlackHolesMergers;
-#ifdef OUTPUT_HOST_PROPERTIES_FOR_BH_MERGERS
-FILE *FdBlackHolesMergerHosts;
+#ifdef BH_NEW_LOGS
+FILE *FdBHDetails;
+FILE *FdBHMergers;
 #endif
-#ifdef OUTPUT_LOG_FILES_FOR_SEEDING
-FILE *FdBlackHolesSeeding;
-FILE *FdBlackHolesSeeding2;
-FILE *FdBlackHolesSeedingTests;
-#endif
-
 #ifdef BH_SPIN_EVOLUTION
 FILE *FdBlackHolesSpin;
 #endif
 #ifdef BH_NEW_CENTERING
 FILE *FdBlackHolesRepos;
+#endif
+#ifdef BH_FAST_WIND_STOCHASTIC
+FILE *FdBlackHolesFWstoch;
 #endif
 #ifdef BH_BIPOLAR_FEEDBACK
 FILE *FdBlackHolesBipolar;
@@ -404,11 +383,22 @@ FILE *FdDust;
 FILE *FdSnr; /*!< file handle for snr.txt log-file. */
 #endif
 
+#ifdef HII_MCS_LOG
+FILE *FdHii; /*!< file handle for hii.txt log-file. */
+#endif
+
 #ifdef SFR_MCS_LOG
 FILE *FdSFdens;
 #endif
 #ifdef SN_MCS_LOG
 FILE *FdSNdens;
+#endif
+
+#ifdef SFR_MCS_LOG_DETAILS
+FILE *FdSFDetails;
+#endif
+#ifdef SN_MCS_LOG_DETAILS
+FILE *FdSNDetails;
 #endif
 
 void *CommBuffer; /*!< points to communication buffer, which is used at a few places */
@@ -472,7 +462,7 @@ MyIDType *tracer_cellids;
 struct grav_table_data *GravT;
 #endif
 
-#ifdef GFM
+#if defined(GFM) || defined(SFR_MCS)
 struct star_particle_data *StarP, *DomainStarBuf;
 #endif
 #ifdef BLACK_HOLES
@@ -491,14 +481,6 @@ struct otvet_source_data *OtvetSourceP;
 
 #ifdef EXACT_GRAVITY_FOR_PARTICLE_TYPE
 struct special_particle_data *PartSpecialListGlobal;
-#endif
-
-#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_ALL_SOURCES
-struct lyman_werner_particle_data *PartLymanWernerListGlobal;
-#endif
-
-#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_ALL_STARFORMINGGAS
-struct lyman_werner_starforminggas_data *PartLymanWernerStarFormingGasListGlobal;
 #endif
 
 #ifdef REFINEMENT_AROUND_DM
@@ -566,9 +548,19 @@ double SinksLastEvolutionDumpTime;
 double SinkCreationDensityCurrent;
 double SinkFormationRadiusCurrent;
 double SinkTestsGiveupDensityCurrent;
-
+#ifdef STORE_SINK_PARTICLE_SPIN
+double AngularMomentum[3];
+#endif
 struct global_sink_particle_data *SinkP, /* The sink particle data (i.e. all sinks)*/
     *export_SinkP;                       /* The communication buffer */
+#endif
+
+#ifdef RT_ADVECT
+double Source_Pos[N_SOURCES][3];
+double Source_Lum[N_SOURCES];
+int Source_ID[N_SOURCES];
+double rt_vec[RT_N_DIR][3];
+double rt_vec_new[RT_N_DIR][3];
 #endif
 
 #ifdef MRT
@@ -615,8 +607,12 @@ gsl_histogram *sf_dens_hist;
 gsl_histogram *sn_dens_hist;
 #endif
 
-#ifdef SN_MCS
+#if defined(SN_MCS) && !(defined(SN_MCS_SINGLE_INJECTION) || defined(IMF_SAMPLING_MCS))
 struct sb99_data sb99;
+#endif
+
+#if defined(IMF_SAMPLING_MCS)
+struct star_properties_table StarProperties;
 #endif
 
 peanokey *DomainKeyBuf;
@@ -717,34 +713,10 @@ int *Ngb_DomainTask;
 #endif
 int *Ngb_Nextnode;
 
-
-#ifdef CONSTRUCT_FOF_NGBTREE
-int Ngb_MaxPart_groups;
-int Ngb_NumNodes_groups;
-int Ngb_MaxNodes_groups;
-int Ngb_FirstNonTopLevelNode_groups;
-int Ngb_NextFreeNode_groups;
-int *Ngb_Father_groups;
-int *Ngb_Marker_groups;
-int Ngb_MarkerValue_groups;
-
-int *Ngb_DomainNodeIndex_groups;
-int *DomainListOfLocalTopleaves_groups;
-int *DomainNLocalTopleave_groups;
-int *DomainFirstLocTopleave_groups;
-int *Ngb_Nextnode_groups;
-#endif
-
 /** The ngb-tree data structure
  */
 struct NgbNODE *Ngb_Nodes;
 struct ExtNgbNODE *ExtNgb_Nodes;
-
-#ifdef CONSTRUCT_FOF_NGBTREE
-struct NgbNODE *Ngb_Nodes_groups;
-struct ExtNgbNODE *ExtNgb_Nodes_groups;
-#endif
-
 
 #ifdef STATICNFW
 double Rs, R200;

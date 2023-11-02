@@ -33,11 +33,6 @@ static int NumGas_swallowed, Ntot_gas_swallowed;
 static MyDouble *BH_accreted_Mass;
 static MyFloat *BH_accreted_momentum;
 
-#if defined(PREVENT_SPURIOUS_RESEEDING) && defined(ACCOUNT_FOR_SWALLOWED_PAINTED_GAS)
-static MyFloat *BH_accreted_SeedMass;
-#endif
-
-
 /* local data structure for collecting particle/cell data that is sent to other processors if needed */
 typedef struct
 {
@@ -99,10 +94,6 @@ static void particle2in(data_in *in, int i, int firstnode)
 typedef struct
 {
   MyDouble Mass;
-#if defined(PREVENT_SPURIOUS_RESEEDING) && defined(ACCOUNT_FOR_SWALLOWED_PAINTED_GAS)
-  MyFloat SeedMass;
-#endif
-
   MyFloat AccretedMomentum[3];
 #ifdef DRAINGAS
   MyDouble DrainBucketMass;
@@ -122,10 +113,6 @@ static void out2particle(data_out *out, int i, int mode)
         terminate("BLACK_HOLES: P[i(=%d)].AuxDataID >= NumBHs=%d", i, NumBHs);
 
       BH_accreted_Mass[P[i].AuxDataID] = out->Mass;
-
-#if defined(PREVENT_SPURIOUS_RESEEDING) && defined(ACCOUNT_FOR_SWALLOWED_PAINTED_GAS)
-      BH_accreted_SeedMass[P[i].AuxDataID] = out->SeedMass;
-#endif
       for(k = 0; k < 3; k++)
         BH_accreted_momentum[3 * P[i].AuxDataID + k] = out->AccretedMomentum[k];
 #ifdef DRAINGAS
@@ -138,10 +125,6 @@ static void out2particle(data_out *out, int i, int mode)
         terminate("BLACK_HOLES: P[i(=%d)].AuxDataID >= NumBHs=%d", i, NumBHs);
 
       BH_accreted_Mass[P[i].AuxDataID] += out->Mass;
-
-#if defined(PREVENT_SPURIOUS_RESEEDING) && defined(ACCOUNT_FOR_SWALLOWED_PAINTED_GAS)
-      BH_accreted_SeedMass[P[i].AuxDataID] += out->SeedMass;
-#endif
 
       for(k = 0; k < 3; k++)
         BH_accreted_momentum[3 * P[i].AuxDataID + k] += out->AccretedMomentum[k];
@@ -256,11 +239,6 @@ void blackhole_swallow_gas(void)
   BH_accreted_momentum = (MyFloat *)mymalloc("BH_accreted_momentum", 3 * NumBHs * sizeof(MyFloat));
   memset(BH_accreted_momentum, 0, 3 * NumBHs * sizeof(MyFloat));
 
-#if defined(PREVENT_SPURIOUS_RESEEDING) && defined(ACCOUNT_FOR_SWALLOWED_PAINTED_GAS)
-  BH_accreted_SeedMass = (MyFloat *)mymalloc("BH_accreted_SeedMass", NumBHs * sizeof(MyFloat));
-  memset(BH_accreted_SeedMass, 0, NumBHs * sizeof(MyFloat));
-#endif
-
   generic_set_MaxNexport();
 
 #ifdef TRACER_MC
@@ -292,10 +270,6 @@ void blackhole_swallow_gas(void)
 #endif
           P[n].Mass += BH_accreted_Mass[P[n].AuxDataID];
 
-#if defined(PREVENT_SPURIOUS_RESEEDING) && defined(ACCOUNT_FOR_SWALLOWED_PAINTED_GAS)
-          BPP(n).SeedMass += BH_accreted_SeedMass[P[n].AuxDataID];
-#endif
-
 #ifdef INDIVIDUAL_GRAVITY_SOFTENING
           if(((1 << P[n].Type) & (INDIVIDUAL_GRAVITY_SOFTENING)))
             P[n].SofteningType = get_softening_type_from_mass(P[n].Mass);
@@ -305,9 +279,6 @@ void blackhole_swallow_gas(void)
 
   MPI_Reduce(&NumGas_swallowed, &Ntot_gas_swallowed, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
 
-#if defined(PREVENT_SPURIOUS_RESEEDING) && defined(ACCOUNT_FOR_SWALLOWED_PAINTED_GAS)
-  myfree(BH_accreted_SeedMass);
-#endif
   myfree(BH_accreted_momentum);
   myfree(BH_accreted_Mass);
 
@@ -321,9 +292,6 @@ static int blackhole_evaluate_swallow(int target, int mode, int threadid)
   MyIDType id;
   MyDouble accreted_mass;
   MyFloat accreted_momentum[3];
-#if defined(PREVENT_SPURIOUS_RESEEDING) && defined(ACCOUNT_FOR_SWALLOWED_PAINTED_GAS)
-  MyFloat accreted_seedmass;
-#endif
   MyDouble *pos;
   MyFloat h_i, bh_mass;
 
@@ -377,10 +345,7 @@ static int blackhole_evaluate_swallow(int target, int mode, int threadid)
 
   accreted_mass        = 0;
   accreted_momentum[0] = accreted_momentum[1] = accreted_momentum[2] = 0;
-#if defined(PREVENT_SPURIOUS_RESEEDING) && defined(ACCOUNT_FOR_SWALLOWED_PAINTED_GAS)
-  accreted_seedmass = 0;
-#endif
- 
+
 #if(DRAINGAS == 3)
   h2    = h_i * h_i;
   hinv  = 1.0 / h_i;
@@ -414,7 +379,12 @@ static int blackhole_evaluate_swallow(int target, int mode, int threadid)
                 }
 #endif
 
+#ifdef BH_FAST_WIND_STOCHASTIC
+              dmass = (1. - All.BlackHoleRadiativeEfficiency) * 1. / (1. + All.WindMassLoading) * mdot * dt;
+#else
               dmass = (1. - All.BlackHoleRadiativeEfficiency) * mdot * dt;
+#endif
+
 
               /* predicted final dynamical mass for the BH: if it is still lower than the subgrid   */
               /* mass, the mdot is tempararily increased to gently bring the two masses at the same */
@@ -452,10 +422,6 @@ static int blackhole_evaluate_swallow(int target, int mode, int threadid)
                 }
 
               accreted_mass += dmass;
-#if defined(PREVENT_SPURIOUS_RESEEDING) && defined(ACCOUNT_FOR_SWALLOWED_PAINTED_GAS)
-              accreted_seedmass += dmass * SphP[j].SeedMass / P[j].Mass;
-              mpi_printf("SSS %g, %g, %g, %g \n", accreted_seedmass, dmass, SphP[j].SeedMass, P[j].Mass);
-#endif
 
 #ifdef TRACER_MC
               consider_moving_tracers(j, in->rtask, in->rindex, in->ID, 1 - fac);
@@ -469,10 +435,6 @@ static int blackhole_evaluate_swallow(int target, int mode, int threadid)
               SphP[j].Momentum[0] *= fac;
               SphP[j].Momentum[1] *= fac;
               SphP[j].Momentum[2] *= fac;
-#if defined(PREVENT_SPURIOUS_RESEEDING) && defined(ACCOUNT_FOR_SWALLOWED_PAINTED_GAS)
-       	      SphP[j].SeedMass *= fac;
-#endif
-
 
 #ifdef MAXSCALARS
               for(int s = 0; s < N_Scalar;
@@ -540,10 +502,6 @@ static int blackhole_evaluate_swallow(int target, int mode, int threadid)
 
               fac = (P[j].Mass - dmass) / P[j].Mass;
               accreted_mass += dmass;
-#if defined(PREVENT_SPURIOUS_RESEEDING) && defined(ACCOUNT_FOR_SWALLOWED_PAINTED_GAS)
-              accreted_seedmass += dmass * SphP[j].SeedMass / P[j].Mass;
-              mpi_printf("RRR %g, %g, %g, %g \n",accreted_seedmass, dmass, SphP[j].SeedMass, P[j].Mass);
-#endif
 
 #ifdef TRACER_MC
               consider_moving_tracers(j, in->rtask, in->rindex, in->ID, 1 - fac);
@@ -557,9 +515,6 @@ static int blackhole_evaluate_swallow(int target, int mode, int threadid)
               SphP[j].Momentum[0] *= fac;
               SphP[j].Momentum[1] *= fac;
               SphP[j].Momentum[2] *= fac;
-#if defined(PREVENT_SPURIOUS_RESEEDING) && defined(ACCOUNT_FOR_SWALLOWED_PAINTED_GAS)
-              SphP[j].SeedMass *= fac;
-#endif
 
 #ifdef MAXSCALARS
               for(int s = 0; s < N_Scalar;
@@ -579,10 +534,6 @@ static int blackhole_evaluate_swallow(int target, int mode, int threadid)
     }
 
   out.Mass = accreted_mass;
-#if defined(PREVENT_SPURIOUS_RESEEDING) && defined(ACCOUNT_FOR_SWALLOWED_PAINTED_GAS)
-  out.SeedMass = accreted_seedmass;
-#endif
-
   for(k = 0; k < 3; k++)
     out.AccretedMomentum[k] = accreted_momentum[k];
 #ifdef DRAINGAS

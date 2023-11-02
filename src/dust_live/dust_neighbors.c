@@ -230,9 +230,9 @@ void dust_findHsml(void)
   mpi_printf("DUST_LIVE: Finding dust-dust hsml values\n");
 
   /* NforcesDust is set in begin_dust_search() */
-  Left  = mymalloc("Left", NforcesDust * sizeof(MyDouble));
-  Right = mymalloc("Right", NforcesDust * sizeof(MyDouble));
-  Todo  = mymalloc("Todo", NforcesDust * sizeof(unsigned char));
+  Left  = (MyDouble *)mymalloc("Left", NforcesDust * sizeof(MyDouble));
+  Right = (MyDouble *)mymalloc("Right", NforcesDust * sizeof(MyDouble));
+  Todo  = (unsigned char *)mymalloc("Todo", NforcesDust * sizeof(unsigned char));
 
   int nforces = 0;
   for(idx = 0; idx < TimeBinsDust.NActiveParticles; idx++)

@@ -54,6 +54,9 @@ int get_all_sink_particle_info(int mode)
     double SFeff;
 #endif
 #endif
+#ifdef STORE_SINK_PARTICLE_SPIN
+    double AngularMomentum[3];
+#endif
   } * store_SinkP;
 
   /* Find the number of sinks on this Task and their location in
@@ -89,7 +92,7 @@ int get_all_sink_particle_info(int mode)
     }
 
   /* Now create an array that holds the number of sinks on all Tasks */
-  NSinksEachTask = mymalloc("NSinksEachTask", NTask * sizeof(int));
+  NSinksEachTask = (int *)mymalloc("NSinksEachTask", NTask * sizeof(int));
   MPI_Allgather(&NSinksThisTask, 1, MPI_INT, NSinksEachTask, 1, MPI_INT, MPI_COMM_WORLD);
 
   /* Get the total number of sinks in simulation, and work out the offsets
@@ -120,7 +123,7 @@ int get_all_sink_particle_info(int mode)
     terminate("Ran out of sink buffer, currently set at %d", NSinkBufferSize);
 
   /* Now make a copy of the SinkP array since we're going to overwriting it in the loop below */
-  store_SinkP = mymalloc("store_SinkP", nSinksAllTasks_old * sizeof(struct unique_to_sinks));
+  store_SinkP = (struct unique_to_sinks *)mymalloc("store_SinkP", nSinksAllTasks_old * sizeof(struct unique_to_sinks));
   for(int i = 0; i < nSinksAllTasks_old; i++)
     {
       store_SinkP[i].FormationMass  = SinkP[i].FormationMass;
@@ -168,6 +171,11 @@ int get_all_sink_particle_info(int mode)
       store_SinkP[i].SFeff = SinkP[i].SFeff;
 #endif
 #endif
+#ifdef STORE_SINK_PARTICLE_SPIN
+      store_SinkP[i].AngularMomentum[0] = SinkP[i].AngularMomentum[0];
+      store_SinkP[i].AngularMomentum[1] = SinkP[i].AngularMomentum[1];
+      store_SinkP[i].AngularMomentum[2] = SinkP[i].AngularMomentum[2];
+#endif
     }
 #ifdef DEBUG_SINK_PARTICLES
   printf("SINK_PARTICLES: GET -- just set the store_Sink array. TASK %d \n", ThisTask);
@@ -210,7 +218,7 @@ int get_all_sink_particle_info(int mode)
 #endif
 #ifdef SINK_PARTICLES_FEEDBACK
           export_SinkP[i].N_sne = 0;
-          memset(SinkP[i].MassStillToConvert, 0, MAXACCRETIONEVENTS * sizeof(double));
+          memset(export_SinkP[i].MassStillToConvert, 0, MAXACCRETIONEVENTS * sizeof(double));
           export_SinkP[i].StellarMass = 0.;
 #endif
 #ifdef SINK_PARTICLES_VARIABLE_ACC_RADIUS
@@ -256,6 +264,11 @@ int get_all_sink_particle_info(int mode)
           export_SinkP[i].FormationMass  = store_SinkP[ii].FormationMass;
           export_SinkP[i].FormationTime  = store_SinkP[ii].FormationTime;
           export_SinkP[i].FormationOrder = store_SinkP[ii].FormationOrder;
+#ifdef STORE_SINK_PARTICLE_SPIN
+          export_SinkP[i].AngularMomentum[0] = store_SinkP[ii].AngularMomentum[0];
+          export_SinkP[i].AngularMomentum[1] = store_SinkP[ii].AngularMomentum[1];
+          export_SinkP[i].AngularMomentum[2] = store_SinkP[ii].AngularMomentum[2];
+#endif
 #ifdef SGCHEM_ACCRETION_LUMINOSITY
           export_SinkP[i].AccretionRate = store_SinkP[ii].AccretionRate;
           export_SinkP[i].TimeOld       = store_SinkP[ii].TimeOld;

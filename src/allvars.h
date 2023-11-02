@@ -385,12 +385,19 @@ extern struct bh_particle
 #endif
 #endif
 
+#ifdef SFR_MCS
+#include "sfr_mcs/sfr_mcs_vars.h"
 #if defined(SFR_MCS_LOG) || defined(SN_MCS_LOG)
 #include <gsl/gsl_histogram.h>
+#endif
 #endif
 
 #ifdef HCOUTPUT
 #include "highcadoutput/hcoutput.h"
+#endif
+
+#ifdef GRACKLE
+#include "grackle/grackle_def.h"
 #endif
 
 /* function mappings and macros */
@@ -583,7 +590,15 @@ extern struct bh_particle
 #ifdef BLACK_HOLES
 #define BH_QUASAR_MODE 0
 #define BH_RADIO_MODE 1
+// Make sure at-most one dynamics flag is set
+#if defined(BH_DF_DISCRETE) + defined(BH_NEW_CENTERING) + defined(REPOSITION_ON_POTMIN) > 1
+#error "Conflicting BH dynamics flags selected!!"
 #endif
+#else // ifndef BLACK_HOLES
+#ifdef BH_NEW_LOGS || BH_DF_DISCRETE || BH_NEW_CENTERING || REPOSITION_ON_POTMIN
+#error "BLACK_HOLES flag is required for some of these options!!"
+#endif
+#endif // BLACK_HOLES
 
 #if !defined(NUM_THREADS)
 #define NUM_THREADS 1
@@ -667,9 +682,10 @@ extern hwloc_cpuset_t cpuset_thread[NUM_THREADS];
 #endif
 
 /* calculate appropriate value of MAXSCALARS */
-#if defined(EOS_DEGENERATE) || defined(REFINEMENT_HIGH_RES_GAS) || defined(METALS) || defined(GFM_STELLAR_EVOLUTION) ||    \
-    defined(PASSIVE_SCALARS) || defined(REFINEMENT_RPS) || defined(SGCHEM) || defined(EOS_OPAL) || defined(COSMIC_RAYS) || \
-    defined(SGS_TURBULENCE) || defined(GFM_RPROCESS_CHANNELS) || defined(MRT) || defined(REFINEMENT_CGM)
+#if defined(EOS_DEGENERATE) || defined(REFINEMENT_HIGH_RES_GAS) || defined(METALS) || defined(GFM_STELLAR_EVOLUTION) ||         \
+    defined(PASSIVE_SCALARS) || defined(REFINEMENT_RPS) || defined(SGCHEM) || defined(EOS_OPAL) || defined(COSMIC_RAYS) ||      \
+    defined(SGS_TURBULENCE) || defined(GFM_RPROCESS_CHANNELS) || defined(MRT) || defined(REFINEMENT_CGM) || defined(GRACKLE) || \
+    defined(TURB_APPROX_MCS)
 
 #if defined(EOS_DEGENERATE) || defined(EOS_OPAL)
 #define COUNT_EOS EOS_NSPECIES
@@ -753,9 +769,22 @@ extern hwloc_cpuset_t cpuset_thread[NUM_THREADS];
 #define COUNT_GFM_RPROCESS 0
 #endif
 
+#if defined(GRACKLE) && !defined(GRACKLE_TAB)
+#define COUNT_GRACKLE (1 + GRACKLE_SPECIES_NUMBER)
+#else
+#define COUNT_GRACKLE 0
+#endif
+
+#ifdef TURB_APPROX_MCS
+#define COUNT_TURB_APPROX_MCS 1
+#else
+#define COUNT_TURB_APPROX_MCS 0
+#endif
+
 #define MAXSCALARS                                                                                                         \
   (COUNT_EOS + COUNT_MHD_TES + COUNT_REFINE + COUNT_METALS + COUNT_STELLAR_EVOLUTION + COUNT_PASSIVE_SCALARS + COUNT_RPS + \
-   COUNT_SGCHEM + COUNT_CR + COUNT_SGS_T + COUNT_GFM_RPROCESS + COUNT_REFINE_CGM + COUNT_MRT_IONS)
+   COUNT_SGCHEM + COUNT_CR + COUNT_SGS_T + COUNT_GFM_RPROCESS + COUNT_REFINE_CGM + COUNT_MRT_IONS + COUNT_GRACKLE +        \
+   COUNT_TURB_APPROX_MCS)
 #endif
 
 #if defined(MAXSCALARS) && MAXSCALARS == 0
@@ -994,7 +1023,7 @@ typedef unsigned long long peano1D;
 
 #define METAL_YIELD 0.02 /**< effective metal yield for star formation */
 
-/* ... often used physical constants (cgs units; NIST 2010) */
+/* ... often used physical constants (cgs units; NIST/CODATA 2010) */
 
 #define GRAVITY 6.6738e-8
 #define SOLAR_MASS 1.989e33
@@ -1004,14 +1033,15 @@ typedef unsigned long long peano1D;
 #define AVOGADRO 6.02214e23
 #define BOLTZMANN 1.38065e-16
 #define GAS_CONST 8.31446e7
+#define CLIGHT_REAL 2.99792458e10
 #if defined(RT_SLOWLIGHT) || defined(MRT_SLOWLIGHT)
 #ifdef MRT_BH
-#define CLIGHT 2.99792458e9
+#define CLIGHT (CLIGHT_REAL * 1e-1)
 #else
-#define CLIGHT 2.99792458e7
+#define CLIGHT (CLIGHT_REAL * 1e-3)
 #endif
 #else
-#define CLIGHT 2.99792458e10
+#define CLIGHT CLIGHT_REAL
 #endif
 
 #ifdef MRT
@@ -1020,6 +1050,7 @@ typedef unsigned long long peano1D;
 #endif
 
 #define PLANCK 6.6260695e-27
+#define HBAR (PLANCK / (2 * M_PI))
 #define PARSEC 3.085678e18
 #define KILOPARSEC 3.085678e21
 #define MEGAPARSEC 3.085678e24
@@ -1149,15 +1180,8 @@ enum PARAM_TYPE
 #endif
 
 #ifdef RT_ADVECT
-
-#ifndef RT_SFR_SOURCES
 #define N_SOURCES 1
-double Source_Pos[N_SOURCES][3];
-double Source_Lum[N_SOURCES];
-int Source_ID[N_SOURCES];
 #endif
-
-#endif /* end of RT_ADVECT */
 
 typedef struct
 {
@@ -1300,7 +1324,6 @@ extern MPI_Status mpistat;
 #ifdef GRACKLE
 #define CONFIG_BFLOAT_8
 #include <grackle.h>
-
 #include "grackle/grackle_def.h"
 #endif
 
@@ -1362,11 +1385,6 @@ extern long long MemoryOnNode;
 extern double CPUThisRun; /**< Sums CPU time of current process */
 
 extern int MaxTopNodes; /**< Maximum number of nodes in the top-level tree used for domain decomposition */
-
-#ifdef CONSTRUCT_FOF_NGBTREE
-extern int MaxTopNodes_groups;
-#endif
-
 
 extern int RestartFlag; /**< taken from command line used to start code. 0 is normal start-up from
                            initial conditions, 1 is resuming a run from a set of restart files, while 2
@@ -1436,6 +1454,16 @@ extern double StartOfRun;    /**< This stores the time of the start of the run f
 
 extern size_t AllocatedBytes;
 
+enum DUMP_FLAG
+{
+  DUMP_NONE,
+  DUMP_BOTH,
+  DUMP_ONLY_SNAP,
+  DUMP_BOTH_MINI,
+  DUMP_ONLY_HALOS,
+  DUMP_HCOUTPUT
+};
+
 extern char DumpFlag;
 extern char DumpFlagNextSnap;
 extern char WroteSnapThisTimestep;
@@ -1447,7 +1475,7 @@ extern int NumGas;  /**< number of gas particles on the LOCAL processor  */
 #ifdef TRACER_MC
 extern int N_tracer; /**< number of tracer particles on the LOCAL processor  */
 #endif
-#ifdef GFM
+#if defined(GFM) || defined(SFR_MCS)
 extern int N_star; /**< number of star particles on the LOCAL processor  */
 #endif
 #ifdef BLACK_HOLES
@@ -1503,6 +1531,11 @@ extern code_units my_grackle_units;
 
 extern double EgyInjection;
 
+#if defined(SN_MCS) && defined(IMF_SAMPLING_MCS)
+extern int NumSNLocal;  /** Number of SN events this timestep on this processor **/
+extern int NumSNGlobal; /** Number of SN events this timestep everywhere **/
+#endif
+
 extern double TimeOfLastDomainConstruction; /**< holds what it says */
 
 /** Buffer to hold indices of neighbours retrieved by the neighbour
@@ -1535,12 +1568,6 @@ extern int domain_to_be_balanced[TIMEBINS];
 extern int *DomainTask;
 extern int *DomainNewTask;
 
-#ifdef CONSTRUCT_FOF_NGBTREE
-extern int *DomainTask_groups;
-extern int *DomainNewTask_groups;
-#endif
-
-
 /** Array of indices of the main tree nodes that are identical to the
     top-level nodes. For the topnodes entries, it is indexed by the
     Leaf member, for pseudoparticles it is indexed by the node
@@ -1548,8 +1575,11 @@ extern int *DomainNewTask_groups;
 extern int *DomainNodeIndex;
 
 #ifdef RT_ADVECT
-double rt_vec[RT_N_DIR][3];
-double rt_vec_new[RT_N_DIR][3];
+extern double Source_Pos[N_SOURCES][3];
+extern double Source_Lum[N_SOURCES];
+extern int Source_ID[N_SOURCES];
+extern double rt_vec[RT_N_DIR][3];
+extern double rt_vec_new[RT_N_DIR][3];
 #endif
 
 #ifdef OTVET
@@ -1607,23 +1637,6 @@ extern gsl_histogram *sf_dens_hist;
 extern gsl_histogram *sn_dens_hist;
 #endif
 
-#ifdef SN_MCS
-extern struct sb99_data
-{
-  int N_t;            /* Number of timesteps */
-  MyFloat *Timesteps; /* t bins */
-  MyFloat t_min;      /* first timestep */
-  MyFloat t_max;      /* last timestep */
-#ifndef SB99_FIXED_Z
-  int N_Z;                /* Number of metallicities */
-  MyFloat *Metallicities; /* Z bins */
-  MyFloat **Rates;        /* accessed Rates[Z bin index][t bin index] */
-#else
-  MyFloat *Rates; /* accessed Rates[t bin index] */
-#endif
-} sb99;
-#endif
-
 extern peanokey *Key, *KeySorted;
 
 /** The top node structure is an octree used for encoding the domain
@@ -1642,17 +1655,9 @@ extern struct topnode_data
       leaves? */
   int Leaf;
   unsigned char MortonToPeanoSubnode[8];
-#ifdef CONSTRUCT_FOF_NGBTREE
-} * TopNodes, * TopNodes_groups;  
-#else
 } * TopNodes;
-#endif
 
 extern int NTopnodes, NTopleaves;
-
-#ifdef CONSTRUCT_FOF_NGBTREE
-extern int NTopnodes_groups, NTopleaves_groups;
-#endif
 
 /** Variables for gravitational tree */
 extern int Tree_MaxPart;
@@ -1674,24 +1679,6 @@ extern struct treepoint_data
   double Pos[3];
   unsigned long long IntPos[3];
   MyDouble Mass;
-#if defined(SEED_HALO_ENVIRONMENT_CRITERION) || defined(SEED_HALO_ENVIRONMENT_CRITERION)
-  int no_of_BHs;
-  MyDouble HostHaloMass;
-#ifdef CREATE_SUBFOFS
-  MyDouble HostHaloMass_bFOF;
-#endif
-#if(PTYPE_USED_FOR_ENVIRONMENT_BASED_SEEDING == 0)
-  int IsThisTheDensestCell;
-#ifdef CREATE_SUBFOFS
-  int IsThisTheDensestCell_bFOF;
-#endif
-#else
-  int IsThisTheMinPotential;
-#ifdef CREATE_SUBFOFS
-  int IsThisTheMinPotential_bFOF;
-#endif
-#endif
-#endif
   float OldAcc;
   int index;
   int th;
@@ -1741,7 +1728,7 @@ extern struct treepoint_data
   MyFloat Utherm;
   MyFloat Density;
   MyFloat Temperature;
-#ifdef COOLING
+#if defined(COOLING) && !defined(GRACKLE)
   MyFloat Ne;
 #endif
 #ifdef RADCOOL_HOTHALO_METAL_BOOST
@@ -1790,23 +1777,27 @@ extern struct treepoint_data
 #ifdef SINKS
   int AuxDataIndex;
 #endif
+
+#ifdef PE_MCS
+  MyFloat lum_FUV;
+  MyFloat lum_FUV_s[3];
+#endif
+
+#ifdef HII_MCS_LR
+  MyFloat lum_Hii;
+  MyFloat lum_Hii_s[3];
+#endif
+
+#ifdef BH_DF_DISCRETE
+  MyFloat DFD_Vel[3];
+#endif
+
 } * Tree_Points;
 
 #ifdef BLACK_HOLES
 extern struct treepoint_aux_bh_data
 {
   MyFloat BH_Mass;
-#ifdef OUTPUT_HOST_PROPERTIES_FOR_BH_MERGERS
-  MyFloat HostHaloTotalMass, HostHaloStellarMass, HostHaloGasMass, HostHaloDMMass , HostHaloSFR , BH_Mdot;
-#endif
-#if defined(PREVENT_SPURIOUS_RESEEDING) && defined(ACCOUNT_FOR_SWALLOWED_PAINTED_GAS)
-  MyFloat SeedMass;
-#endif
-
-#ifdef PREVENT_SPURIOUS_RESEEDING
-  MyFloat Time_Of_Seeding;
-#endif
-
   MyFloat BH_CumMass_QM;
   MyFloat BH_CumEgy_QM;
   MyFloat BH_CumMass_RM;
@@ -1838,11 +1829,8 @@ extern struct treepoint_aux_bh_data
   MyFloat BH_XrayLum;
   MyFloat BH_RadioLum;
 #endif
-#if defined(MASSIVE_SEEDS_MERGER) || defined(SEED_HALO_ENVIRONMENT_CRITERION)
-  MyDouble HostHaloMass;
-#ifdef CREATE_SUBFOFS
-  MyDouble HostHaloMass_bFOF;
-#endif
+#ifdef MASSIVE_SEEDS_MERGER
+  MyFloat HostHaloMass;
 #endif
 #ifdef BH_SPIN_EVOLUTION
   MyFloat BH_SpinParameter;
@@ -1874,10 +1862,6 @@ extern int Tree_NumSinksExported, Tree_NumSinksImported;
 extern struct resultsactiveimported_data
 {
   MyFloat GravAccel[3];
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION 
-  int no_of_BHs_ngb;
-#endif
-
 #ifdef EVALPOTENTIAL
   MyFloat Potential;
 #endif
@@ -1904,6 +1888,15 @@ extern struct resultsactiveimported_data
 #endif
 #ifdef MODGRAV
   MyFloat ModgravAccel[3];
+#endif
+#ifdef PE_MCS
+  MyFloat G_FUV;
+#endif
+#ifdef HII_MCS_LR
+  MyFloat EnergyDensHii;
+#endif
+#ifdef BH_DF_DISCRETE
+  MyFloat DFD_Acc[3];
 #endif
   int index;
 } * Tree_ResultsActiveImported;
@@ -1959,23 +1952,18 @@ extern FILE *FdRad; /**< file handle for radtransfer.txt log-file. */
 extern FILE *FdBlackHoles; /**< file handle for blackholes.txt log-file. */
 extern FILE *FdBlackHolesDetails;
 extern FILE *FdBlackHolesMergers;
-
-
-#ifdef OUTPUT_HOST_PROPERTIES_FOR_BH_MERGERS
-extern FILE *FdBlackHolesMergerHosts;
+#ifdef BH_NEW_LOGS
+extern FILE *FdBHDetails;
+extern FILE *FdBHMergers;
 #endif
-
-#ifdef OUTPUT_LOG_FILES_FOR_SEEDING
-extern FILE *FdBlackHolesSeeding;
-extern FILE *FdBlackHolesSeeding2;
-extern FILE *FdBlackHolesSeedingTests;
-#endif
-
 #ifdef BH_SPIN_EVOLUTION
 extern FILE *FdBlackHolesSpin;
 #endif
 #ifdef BH_NEW_CENTERING
 extern FILE *FdBlackHolesRepos;
+#endif
+#ifdef BH_FAST_WIND_STOCHASTIC
+extern FILE *FdBlackHolesFWstoch;
 #endif
 #ifdef BH_BIPOLAR_FEEDBACK
 extern FILE *FdBlackHolesBipolar;
@@ -2060,11 +2048,22 @@ extern FILE *FdDust;
 extern FILE *FdSnr; /*!< file handle for snr.txt log-file. */
 #endif
 
+#ifdef HII_MCS_LOG
+extern FILE *FdHii; /*!< file handle for hii.txt log-file. */
+#endif
+
 #ifdef SFR_MCS_LOG
 extern FILE *FdSFdens;
 #endif
 #ifdef SN_MCS_LOG
 extern FILE *FdSNdens;
+#endif
+
+#ifdef SFR_MCS_LOG_DETAILS
+extern FILE *FdSFDetails;
+#endif
+#ifdef SN_MCS_LOG_DETAILS
+extern FILE *FdSNDetails;
 #endif
 
 extern void *CommBuffer; /**< points to communication buffer, which is used at a few places */
@@ -2255,9 +2254,13 @@ extern struct global_data_all_processes
   int GrackleRadiativeCooling;
   int GrackleMetalCooling;
   int GrackleUVB;
+  int GrackleSelfShieldingMethod;
   char GrackleDataFile[MAXLEN_PATH];
 #ifndef METALS
   MyFloat GrackleInitialMetallicity;
+#endif
+#ifdef GRACKLE_PHOTOELECTRIC
+  double GracklePhotoelectricHeatingRate;
 #endif
 #endif
 
@@ -2298,19 +2301,10 @@ extern struct global_data_all_processes
   double MinimumTracerHsml; /**< The minimum distance used in search of the nearest cell - should be an estimate for the minimum cell
                                size */
 #endif
-#ifdef GFM
+#if defined(GFM) || defined(SFR_MCS)
   long long TotN_star;
   int MaxPartStar; /**< This gives the maxmimum number of star particles that can be stored on one
                       processor. */
-#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_ALL_SOURCES
-  int TotPartStar;
-#endif
-
-#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_ALL_STARFORMINGGAS
-  int MaxPartStarFormingGas;
-  int TotPartStarFormingGas;
-#endif
-
 #endif
 
 #ifdef BLACK_HOLES
@@ -2329,7 +2323,6 @@ extern struct global_data_all_processes
 #ifdef EXACT_GRAVITY_FOR_PARTICLE_TYPE
   int TotPartSpecial, MaxPartSpecial;
 #endif
-
 #ifdef REFINEMENT_AROUND_DM
   int TotPartDM;
 #endif
@@ -2457,16 +2450,19 @@ extern struct global_data_all_processes
   double PreEnrichTime;
   char PreEnrichAbundanceFile[MAXLEN_PATH];
 
-#ifdef WINDTUNNEL_FIXVARIABLESININJECTIONREGION
-  double mass_fractions[GFM_N_CHEM_ELEMENTS];
-  double metallicity;
 #endif
 
+#if defined(WINDTUNNEL_FIXVARIABLESININJECTIONREGION) && (defined(GFM_PREENRICH) || defined(GFM_SET_METALLICITY))
+  double mass_fractions[GFM_N_CHEM_ELEMENTS];
+  double metallicity;
 #endif
 
 #ifdef GFM_COOLING_METAL
   char CoolingTablePath[MAXLEN_PATH];
   double MinMetalTemp; /**< no metal line cooling below this value */
+#ifdef GFM_COOLING_METAL_START
+  double MetalCoolStartRedshift; /**< no metal line cooling before this redshift */
+#endif
 #endif
 
 #ifdef GFM_STELLAR_PHOTOMETRICS
@@ -2539,18 +2535,10 @@ extern struct global_data_all_processes
   double TopNodeAllocFactor; /**< Each processor allocates a number of nodes which is TreeAllocFactor times
                                 the maximum(!) number of particles.  Note: A typical local tree for N
                                 particles needs usually about ~0.65*N nodes. */
-#ifdef CONSTRUCT_FOF_NGBTREE
-  double TopNodeAllocFactor_groups;
-#endif
 
   double NgbTreeAllocFactor; /**< Each processor allocates a number of nodes for the neighbor search which is NgbTreeAllocFactor times
                                  the maximum(!) number of gas particles.  Note: A typical local tree for N
                                  particles needs usually about ~0.65*N nodes. */
-
-#ifdef CONSTRUCT_FOF_NGBTREE
-  double NgbTreeAllocFactor_groups;
-#endif
-
 
   int MaxMemSize; /**< size of maximum memory consumption in MB */
 
@@ -3014,171 +3002,11 @@ extern struct global_data_all_processes
   double BlackHoleFeedbackFactor; /**< Fraction of the black luminosity feed into thermal feedback */
   double SeedBlackHoleMass;       /**< Seed black hole mass */
   double MinFoFMassForNewSeed;    /**< Halo mass required before new seed is put in */
-
-#ifdef UNIFORM_SEEDMASS_DISTRIBUTION
-  double LogMinSeedBlackHoleMass;
-  double LogMaxSeedBlackHoleMass; 
-#endif
-
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-  double MinHaloMassForTaggingMinPotential;
-#endif
-
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION1
-  int MinNumberOfNeighborsForSeeding;
-#endif
-
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION2
-  double SeedProbabilityNoNeighbors;
-  double SeedProbabilityTwentyNeighbors; 
-  int MinNumberOfBlackHolesForEnvironmentBasedSeeding;
-#endif
-
-#ifdef CORRECT_FOR_HALO_MASS_BIAS_IN_ENVIRONMENT_BASED_SEEDING
-  double SlopeForEnvironmentBasedSeedProbabilityvsbFOFmass;
-#endif
-
-#ifdef INCLUDE_MERGERS_OF_UNRESOLVED_SEED_BHS
-   MyFloat MassGrowthPerResolvedEvent;
-#ifdef POWERLAW_MODEL_FOR_UNRESOLVED_MERGERS
-   MyFloat SlopeMassGrowthPerResolvedEvent;
-   MyFloat InterceptMassGrowthPerResolvedEvent;
-   MyFloat MaxMassGrowthPerResolvedEvent;
-#else
-   MyFloat ConstantMassGrowthPerResolvedEvent;
-#endif
-#endif
-
-#ifdef SEED_BASED_ON_PROBABLISTIC_HALO_PROPERTIES
-#ifdef PROBABILISTIC_SEED_MASS_HALO_MASS_RATIO_CRITERION
-  MyFloat LogMinHaloMassSeedingThresholdAverage;
-  MyFloat LogMinHaloMassSeedingThresholdOffset;
-  MyFloat LogMinHaloMassSeedingThresholdStdev;
-  int SeedFromLowerEnd, StartFromLeft;
-  MyFloat MinHaloMassForSeedingLowerEnd;
-#endif
-
-#ifdef EVOLVING_SEEDING_PROBABILITY 
-  MyFloat SlopeLinearModelForSeedingProbability;
-  MyFloat InterceptLinearModelForSeedingProbability; 
-  MyFloat RedshiftDependentSeedingProbability;
-#endif
-
-#ifdef EVOLVING_SEEDHALOMASS_DISTRIBUTION_METALENRICHMENT
- MyFloat SlopeOnsetMetalEnrichmentImpact;
- MyFloat RedshiftOnsetMetalEnrichmentImpact;
-#endif
-
-#ifdef EVOLVING_SEEDHALOMASS_DISTRIBUTION_QUADRATIC_MODEL
- MyFloat Coffmean_2, Coffmean_1, Coffmean_0;
-#endif
-
-#if defined(EVOLVING_SEEDHALOMASS_DISTRIBUTION_DOUBLE_POWERLAW_MODEL) || defined(EVOLVING_SEEDHALOMASS_DISTRIBUTION_DOUBLE_POWERLAW_MODEL2)
- MyFloat Slope_lowz, Slope_highz;
-#endif
-
-#ifdef EVOLVING_SEEDHALOMASS_DISTRIBUTION_DOUBLE_POWERLAW_MODEL
- MyFloat Intercept_lowz, Intercept_highz;
-#endif
-
-#ifdef EVOLVING_SEEDHALOMASS_DISTRIBUTION_DOUBLE_POWERLAW_MODEL2
- MyFloat TransitionRedshift, LogMinHaloMassSeedingThresholdAverageTransition;
-#endif
-#endif
-
-#ifdef CREATE_SUBFOFS
-  MyFloat LinkingLengthReductionFactor; 
-  int SubFOF_mode;
-#ifdef BLACK_HOLES
-  int SeedingModeFOForSubFOF;
-#endif
-#ifndef FOF_STOREIDS
-  int ParticleFOFdatacorrespondence;
-#endif
-
-#ifdef BFOFS_AS_GASCLUMPS 
-  MyFloat MinDensityForGasClumps,MaxMetallicityForGasClumps;  
-#endif
-#endif 
-
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-  int Build_tree_with_only_BHs;
-#endif
-
-
-
-#if defined(GAS_BASED_SEED_MODEL) && defined(SEED_GAS_METALLICITY_CRITERION)
-  MyFloat MinMetallicityForNewSeed; /**< minimum Metallicity for the densest particle within a group  before new seed is put in */
-  MyFloat MaxMetallicityForNewSeed; /**< minimum Metallicity for the densest particle within a group  before new seed is put in */
-#endif
-
-#if (defined(SEED_LYMAN_WERNER_INTENSITY_CRITERION) || defined(SEED_STARFORMINGMETALFREELYMANWERNERGASMASS_CRITERION)) || defined(CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS)
-  MyFloat MinLymanWernerFluxForNewSeed;
-#endif
-
-#ifdef PREVENT_SPURIOUS_RESEEDING
-  MyFloat MaxPaintedGasFractionForReseeding;
-#endif
-
-#if defined(CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_SOURCES) || defined(CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS)
-  MyFloat LymanWernerRadiusOfInclusion;
-#endif
-
-#ifdef PREVENT_SEEDING_AROUND_BLACKHOLE_NEIGHBORS2
-  MyFloat MaximumBlackholeNeighborDistance;
-#endif
-
-#ifdef SEED_STARFORMINGGASMASS_CRITERION
-  MyFloat MinStarFormingGasParamForNewSeed;
-#endif
-
-#ifdef SEED_STARFORMINGMETALFREEGASMASS_CRITERION
-  MyFloat MinStarFormingMetalFreeGasParamForNewSeed;
-#endif
-
-#ifdef SEED_STARFORMINGMETALFREELYMANWERNERGASMASS_CRITERION
-  MyFloat MinStarFormingMetalFreeLymanWernerGasParamForNewSeed;
-#endif
-
-#ifdef SEED_LYMANWERNERGASMASS_CRITERION
-  MyFloat MinLymanWernerGasParamForNewSeed;
-#endif
-
-#ifdef OUTPUT_LOG_FILES_FOR_SEEDING
-  MyFloat MaxMetallicityForAssumingMetalFree;
-#endif
-
-#ifdef SEED_STARFORMINGGASMETALLICITY_CRITERION
-  MyFloat MaxStarFormingGasMetallicityForNewSeed;
-#endif
-
-#if defined(GAS_BASED_SEED_MODEL) && defined(SEED_MASS_HALO_MASS_RATIO_CRITERION)
-#if(SEED_MASS_HALO_MASS_RATIO_CRITERION == 1)
-  MyFloat MinSeedMassHaloMassLymanWernerParam;
-#endif
-  MyFloat MinSeedMassHaloMassRatioForNewSeed;
-#endif 
-#ifdef NO_SEEDING_IN_LOW_RESOLUTION_CONTAMINATED_HALOS 
-  MyFloat MaximumLowResolutionContaminationForSeeding;
-#endif
-#ifdef PROBABILISTIC_SEEDING
-  MyFloat ConstantSeedProbability;
-#endif
-
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
- MyFloat MaximumNeighboringTracerDistance; 
-#endif
-
-#ifdef STORE_MERGERS_IN_SNAPSHOT
-   int MaxMergers; /**< This gives the maxmimum number of mergers that can be stored on one
-                       processor. */
-#endif
-
-
   int DesNumNgbBlackHole;
   double BlackHoleMaxAccretionRadius;
   double BlackHoleEddingtonFactor;     /**< Factor above Eddington */
   double BlackHoleRadiativeEfficiency; /**< Radiative efficiency determined by the spin value, default value is 0.1 */
+  double BHAccretionStartTime;
 #ifdef BH_NEW_CENTERING
   double BlackHoleCenteringMassMultiplier;
 #endif
@@ -3208,6 +3036,14 @@ extern struct global_data_all_processes
 #ifdef BH_ADIOS_ONLY_ABOVE_MINIMUM_DENSITY
   double RadioFeedbackMinDensityFactor;
 #endif
+#endif
+
+#ifdef BH_FAST_WIND
+  double RadioFeedbackMinDensityFactor;
+  double WindMassLoading;
+  double FastWindVelocity;
+  double FastWindQuasarThreshold;
+  int FastWindKickDirection;
 #endif
 
 #if defined(BH_PRESSURE_CRITERION)
@@ -3474,6 +3310,28 @@ extern struct global_data_all_processes
   double TracerDiffusivity;
 #endif
 
+#ifdef DM_WINDTUNNEL
+  double DMWindtunnelInjectionRegion;
+  double DMWindtunnelSigmaVX;
+  double DMWindtunnelSigmaVY;
+  double DMWindtunnelSigmaVZ;
+  double DMWindtunnelVX;
+  double DMWindtunnelVY;
+  double DMWindtunnelVZ;
+  double DMWindtunnelInjectionDensity;
+#endif
+
+#ifdef DM_WINDTUNNEL_STARS
+  double StarWindtunnelSigmaVX;
+  double StarWindtunnelSigmaVY;
+  double StarWindtunnelSigmaVZ;
+  double StarWindtunnelInjectionDensity;
+#endif
+
+#ifdef DM_WINDTUNNEL_EXTERNAL_SOURCE
+  char DMWindtunnelExternalSourceFile[MAXLEN_PATH];
+#endif
+
 #ifdef WINDTUNNEL
   double InjectionDensity;
   double InjectionVelocity;
@@ -3590,6 +3448,10 @@ extern struct global_data_all_processes
   double MaxVolume;
 #endif
 
+#ifdef REFINEMENT_LIMIT_STARFORMING_GAS
+  double HighDensityMaxGasDerefinementFactor;
+#endif
+
 #ifdef REFINEMENT_BY_DENSITY
   double MinimumDensityForRefinement;
   double MinimumVolumeForDensityRefinement;
@@ -3645,11 +3507,11 @@ extern struct global_data_all_processes
   integertime Conduction_Ti_endstep, Conduction_Ti_begstep;
 #endif
 
-#if defined(CONDUCTION)
+#ifdef CONDUCTION
   double MaxSizeConductionStep;
 #endif
 
-#if defined(MONOTONE_CONDUCTION)
+#ifdef MONOTONE_CONDUCTION
   int MaxConductionSubCycles;
   double dt_conduction, dt_max_conduction;
 #ifdef RESTRICT_KAPPA
@@ -3682,29 +3544,124 @@ extern struct global_data_all_processes
 #endif
 
 #ifdef SFR_MCS
+#if(SFR_MCS_SELECT_CRITERIA == 0) || (SFR_MCS_SELECT_CRITERIA == 3)
   double DensThreshold;
+#endif
+#if(SFR_MCS_SELECT_CRITERIA == 1) || (SFR_MCS_SELECT_CRITERIA == 2) || (SFR_MCS_SELECT_CRITERIA == 3)
+  double SfrCritFactor;
+#if SFR_MCS_SELECT_CRITERIA == 1
+  double SfrCritLength;
+#elif(SFR_MCS_SELECT_CRITERIA == 2) || (SFR_MCS_SELECT_CRITERIA == 3)
+  double SfrCritJeansMassN;
+#endif
+#endif
   double SfrEfficiency;
   double CritOverDensity;
   double OverDensThresh;
-#ifdef SN_MCS
-  double MaxSNStarMassFac;
-  double MaxSNStarMass;
-  double MaxSNEvalTimestep;
-  double SNMassReturn;
-  double SNKineticRatio;
-  double HostCellFeedbackFraction;
-  double SupernovaEnergy; /* In code units, but proper */
-#ifdef MECHANICAL_FEEDBACK
-  double SupernovaTerminalMomentum; /* In code units, but proper */
+
+#if defined(SN_MCS) || defined(HII_MCS) || defined(PE_MCS) || defined(IMF_SAMPLING_MCS)
+#ifdef SFR_MCS_DELAY
+  double TimeDelayFactor;
 #endif
-#ifdef METALS
-  double SNEjectaMetallicity;
+  double MaxFBStarMassFac;
+  double MaxFBStarMass;
+  double MaxFBStarEvalTimestep;
+#ifndef IMF_SAMPLING_MCS
+  double MaxFBStarEvalTimestepCut;
 #endif
+#endif
+
+#if((defined(SN_MCS) && !defined(SN_MCS_SINGLE_INJECTION)) || (defined(HII_MCS) && !defined(HII_MCS_TEST)) || defined(PE_MCS)) && \
+    !(defined(SN_MCS_INITIAL_DRIVING) || defined(IMF_SAMPLING_MCS))
   char SB99TablesPath[MAXLEN_PATH];
 #ifdef SB99_FIXED_Z
   char SB99_metallicity_name[MAXLEN_PATH];
 #endif
 #endif
+
+#ifdef SN_MCS
+#ifndef IMF_SAMPLING_MCS
+#ifndef SN_MCS_INITIAL_DRIVING
+#ifdef SN_MCS_SINGLE_INJECTION
+  double SNDelay;    /* Delay from star particle birth to SN in yrs */
+  double SNMassUnit; /* 1 SNe per SNMassUnit */
+#endif
+#else
+  double DrivingZoneRadius;
+#endif
+#endif
+#ifndef SN_MCS_HOST_ONLY
+  double HostCellFeedbackFraction;
+#endif
+#if !defined(IMF_SAMPLING_MCS) && !defined(SN_MCS_VARIABLE_EJECTA)
+  double SNMassReturn;
+#endif
+  double SNKineticRatio;
+  double SupernovaEnergy; /* In code units, but proper */
+#ifdef SN_MCS_MECHANICAL
+  double SupernovaTerminalMomentum; /* In code units, but proper */
+#endif
+#ifdef METALS
+#if !defined(IMF_SAMPLING_MCS) && !defined(SN_MCS_VARIABLE_EJECTA)
+  double SNEjectaMetallicity;
+#endif
+#endif
+#endif
+
+#ifdef HII_MCS
+  double PhotoionizationGasTemp;
+  double PhotoionizationEgySpec;
+  double R_Stromgren_Max;
+  double Rrec_Hii_tolerance;
+  double Rrec_prefactors;
+  double R_Strom_prefactors;
+  double MinimumPhotoRateFactor;
+  double HiiAttenFac;
+#ifndef HII_MCS_EVERY_SYNCPOINT
+  double TimeBetweenHiiPlace;
+  double TimePrevHiiPlace;
+#endif
+#ifdef HII_MCS_DENSCUT
+  double HiiDensCut;
+#endif
+#ifdef HII_MCS_LR
+  double Factor_Hii;       /* Factor to multiply Hii luminosity / r^2 to get energy density in cgs */
+  double UVBEnergyDensHii; /* Reference energy density in ionising band for UVB, input parameter in cgs */
+#endif
+#endif
+
+#ifdef PE_MCS
+  double Factor_FUV; /* Factor to multiply FUV luminosity / r^2 to get energy density in Habing units */
+  double G_min;      /* Floor value on G_0 */
+#ifdef PE_MCS_FIXED_EPS
+  double PhotoelectricHeatingEps; /*Efficiency parameter to convert FUV energy density to heating rate */
+#endif
+#endif
+
+#ifdef IMF_SAMPLING_MCS
+  double StarMassReservoir;
+  double MinimumIMFStarMass; /* in solar mass */
+  double MaximumIMFStarMass;
+  double MinimumImportantStellarMass;
+#ifdef SN_MCS
+  double SNStarMinMass;
+  double SNStarMaxMass;
+#ifdef SN_MCS_PROMPT
+  double SNLifetime; /* in yrs */
+#endif
+#endif  // SN_MCS
+#endif  // IMF_SAMPLING_MCS
+#endif  // SFR_MCS
+
+#ifdef TURB_APPROX_MCS
+  double MinTurbSpecEnergy;
+#endif
+
+#ifdef SMAUG_PRESSURE_FLOOR
+  double Polytrope_nstar; /* rho / m_p in cm^-3 */
+  double Polytrope_Tstar; /* T / mu in K */
+  double Polytrope_gstar; /* slope of polytrope */
+  double PolytropeFactor; /* Conversion factor, calculated from nstar, Tstar and gstar */
 #endif
 
 #ifdef REDUCE_FLUSH
@@ -3779,13 +3736,6 @@ extern struct global_data_all_processes
 #endif
 #endif
 #endif
-
-#ifdef CALCULATE_SPIN_STARFORMINGGAS
-#define MASS_OF_PROTON_CGS 1.6726219e-24
-#define BOLTZMANN_CONSTANT_CGS 1.38e-16
-#define H_FRACTION 0.76
-#endif
-
 
 #ifdef SIDM
   double SIDMDesNumNgb, SIDMMaxNumNgbDeviation;
@@ -4083,6 +4033,14 @@ extern struct global_data_all_processes
   double AGBWindVelocity;
   double AGBWindSpecificEnergy;
 #endif
+
+#if defined(SOLAR_RADIATIVE_TRANSFER_DIFF) || defined(SOLAR_RADIATIVE_TRANSFER_EDD)
+  double VolumetricHeatingRate;
+  double VolumetricCoolingRate;
+  double SurfaceRadiusInner;
+  double SurfaceRadiusOuter;
+  double CoreRadius;
+#endif
 } All;
 
 /** An enumeration of symbolic names for the snapshot/IC formats
@@ -4100,23 +4058,10 @@ enum SNAP_FORMAT
  */
 extern struct particle_data
 {
-  double Pos[3];         /**< particle position at its current time */
+  double Pos[3];         /**< particle position at its current time relative to `All.GlobalDisplacementVector` */
   MyDouble Mass;         /**< particle mass */
   MyFloat Vel[3];        /**< particle velocity at its current time */
   MySingle GravAccel[3]; /**< particle acceleration due to gravity */
-
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-  int no_of_BHs_ngb;
-#endif
-
-#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_ALL_SOURCES
-  MyFloat StellarAllLymanWernerIntensity_type2, StellarAllLymanWernerIntensity_type3;
-#endif
-
-#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_ALL_STARFORMINGGAS
-  MyFloat StarFormingGasAllLymanWernerIntensity_type2, StarFormingGasAllLymanWernerIntensity_type3;
-#endif
-
 #ifdef EXTERNALGRAVITY
   MySingle dGravAccel; /**< norm of spatial derivatives tensor of gravity accelerations due to external force */
 #endif
@@ -4139,6 +4084,12 @@ extern struct particle_data
 #endif
 #endif
 
+#ifdef DM_WINDTUNNEL
+  /* boolean indicating whether a DMparticle has been outside injection region,
+   * since last windtunnel overwriting. */
+  short int DMWindtunnel_RecentlyUpdated;
+#endif
+
 #ifdef AURIGA_MOVIE
   MyFloat Auriga_Movie_Hsml;
   MyFloat Auriga_Movie_Density;
@@ -4151,7 +4102,7 @@ extern struct particle_data
 
 #if defined(EVALPOTENTIAL) || defined(OUTPUTPOTENTIAL)
   MySingle Potential; /**< gravitational potential */
-#if defined(PMGRID)
+#ifdef PMGRID
   MySingle PM_Potential;
 #endif
 #endif
@@ -4171,15 +4122,6 @@ extern struct particle_data
 #endif
 #endif
 
-#ifdef SN_MCS
-  /* To Do: put in separate star particle struct */
-  int N_SN;           /**<Current SNe this timestep*/
-  int N_SN_cum;       /**<Total SNe experienced*/
-  int N_SN_event_cum; /**<Total SNe events experienced*/
-  MyFloat InitialMass;
-  MyFloat M_ej;
-#endif
-
 #ifdef METALS
   MyFloat Metallicity; /**< metallicity of gas or star particle */
 #endif
@@ -4188,7 +4130,7 @@ extern struct particle_data
   MyFloat ExtPotential;
 #endif
 
-#if defined(GFM) || defined(BLACK_HOLES) || defined(DUST_LIVE) || defined(SINKS)
+#if defined(GFM) || defined(BLACK_HOLES) || defined(DUST_LIVE) || defined(SINKS) || defined(SFR_MCS)
   MyIDType AuxDataID;
 #endif
 
@@ -4237,7 +4179,8 @@ extern struct particle_data
 
   MyIDType ID;
 
-#if defined(ADD_GROUP_PROPERTIES) || defined(RECOMPUTE_POTENTIAL_IN_SNAPSHOT) || defined(CALCULATE_QUANTITIES_IN_POSTPROCESS)
+#if defined(ADD_GROUP_PROPERTIES) || defined(RECOMPUTE_POTENTIAL_IN_SNAPSHOT) || defined(CALCULATE_QUANTITIES_IN_POSTPROCESS) || \
+    defined(COMPUTE_VORONOI_DM_DENSITY_IN_POSTPROC)
   MyIDType FileOrder;
 #endif
 #ifdef ADD_GROUP_PROPERTIES
@@ -4262,18 +4205,10 @@ extern struct particle_data
 #ifdef SINKS
   signed char TimeBinSink;
 #endif
-
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-#if(PTYPE_USED_FOR_ENVIRONMENT_BASED_SEEDING == 1)
-  int IsThisTheMinPotential;
-  MyDouble HostHaloMass;
-#ifdef CREATE_SUBFOFS
-  int IsThisTheMinPotential_bFOF;
-  MyDouble HostHaloMass_bFOF;
+#ifdef COMPUTE_VORONOI_DM_DENSITY_IN_POSTPROC
+  unsigned char OldType;
+  MyFloat DM_VoronoiDensity;
 #endif
-#endif
-#endif
-
 } * P,              /**< holds particle data on local processor */
     *DomainPartBuf; /**< buffer for particle data used in domain decomposition */
 
@@ -4358,14 +4293,6 @@ extern struct sph_particle_data
   MyFloat Volume;
   MyFloat OldMass;
 
-#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_SOURCES
-  MyFloat StellarLymanWernerIntensity_type2,  StellarLymanWernerIntensity_type3;
-#endif
-
-#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS
-  MyFloat StarFormingGasLymanWernerIntensity_type2,  StarFormingGasLymanWernerIntensity_type3;
-#endif
-
 #ifdef MRT_LSF_GRADIENTS
   MyFloat OldCons_DensPhot[MRT_BINS];
 #ifdef MRT_COMOVING
@@ -4386,7 +4313,7 @@ extern struct sph_particle_data
   /* primitive variables */
   MyFloat Density;
   MyFloat Pressure; /**< current pressure */
-  MySingle Utherm;    /** It used to be MySingle, changed to MyFloat by Aklant */
+  MySingle Utherm;
 #if defined(USE_ENTROPY_FOR_COLD_FLOWS) || defined(OUTPUT_ENTROPY)
   MyFloat Entropy;
   MyFloat A;
@@ -4794,15 +4721,6 @@ extern struct sph_particle_data
   MyFloat VelDisp;
 #endif
 
-#ifdef SN_MCS
-  /* Stellar feedback quantities deposited in this cell
-  to be dispersed */
-  int N_SN_hosted;
-  MyFloat mass_deposited;
-  MyFloat energy_deposited;
-  MyFloat starvel[3];
-#endif
-
 #if defined(SMUGGLE_RADIATION_FEEDBACK)
   MyFloat GasRadCoolShutoffTime;
 #endif
@@ -4847,8 +4765,10 @@ extern struct sph_particle_data
 #ifdef BH_THERMALFEEDBACK
   MySingle Injected_BH_Energy;
 #endif
-#ifdef BH_ADIOS_WIND
+
+#if defined(BH_ADIOS_WIND) || defined(BH_FAST_WIND)
   MyFloat Injected_BH_Wind_Momentum[3];
+  MyFloat Injected_BH_Wind_Mass;
 #endif
 
 #ifdef TGCHEM
@@ -4907,6 +4827,10 @@ extern struct sph_particle_data
 
 #ifdef REFINEMENT_VOLUME_LIMIT
   MyFloat MinNgbVolume;
+#endif
+
+#ifdef REFINEMENT_KEEP_INITIAL_VOLUME
+  MyFloat InitialVolume;
 #endif
 
 #ifdef SINKS
@@ -5118,58 +5042,73 @@ extern struct sph_particle_data
   struct gasVariables ChimesGasVars;
 #endif
 
-#ifdef BLACK_HOLES
-#ifdef PREVENT_SPURIOUS_RESEEDING 
-  MyFloat SeedMass;
-  MyFloat NumBHNGB;
-  int niterations;
-  int nfound;
+#if SFR_MCS_RATE_CRITERIA > 0
+  MyFloat gradv_sq;
 #endif
-#ifdef PREVENT_SEEDING_AROUND_BLACKHOLE_NEIGHBORS2
-  int BHNeighborExists;
+
+#ifdef SN_MCS
+  /* Stellar feedback quantities deposited in this cell
+  to be dispersed */
+  int N_SN_hosted;
+  MyFloat mass_deposited;
+#if defined(IMF_SAMPLING_MCS) || defined(SN_MCS_VARIABLE_EJECTA)
+  MyFloat metal_deposited;
 #endif
-#ifdef PREVENT_SPURIOUS_RESEEDING2
-  int NeighborOfBlackhole;
+  MyFloat energy_deposited;
+  MyFloat starvel[3];
+#endif
+
+#ifdef HII_MCS
+  MyIDType StromgrenSourceID;  /**<The ID of the source currently photoionising this cell, or 0 if it is not being photoionised */
+  MyFloat HostPhotonRate; /**<The ionising photon rate being emitted from this cell or currently in this cell */
+  MyFloat R_Stromgren;
+  MyFloat SourcePos[3];
+  int SourceAuxID;
+
+#ifdef HII_MCS_LR
+  MyFloat L_Hii;         /**<Emergent ionising luminosity being emitted from this cell*/
+  MyFloat EnergyDensHii; /**<Energy density of ionising radiation in cell, ergs cm^-3 */
+#endif
+
+#ifdef HII_MCS_RECORDS
+#ifdef HII_MCS_ANISO
+  MyFloat R_StromgrenArr[HII_MCS_N_PIX];
+#endif
+  int N_Sources;
+  MyIDType StarIDArr[3];
+  MyFloat HiiRecombinationRate;
+#endif  // HII_MCS_RECORDS
+#endif  // HII_MCS
+
+#ifdef PE_MCS
+  MyFloat G_FUV; /**<ISRF in units of the Habing field */
+#endif
+
+#ifdef TURB_APPROX_MCS
+  MyFloat TurbEnergy;
+  MyFloat TurbSpecEnergy;
+#ifdef TURB_APPROX_MCS_GRAD_UNLIM
+  MySingle dvel_unlim[3][3]; /* velocity gradient tensor before slope limiting */
+#endif
+#ifdef TURB_APPROX_MCS_RENORM
+  MyFloat OldVolume;         /* The cell volume in the previous timestep */
 #endif
 #endif
 
-#ifdef SUPPRESS_STARFORMATION_ABOVE_CRITICAL_LYMANWERNERFLUX
-  int GasIsDense;
-#endif 
-  int CouldHaveBeenABlackHole;
-
-#ifdef CHECK_FOR_ENOUGH_GAS_MASS_IN_DCBH_FORMING_POCKETS
-  MyFloat NeighboringDCBHFormingGasMass;
-#endif
-
-#ifdef SEED_BASED_ON_PROBABLISTIC_HALO_PROPERTIES
-#ifdef PROBABILISTIC_SEED_MASS_HALO_MASS_RATIO_CRITERION
-  MyFloat RandomMinHaloMassForSeeding;
-  MyFloat RandomMinHaloMassForSeeding_mirrored; 
+#if defined(BIERMANN_BATTERY) || defined(DURRIVE_BATTERY)
+  // MyFloat n_elec;   /*already defined whenever MRT is included (but not used by MRT, so we can take it)*/
+  MyFloat p_elec;       /* electron pressure */
+  MyFloat pdot_elec[3]; /* photo-injected electron momentum */
+#ifdef MAGNETIC_BATTERIES_OUTPUT_GRADIENTS
+  MyFloat Grad_n_elec[3];
+  MyFloat Grad_p_elec[3];
+  MyFloat Grad_pdot_elec[3][3];
 #endif
 #endif
 
-#ifdef EVOLVING_SEEDING_PROBABILITY
-  MyFloat SecondRandomNumberForSeeding;
-  int UseRandomNumberForSeeding;
-#endif
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION2
-  MyFloat ThirdRandomNumberForSeeding;
-#endif
-
-#ifdef UNIFORM_SEEDMASS_DISTRIBUTION
-  MyFloat DrawnSeedBlackHoleMass;
-#endif
-
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-#if(PTYPE_USED_FOR_ENVIRONMENT_BASED_SEEDING == 0)
-  int IsThisTheDensestCell;
-  MyDouble HostHaloMass;
-#ifdef CREATE_SUBFOFS
-  int IsThisTheDensestCell_bFOF;
-  MyDouble HostHaloMass_bFOF;
-#endif
-#endif
+#if defined(SOLAR_RADIATIVE_TRANSFER_DIFF) || defined(SOLAR_RADIATIVE_TRANSFER_EDD) || defined(OUTPUT_QRAD)
+  MyFloat Qrad;
+  MyFloat RadialQrad;
 #endif
 } * SphP,          /**< holds SPH particle data on local processor */
     *DomainSphBuf; /**< buffer for SPH particle data in domain decomposition */
@@ -5184,6 +5123,9 @@ extern struct tracer_linked_list
 #ifdef TRACER_MC_NUM_FLUID_QUANTITIES
   MyFloat fluid_quantities[TRACER_MC_NUM_FLUID_QUANTITIES]; /**< recorded properties of parent gas cell */
 #endif
+#ifdef SN_MCS
+  unsigned char EjectaFlag; /**< Flags whether tracer is halfway through SN ejecta deposition, required for SN_MCS implementation */
+#endif
   int Next; /**< list index of next tracer, or -1 if end */
   int Prev; /**< list index of prev tracer, or (-index-1) of SphP if first child */
 } * TracerLinkedList;
@@ -5196,13 +5138,6 @@ extern MyIDType *tracer_cellids;
 #ifdef GFM
 extern struct star_particle_data
 {
-#ifdef GAS_BASED_SEED_MODEL
-  MyIDType Parent_GasID;
-  int Spawned;
-#endif
-#ifdef PREVENT_SPURIOUS_RESEEDING
-  MyFloat SeedMass;
-#endif
   unsigned int PID;
   MyFloat BirthTime;
   double BirthPos[3];
@@ -5340,9 +5275,6 @@ extern struct star_particle_data
 #if defined(SIMPLEX) && (SX_CHEMISTRY == 4) && (SX_SOURCES == 4)
   double SEDs[SX_NFREQ];
 #endif
-#ifdef OUTPUT_STELLAR_AGE
-  MyFloat StellarAgeGyr;
-#endif
 
 } * StarP, *DomainStarBuf;
 #endif
@@ -5411,7 +5343,20 @@ extern struct bh_particle_data
   MyFloat BH_Mass_bubbles;
   MyFloat BH_Mass_ini;
 #endif
-#ifdef BH_ADIOS_WIND
+
+#ifdef BH_FAST_WIND
+  MyFloat BH_WindEnergy;
+#ifdef BH_FAST_WIND_STOCHASTIC
+  MyFloat Total_Ngb_Mass;
+#else
+  int Random_Task;
+  int BHTaskList[1024];
+  //int *BHTaskList;
+  //int *BHTaskList = (int *)mymalloc("BHTaskList", NTask * sizeof(int));
+#endif
+#endif
+
+#if defined(BH_ADIOS_WIND)
   MyFloat BH_WindEnergy;
 #ifndef BH_ADIOS_RANDOMIZED
   MyFloat Asum;
@@ -5424,27 +5369,9 @@ extern struct bh_particle_data
 #endif
 
 #endif
-#if defined(GFM_AGN_RADIATION) || defined(MASSIVE_SEEDS_MERGER) || defined(SEED_HALO_ENVIRONMENT_CRITERION)
-  MyDouble HostHaloMass;
-#ifdef CREATE_SUBFOFS
-  MyDouble HostHaloMass_bFOF;
+#if defined(GFM_AGN_RADIATION) || defined(MASSIVE_SEEDS_MERGER)
+  MyFloat HostHaloMass;
 #endif
-#endif
-
-#ifdef OUTPUT_HOST_PROPERTIES_FOR_BH_MERGERS
-  MyFloat HostHaloTotalMass, HostHaloStellarMass, HostHaloGasMass, HostHaloDMMass , HostHaloSFR;
-#endif
-
-#ifdef PREVENT_SPURIOUS_RESEEDING
-  MyFloat Time_Of_Seeding;
-  int NeighborsHaveBeenPainted;
-#endif
-
-#if defined(PREVENT_SPURIOUS_RESEEDING) && defined(ACCOUNT_FOR_SWALLOWED_PAINTED_GAS)
-  MyFloat SeedMass;
-#endif
-
-
 #if(defined(GFM_WINDS_VARIABLE) && (GFM_WINDS_VARIABLE == 1)) || defined(GFM_WINDS_LOCAL)
   MyFloat BH_DMVelDisp;
 #endif
@@ -5489,16 +5416,20 @@ extern struct bh_particle_data
   MyFloat BH_Mass_Previous;
   MyFloat BH_DMass_Current;
   MyFloat BlackHoleRadiativeEfficiency;
+#endif
 
-#endif
+#ifdef BH_DF_DISCRETE
+  MySingle DFD_GravAccel[3];    /**< particle acceleration due to discrete DF model */
+#endif   // BH_DF_DISCRETE
+
 } * BHP, *DomainBHBuf;
-#endif
+#endif   // ifdef BLACK_HOLES
 
 #ifdef BLACK_HOLES
 #define BPP(i) BHP[P[(i)].AuxDataID]
 #endif
 
-#ifdef GFM
+#if defined(GFM) || defined(SFR_MCS)
 #define STP(i) StarP[P[(i)].AuxDataID]
 #endif
 
@@ -5513,7 +5444,6 @@ extern struct dust_particle_data
   MyFloat DragAccel[3];
   MyFloat StoppingTime;
   int MinGasTimeBin;
-
 #ifdef DL_GRAIN_BINS
   MyFloat NumGrains[DL_GRAIN_BINS];
 #ifdef DL_GRAIN_BINS_PIECEWISE_LINEAR
@@ -5581,27 +5511,6 @@ extern struct special_particle_data
 } * PartSpecialListGlobal;
 #endif
 
-
-#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_ALL_SOURCES
-extern struct lyman_werner_particle_data
-{
-  MyIDType ID;
-  double pos[3];
-  double mass;
-  MyFloat metallicity, age;
-} * PartLymanWernerListGlobal;
-#endif
-
-#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_ALL_STARFORMINGGAS
-extern struct lyman_werner_starforminggas_data
-{
-  MyIDType ID;
-  double pos[3];
-  double mass;
-  MyFloat metallicity;
-} * PartLymanWernerStarFormingGasListGlobal;
-#endif
-
 #ifdef REFINEMENT_AROUND_DM
 extern struct refine_dm_data
 {
@@ -5626,6 +5535,9 @@ extern struct tracer_flux_list_data
 #endif
 #ifdef TRACER_MC_CHECKS
   MyIDType ParentID;
+#endif
+#ifdef SN_MCS
+  unsigned char EjectaFlag;
 #endif
 } * TracerFluxListIn, *TracerFluxListGet;
 
@@ -5891,9 +5803,6 @@ enum iofields
   IO_NHEPP,
   IO_SFR,
   IO_AGE,
-#ifdef OUTPUT_STELLAR_AGE
-  IO_AGE_GYR,
-#endif
   IO_LOCFBEVENT,
   IO_STKY,
   IO_Z,
@@ -5918,81 +5827,6 @@ enum iofields
   IO_BHEGYL,
   IO_BHEGYH,
 
-#ifdef GAS_BASED_SEED_MODEL
-  IO_PGASID,
-  IO_SPAWNED,
-#endif
-
-#ifdef PREVENT_SPURIOUS_RESEEDING
-  IO_SEEDMASS,
-  IO_SEEDMASS_STAR,
-  IO_SEEDMASS_BH,
-  IO_TIME_OF_SEEDING,
-  IO_NUMBHNGB,
-  IO_NITERATIONS,
-  IO_NFOUND,
-  IO_PAINTED,
-#endif
-
-#ifdef SUPPRESS_STARFORMATION_ABOVE_CRITICAL_LYMANWERNERFLUX
-  IO_GASISDENSE,
-#endif
-
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-#if(PTYPE_USED_FOR_ENVIRONMENT_BASED_SEEDING == 0)
-  IO_ISTHISTHEDENSESTCELL,
-#else
-  IO_ISTHISTHEMINPOTENTIAL,
-#endif
-#ifdef CREATE_SUBFOFS
-#if(PTYPE_USED_FOR_ENVIRONMENT_BASED_SEEDING == 0)
-  IO_ISTHISTHEDENSESTCELL_BFOF,
-#else
-  IO_ISTHISTHEMINPOTENTIAL_BFOF,
-#endif
-#endif
-#endif
-
-#ifdef CHECK_FOR_ENOUGH_GAS_MASS_IN_DCBH_FORMING_POCKETS
-  IO_NEIGHBORING_DCBH_FORMING_GAS_MASS,
-#endif
-
-#if defined(PREVENT_SEEDING_AROUND_BLACKHOLE_NEIGHBORS2) || defined(CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS)
-  IO_BHNEIGHBOREXISTS, 
-  IO_GASHSML,
-#endif
-
-#ifdef PREVENT_SPURIOUS_RESEEDING2
-  IO_NEIGHBOROFBLACKHOLE,
-#endif
-
-#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_ALL_SOURCES
-  IO_STELLARALL_LYMANWERNERINTENSITY_TYPE2,
-  IO_STELLARALL_LYMANWERNERINTENSITY_TYPE3,
-#endif
-#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_ALL_STARFORMINGGAS
-  IO_STARFORMINGGASALL_LYMANWERNERINTENSITY_TYPE2,
-  IO_STARFORMINGGASALL_LYMANWERNERINTENSITY_TYPE3,
-#endif
-#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_SOURCES
-  IO_STELLARLYMANWERNERINTENSITY_TYPE2,
-  IO_STELLARLYMANWERNERINTENSITY_TYPE3,
-#endif
-#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS
-  IO_STARFORMINGGASLYMANWERNERINTENSITY_TYPE2,
-  IO_STARFORMINGGASLYMANWERNERINTENSITY_TYPE3,
-#endif
-
-#ifdef SEED_BASED_ON_PROBABLISTIC_HALO_PROPERTIES
-#ifdef PROBABILISTIC_SEED_MASS_HALO_MASS_RATIO_CRITERION
-  IO_RANDOMMINHALOMASSFORSEEDING,
-#endif
-#endif
-
-#ifdef EVOLVING_SEEDING_PROBABILITY
-  IO_SECONDRANDOMNUMBERFORSEEDING, 
-#endif
-
   IO_BHMDOTQUASAR,
   IO_BHMDOTRADIO,
   IO_BHVVIR,
@@ -6012,6 +5846,8 @@ enum iofields
   IO_BHSPINMODEL,
   IO_BHANGMOMGASCELLS,
 
+  IO_BH_DFD_ACCEL,   // BH_DF_DISCRETE
+
   IO_POT,
   IO_ACCEL,
   IO_GRADP,
@@ -6019,12 +5855,11 @@ enum iofields
   IO_GRADPCR,
   IO_GRADV,
   IO_GRADB,
+  IO_VDM,
 
   IO_POT_MINI,
   IO_POS_MINI,
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-  IO_BH_NGB,
-#endif
+
   IO_CR_C0,
   IO_CR_Q0,
   IO_CR_P0,
@@ -6104,12 +5939,6 @@ enum iofields
   IO_GFM_CHEM_TAGS2,
   IO_GFM_STELLAR_PHOTOMETRICS,
   IO_GFM_WINDHOSTMASS,
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-  IO_HOSTHALOMASS,
-#ifdef CREATE_SUBFOFS
-  IO_HOSTHALOMASS_BFOF,
-#endif
-#endif 
   IO_GFM_WINDHOSTDISP,
   IO_GFM_COOLRATE,
   IO_GFM_AGN_RADIATION,
@@ -6323,9 +6152,41 @@ enum iofields
 
   IO_BFLAG,
 
+  IO_MCS_GRADV_SQ,
+  IO_MCS_AGE,
+  IO_MCS_BIRTH_TIME,
+  IO_MCS_BIRTH_POS,
+  IO_MCS_BIRTH_VEL,
+  IO_MCS_BIRTH_RHO,
   IO_MCS_N_SN,
   IO_MCS_N_SN_EVENT,
   IO_MCS_INITIAL_MASS,
+  IO_MCS_SN_TIME,
+  IO_MCS_SN_POS,
+  IO_MCS_SN_RHO,
+  IO_MCS_SN_TEMP,
+  IO_MCS_STROMGREN_SOURCE_ID,
+  IO_MCS_R_STROMGREN,
+  IO_MCS_PHOTON_RATE,
+  IO_MCS_R_STROMGREN_ARR,
+  IO_MCS_N_HII_SOURCE,
+  IO_MCS_HII_SOURCE_IDS,
+  IO_MCS_HII_RECOM_RATE,
+  IO_MCS_EDENS_HII,
+  IO_MCS_GFUV,
+  IO_MCS_PEHR,
+  IO_MCS_LUFV,
+  IO_MCS_DCOL,
+  IO_IMF_MCS_MASSES,
+  IO_IMF_MCS_LIFETIMES,
+  IO_IMF_MCS_PHOTON_RATES,
+  IO_IMF_MCS_PHOTON_ENERGY,
+  IO_IMF_MCS_LFUVS,
+  IO_MCS_TURBSPEC,
+  IO_MCS_DVEL_UNLIM,
+  IO_MCS_TURB_PROD,
+  IO_MCS_TURB_DISS,
+  IO_MCS_TURB_ADIA,
 
   IO_SGS_T_SPECIFICENERGY,
   IO_SGS_T_PRESSURE,
@@ -6347,6 +6208,9 @@ enum iofields
   IO_DPELEC,
   IO_DPDOTELEC,
 
+  IO_QRAD,
+  IO_RADIALQRAD,
+
   IO_LASTENTRY /* This should be kept - it signals the end of the list */
 };
 
@@ -6357,7 +6221,7 @@ enum arrays
 #ifdef TRACER_MC
   A_TLL,
 #endif
-#ifdef GFM
+#if defined(GFM) || defined(SFR_MCS)
   A_STARP,
 #endif
 #ifdef BLACK_HOLES
@@ -6489,13 +6353,6 @@ extern struct NODE
     {
       MyDouble s[3]; /**< center of mass of node */
       MyDouble mass; /**< mass of node */
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-      int no_of_BHs;
-      MyDouble HostHaloMass;
-#ifdef CREATE_SUBFOFS
-      MyDouble HostHaloMass_bFOF;
-#endif
-#endif
       /** The next node in the tree walk in case the current node does
           not need to be opened. This means that it traverses the 8
           subnodes of a node in a breadth-first fashion, and then goes
@@ -6532,6 +6389,10 @@ extern struct NODE
 
 #ifdef TREECOLV2_VEL
   MyFloat Vel[3]; /*!< centre of mass velocity of node */
+#endif
+
+#ifdef BH_DF_DISCRETE
+  MyFloat DFD_Vel[3];
 #endif
 
 #ifndef SIDM
@@ -6598,6 +6459,16 @@ extern struct NODE
   int nxm1, nxp1, nym1, nyp1, nzm1, nzp1; /*!< neighbor nodes on same or coarser grid level */
   MG_Bitflag_Data mg_bitflag;
 #endif
+
+#ifdef PE_MCS
+  MyFloat lum_FUV;
+  MyFloat lum_FUV_s[3];
+#endif
+
+#ifdef HII_MCS_LR
+  MyFloat lum_Hii;
+  MyFloat lum_Hii_s[3];
+#endif
 } * Nodes;
 
 #ifdef MULTIPLE_NODE_SOFTENING
@@ -6635,24 +6506,6 @@ extern int *Ngb_DomainTask;
 #endif
 extern int *Ngb_Nextnode;
 
-#ifdef CONSTRUCT_FOF_NGBTREE
-extern int Ngb_MaxPart_groups;
-extern int Ngb_NumNodes_groups;
-extern int Ngb_MaxNodes_groups;
-extern int Ngb_FirstNonTopLevelNode_groups;
-extern int Ngb_NextFreeNode_groups;
-extern int *Ngb_Father_groups;
-extern int *Ngb_Marker_groups;
-extern int Ngb_MarkerValue_groups;
-
-extern int *Ngb_DomainNodeIndex_groups;
-extern int *DomainListOfLocalTopleaves_groups;
-extern int *DomainNLocalTopleave_groups;
-extern int *DomainFirstLocTopleave_groups;
-extern int *Ngb_Nextnode_groups;
-#endif
-
-
 /** The ngb-tree data structure
  */
 extern struct NgbNODE
@@ -6688,11 +6541,7 @@ extern struct NgbNODE
   MyFloat Center[3];
   amr_node_data hydro;
 #endif
-#ifdef CONSTRUCT_FOF_NGBTREE
-}* Ngb_Nodes, * Ngb_Nodes_groups;
-#else
-}* Ngb_Nodes;
-#endif
+} * Ngb_Nodes;
 
 extern struct ExtNgbNODE
 {

@@ -214,7 +214,7 @@ void blackhole_blow_wind(void)
     }
 
   double t1 = second();
-  mpi_printf("BH_ADIOS_WIND: Done assigning BH momentum feedback %.8f \n", timediff(t0, t1));
+  mpi_printf("BH_ADIOS_WIND: Done assigning BH momentum feedback\n", timediff(t0, t1));
 }
 
 static int blackhole_evaluate(int target, int mode, int threadid)

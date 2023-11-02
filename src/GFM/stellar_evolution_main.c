@@ -29,7 +29,7 @@
 
 #ifdef GFM_STELLAR_EVOLUTION
 
-#define WARN_TOLERANCE 0.001
+#define WARN_TOLERANCE 0.00001
 
 /*!
  * driver routine for stellar evolution, set up arguments for stellar_evolution(...) call
@@ -177,8 +177,8 @@ void do_stellar_evolution(MyFloat age_of_star_in_Gyr, MyFloat dtime_in_Gyr, int 
       if(log_min_mass > log_max_mass)
         terminate(
             "GFM_STELLAR_EVOLUTION: Min mass larger than max mass for stellar evolution: i=%d  log_min_mass=%g  log_max_mass=%g  "
-            "diff=%g\n",
-            iPart, log_min_mass, log_max_mass, log_max_mass - log_min_mass);
+            "diff=%g, dtime_in_Gyr=%g\n",
+            iPart, log_min_mass, log_max_mass, log_max_mass - log_min_mass, dtime_in_Gyr);
 
       if(log_min_mass == log_max_mass)
         return;
@@ -543,6 +543,9 @@ void do_stellar_evolution(MyFloat age_of_star_in_Gyr, MyFloat dtime_in_Gyr, int 
 
 void evolve_active_stars(void)
 {
+  if(All.HighestActiveTimeBin == 0)
+    return;
+
   int i, iel;
   double time_begstep, age_of_star_in_Gyr, dtime_in_Gyr;
   stellar_evolution_data sed;
@@ -562,6 +565,10 @@ void evolve_active_stars(void)
   int chan;
 #endif
 
+  /* don't do this on the first timestep, because dtime_in_Gyr=0, but roundoff errors can lead to dtime_in_Gyr<0 */
+  if(All.NumCurrentTiStep == 0)
+    return;
+
   /* do local star particles */
   for(i = 0; i < Nstar; i++)
     {
@@ -573,10 +580,7 @@ void evolve_active_stars(void)
 
       /* we take the age at the beginning of the interval, and dtime is since the last enrichment event */
       age_of_star_in_Gyr = get_time_difference_in_Gyr(STP(StarParticle[i].index).BirthTime, STP(StarParticle[i].index).lastEnrichTime);
-#ifdef OUTPUT_STELLAR_AGE
-      STP(StarParticle[i].index).StellarAgeGyr = age_of_star_in_Gyr;     
-#endif
-      dtime_in_Gyr = get_time_difference_in_Gyr(STP(StarParticle[i].index).lastEnrichTime, time_begstep);
+      dtime_in_Gyr       = get_time_difference_in_Gyr(STP(StarParticle[i].index).lastEnrichTime, time_begstep);
 
 #ifdef SMUGGLE_RADIATION_FEEDBACK
       dtime_in_Gyr_rad       = dtime_in_Gyr;

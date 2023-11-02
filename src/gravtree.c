@@ -89,6 +89,12 @@ static void particle2in(data_in *in, int i, int firstnode)
         in->Vth2 = SphP[i].Vth2;
 #endif
 
+#ifdef BH_DF_DISCRETE
+      in->DFD_Mass = P[i].Mass;
+      for(int k = 0; k < 3; k++)
+          in->DFD_Vel[k] = P[i].Vel[k];
+#endif // BH_DF_DISCRETE
+
       in->Type          = P[i].Type;
       in->SofteningType = P[i].SofteningType;
       in->OldAcc        = P[i].OldAcc;
@@ -104,6 +110,12 @@ static void particle2in(data_in *in, int i, int firstnode)
       for(int k = 0; k < 3; k++)
         in->Vel[k] = Tree_Points[i].Vel[k];
 #endif
+
+#ifdef BH_DF_DISCRETE
+      in->DFD_Mass = Tree_Points[i].Mass;
+      for(int k = 0; k < 3; k++)
+          in->DFD_Vel[k] = Tree_Points[i].DFD_Vel[k];
+#endif // BH_DF_DISCRETE
 
       in->Type          = Tree_Points[i].Type;
       in->SofteningType = Tree_Points[i].SofteningType;
@@ -135,7 +147,6 @@ static void out2particle(data_out *out, int i, int mode)
 #ifdef EVALPOTENTIAL
           P[i].Potential = out->Potential;
 #endif
-
 #ifdef OUTPUTGRAVINTERACTIONS
           P[i].GravInteractions = out->GravNinteractions;
 #endif
@@ -176,6 +187,30 @@ static void out2particle(data_out *out, int i, int mode)
           P[i].ModgravAccel[1] = out->ModgravAcc[1];
           P[i].ModgravAccel[2] = out->ModgravAcc[2];
 #endif
+#ifdef PE_MCS
+          if(P[i].Type == 0)
+            SphP[i].G_FUV = out->G_FUV;
+#endif
+#ifdef HII_MCS_LR
+          if(P[i].Type == 0)
+            SphP[i].EnergyDensHii = out->EnergyDensHii;
+#endif
+
+#ifdef BH_DF_DISCRETE
+          if(P[i].Type == 5)
+            {
+              for(int k = 0; k < 3; k++)
+                  BPP(i).DFD_GravAccel[k] = out->DFD_BH_Accel[k];
+            }
+          else
+            {
+              for(int k = 0; k < 3; k++)
+                  if(out->DFD_BH_Accel[k] != 0)
+                      terminate("Particle %d, type %d, has out->DFD_BH_Accel[%d] = %g != 0",
+                                i, P[i].Type, k, out->DFD_BH_Accel[k]);
+            }
+#endif // BH_DF_DISCRETE
+
         }
       else
         {
@@ -183,7 +218,6 @@ static void out2particle(data_out *out, int i, int mode)
           Tree_ResultsActiveImported[idx].GravAccel[0] = out->Acc[0];
           Tree_ResultsActiveImported[idx].GravAccel[1] = out->Acc[1];
           Tree_ResultsActiveImported[idx].GravAccel[2] = out->Acc[2];
-
 #ifdef EVALPOTENTIAL
           Tree_ResultsActiveImported[idx].Potential = out->Potential;
 #endif
@@ -222,6 +256,19 @@ static void out2particle(data_out *out, int i, int mode)
           Tree_ResultsActiveImported[idx].ModgravAccel[1] = out->ModgravAcc[1];
           Tree_ResultsActiveImported[idx].ModgravAccel[2] = out->ModgravAcc[2];
 #endif
+
+#ifdef PE_MCS
+          Tree_ResultsActiveImported[idx].G_FUV = out->G_FUV;
+#endif
+#ifdef HII_MCS_LR
+          Tree_ResultsActiveImported[idx].EnergyDensHii = out->EnergyDensHii;
+#endif
+
+#ifdef BH_DF_DISCRETE
+          for(int k = 0; k < 3; k++)
+              Tree_ResultsActiveImported[idx].DFD_Acc[k] = out->DFD_BH_Accel[k];
+#endif // BH_DF_DISCRETE
+
         }
     }
   else /* combine */
@@ -275,6 +322,30 @@ static void out2particle(data_out *out, int i, int mode)
           P[i].ModgravAccel[1] += out->ModgravAcc[1];
           P[i].ModgravAccel[2] += out->ModgravAcc[2];
 #endif
+#ifdef PE_MCS
+          if(P[i].Type == 0)
+            SphP[i].G_FUV += out->G_FUV;
+#endif
+#ifdef HII_MCS_LR
+          if(P[i].Type == 0)
+            SphP[i].EnergyDensHii += out->EnergyDensHii;
+#endif
+
+#ifdef BH_DF_DISCRETE
+          if(P[i].Type == 5)
+            {
+              for(int k = 0; k < 3; k++)
+                  BPP(i).DFD_GravAccel[k] += out->DFD_BH_Accel[k];
+            }
+          else
+            {
+              for(int k = 0; k < 3; k++)
+                  if(out->DFD_BH_Accel[k] != 0)
+                      terminate("Particle %d, type %d, has out->DFD_BH_Accel[%d] = %g != 0",
+                                i, P[i].Type, k, out->DFD_BH_Accel[k]);
+            }
+#endif // BH_DF_DISCRETE
+
         }
       else
         {
@@ -320,9 +391,21 @@ static void out2particle(data_out *out, int i, int mode)
           Tree_ResultsActiveImported[idx].ModgravAccel[1] += out->ModgravAcc[1];
           Tree_ResultsActiveImported[idx].ModgravAccel[2] += out->ModgravAcc[2];
 #endif
+
+#ifdef PE_MCS
+          Tree_ResultsActiveImported[idx].G_FUV += out->G_FUV;
+#endif
+#ifdef HII_MCS_LR
+          Tree_ResultsActiveImported[idx].EnergyDensHii += out->EnergyDensHii;
+#endif
+
+#ifdef BH_DF_DISCRETE
+          for(int k = 0; k < 3; k++)
+              Tree_ResultsActiveImported[idx].DFD_Acc[k] += out->DFD_BH_Accel[k];
+#endif // BH_DF_DISCRETE
         }
     }
-}
+} // out2particle()
 
 #define OMIT_GENERIC_COMM_PATTERN_FOR_GIVEN_PARTICLES
 #include "generic_comm_helpers2.h"
@@ -846,6 +929,22 @@ void gravity_tree(int timebin)
 #endif
           }
 #endif
+
+#ifdef BH_DF_DISCRETE
+      if(P[target].Type == 5)
+        {
+          for(int k = 0; k < 3; k++)
+              BPP(target).DFD_GravAccel[k] = tmp_results[i].DFD_Acc[k];
+        }
+      else
+        {
+          for(int k = 0; k < 3; k++)
+              if(tmp_results[i].DFD_Acc[k] != 0)
+                  terminate("Particle %d, type %d, has tmp_results[%d].DFD_Acc[%d] = %g != 0",
+                            target, P[target].Type, i, k, tmp_results[i].DFD_Acc[k]);
+        }
+#endif // BH_DF_DISCRETE
+
     }
 
   myfree(tmp_results);

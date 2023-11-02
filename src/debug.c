@@ -50,8 +50,8 @@ void print_particle_info(const int i)
              SphP[i].Density, SphP[i].Pressure, SphP[i].CR_Pressure, SphP[i].Utherm, SphP[i].VelVertex[0], SphP[i].VelVertex[1],
              SphP[i].VelVertex[2], get_sound_speed(i));
 #endif
-      printf("Center-Pos=%g|%g|%g\n", SphP[i].Center[0] - P[i].Pos[0], SphP[i].Center[1] - P[i].Pos[1],
-             SphP[i].Center[2] - P[i].Pos[2]);
+      printf("Center=%g|%g|%g, Center-Pos=%g|%g|%g\n", SphP[i].Center[0], SphP[i].Center[1], SphP[i].Center[2],
+             SphP[i].Center[0] - P[i].Pos[0], SphP[i].Center[1] - P[i].Pos[1], SphP[i].Center[2] - P[i].Pos[2]);
 #ifndef MHD
       printf("Mom=%g|%g|%g, Energy=%g, EInt=%g, EKin=%g\n", SphP[i].Momentum[0], SphP[i].Momentum[1], SphP[i].Momentum[2],
              SphP[i].Energy, SphP[i].Utherm * P[i].Mass,
@@ -129,6 +129,18 @@ void print_particle_info(const int i)
       printf("n_elec=%g, p_elec=%g, pdot_elec=%g %g %g\n", SphP[i].n_elec, SphP[i].p_elec, SphP[i].pdot_elec[0], SphP[i].pdot_elec[1],
              SphP[i].pdot_elec[2]);
 #endif
+#ifdef SGCHEM
+      int n;
+      for(n = 0; n < SGCHEM_NUM_ADVECTED_SPECIES; n++)
+        {
+          printf("Species=%d, fractional abundance=%g, scaled mass frac=%\n", n, SphP[i].TracAbund[n], SphP[i].MassTracAbund[n]);
+        }
+#ifdef SGCHEM_VARIABLE_Z
+      printf("Metal abundances: %g, %g, %g, %g\n", SphP[i].CarbAbund, SphP[i].OxyAbund, SphP[i].MAbund, SphP[i].ZAtom);
+      printf("Metal masses: %g, %g, %g, %g\n", SphP[i].CarbMass, SphP[i].OxyMass, SphP[i].MMass, SphP[i].ZMass);
+      printf("Dust-to-gas, scaled dust mass: %g, %g\n", SphP[i].DustToGasRatio, SphP[i].ScaledDustMass);
+#endif
+#endif
     }
 
 #ifdef GFM_STELLAR_EVOLUTION
@@ -159,6 +171,9 @@ void print_particle_info(const int i)
 #if(DRAINGAS == 3)
       printf("VolSum=%g\n", BPP(i).BH_VolSum);
 #endif
+#ifdef BH_DF_DISCRETE
+      printf("DFD_GravAccel=%g|%g|%g\n", BPP(i).DFD_GravAccel[0], BPP(i).DFD_GravAccel[1], BPP(i).DFD_GravAccel[2]);
+#endif // BH_DF_DISCRETE
     }
 #endif
 

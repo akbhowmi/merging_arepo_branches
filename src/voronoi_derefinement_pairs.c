@@ -234,10 +234,6 @@ void voronoi_derefinement_merge_pair(int i, int j)
   SphP[keep].Momentum[1] += SphP[del].Momentum[1];
   SphP[keep].Momentum[2] += SphP[del].Momentum[2];
 
-#ifdef PREVENT_SPURIOUS_RESEEDING
-  SphP[keep].SeedMass += SphP[del].SeedMass;
-#endif
-
 #ifdef MHD
   /* it does not make any sense to "conserve" the magnetic field, so lets take the average */
   SphP[keep].BConserved[0] = 0.5 * (SphP[keep].BConserved[0] + SphP[del].BConserved[0]);

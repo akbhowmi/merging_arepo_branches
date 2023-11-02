@@ -141,7 +141,7 @@ void sidm_AllocTargets(void)
   unsigned char reaction;
 
   Nforces    = 0;
-  TargetList = mymalloc("TargetList", (NumPart + Tree_NumPartImported) * sizeof(int));
+  TargetList = (int *)mymalloc("TargetList", (NumPart + Tree_NumPartImported) * sizeof(int));
 
   for(idx = 0; idx < TimeBinsGravity.NActiveParticles; idx++)
     {
@@ -425,7 +425,7 @@ void sidm_AssignScatterPartner(void)
   int TotNumScatterParticles = 2 * SIDM_NumScatterParticles;
   unsigned char scatter_reaction, reaction;
 
-  scatterlist_local = mymalloc("scatterlist_local", TotNumScatterParticles * sizeof(MyIDType));
+  scatterlist_local = (MyIDType *)mymalloc("scatterlist_local", TotNumScatterParticles * sizeof(MyIDType));
 
   /* select scatter partner */
   for(n = 0; n < SIDM_NumScatterParticles; n++)
@@ -479,8 +479,8 @@ void sidm_AssignScatterPartner(void)
                   PSIDM[n].ngb_Offset, PSIDM[sidx].NumNgb, scatter_reaction, PSum_partial, p, PSIDM[sidx].RandX);
     }
 
-  count  = mymalloc("count", sizeof(int) * NTask);
-  offset = mymalloc("offset", sizeof(int) * NTask);
+  count  = (int *)mymalloc("count", sizeof(int) * NTask);
+  offset = (int *)mymalloc("offset", sizeof(int) * NTask);
 
   MPI_Allgather(&TotNumScatterParticles, 1, MPI_INT, count, 1, MPI_INT, MPI_COMM_WORLD);
 
@@ -497,11 +497,11 @@ void sidm_AssignScatterPartner(void)
       offset[i] *= sizeof(MyIDType);
     }
 
-  scatterlist_global = mymalloc("scatterlist_global", tot_count * sizeof(MyIDType));
+  scatterlist_global = (MyIDType *)mymalloc("scatterlist_global", tot_count * sizeof(MyIDType));
   MPI_Allgatherv(scatterlist_local, TotNumScatterParticles * sizeof(MyIDType), MPI_BYTE, scatterlist_global, count, offset, MPI_BYTE,
                  MPI_COMM_WORLD);
 
-  duplicate = mymalloc("duplicate", tot_count * sizeof(MyIDType));
+  duplicate = (MyIDType *)mymalloc("duplicate", tot_count * sizeof(MyIDType));
   qsort(scatterlist_global, tot_count, sizeof(MyIDType), ID_cmp);
 
   numdup = 0;
@@ -745,7 +745,8 @@ void sidm_SetAndExchangeData(void)
       if(((1 << (Tree_Points[i].Type)) & (SIDM)))
         ncount++;
 
-  Tree_ResultsImported = mymalloc("Tree_HsmlResultsImported", ncount * sizeof(struct resultsimported_data));
+  Tree_ResultsImported =
+      (struct resultsimported_data *)mymalloc("Tree_HsmlResultsImported", ncount * sizeof(struct resultsimported_data));
 
   memset(Tree_ResultsImported, 0, ncount * sizeof(struct resultsimported_data));
 
@@ -838,7 +839,7 @@ void sidm_SetAndExchangeData(void)
         }
     }
 
-  tmp_results = mymalloc("tmp_results", nexport * sizeof(struct resultsimported_data));
+  tmp_results = (struct resultsimported_data *)mymalloc("tmp_results", nexport * sizeof(struct resultsimported_data));
   memset(tmp_results, -1, nexport * sizeof(struct resultsimported_data));
 
   for(ngrp = 1; ngrp < (1 << PTask); ngrp++)
@@ -877,7 +878,8 @@ void sidm_SetAndExchangeData(void)
         ncount++;
     }
 
-  Tree_ResultsImported = mymalloc("Tree_HsmlResultsImported", ncount * sizeof(struct resultsimported_data));
+  Tree_ResultsImported =
+      (struct resultsimported_data *)mymalloc("Tree_HsmlResultsImported", ncount * sizeof(struct resultsimported_data));
   memset(Tree_ResultsImported, 0, ncount * sizeof(struct resultsimported_data));
 
   for(i = 0; i < NumPart; i++)
@@ -944,7 +946,7 @@ void sidm_SetAndExchangeData(void)
         }
     }
 
-  tmp_results = mymalloc("tmp_results", nexport * sizeof(struct resultsimported_data));
+  tmp_results = (struct resultsimported_data *)mymalloc("tmp_results", nexport * sizeof(struct resultsimported_data));
   memset(tmp_results, -1, nexport * sizeof(struct resultsimported_data));
 
   for(ngrp = 1; ngrp < (1 << PTask); ngrp++)

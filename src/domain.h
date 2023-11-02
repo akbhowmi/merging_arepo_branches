@@ -41,11 +41,7 @@ extern struct local_topnode_data
 #ifdef AMR
   int MinCellLevel;
 #endif
-#ifdef CONSTRUCT_FOF_NGBTREE
-} * topNodes, *branchNodes, *topNodes_groups; /*!< points to the root node of the top-level tree */
-#else
 } * topNodes, *branchNodes; /*!< points to the root node of the top-level tree */
-#endif
 
 struct domain_count_data
 {
@@ -58,11 +54,7 @@ extern struct domain_peano_hilbert_data
 {
   peanokey key;
   int index;
-#ifdef CONSTRUCT_FOF_NGBTREE
-} * mp, * mp_groups;
-#else
 } * mp;
-#endif
 
 extern struct trans_data
 {
@@ -88,11 +80,8 @@ extern struct domain_cost_data
   float WorkSph; /*!< total "work" due to the particles stored by a leave node */
   int Count;     /*!< a table that gives the total number of particles held by each processor */
   int CountSph;  /*!< a table that gives the total number of SPH particles held by each processor */
-#ifdef CONSTRUCT_FOF_NGBTREE
-} * DomainLeaveNode, * DomainLeaveNode_groups;
-#else
 } * DomainLeaveNode;
-#endif
+
 /*! toGo[partner] gives the number of particles on the current task that have to go to task 'partner'
  */
 extern int *toGo, *toGoSph;
@@ -110,7 +99,7 @@ extern int *toGoTracer;
 extern int *toGetTracer;
 extern int *list_N_Tracer;
 #endif
-#ifdef GFM
+#if defined(GFM) || defined(SFR_MCS)
 extern int *toGoStar;
 extern int *toGetStar;
 extern int *list_N_star;
@@ -168,18 +157,6 @@ double domain_particle_costfactor(int i);
 int domain_countToGo(void);
 int domain_decompose(void);
 int domain_determineTopTree(void);
-
-#ifdef CONSTRUCT_FOF_NGBTREE
-int domain_determineTopTree_groups(void);
-void domain_do_local_refine_groups(int n, int *list);
-void domain_walktoptree_groups(int no);
-void domain_allocate_groups(void);
-void domain_free_groups(void);
-void domain_allocate_lists_groups(void);
-void domain_free_lists_groups(void);
-#endif
-
-
 void domain_exchange(void);
 void domain_findExchangeNumbers(int task, int partner, int sphflag, int *send, int *recv);
 void domain_findExtent(void);

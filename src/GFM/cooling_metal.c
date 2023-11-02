@@ -25,9 +25,6 @@
 #include <string.h>
 #include "../allvars.h"
 #include "../proto.h"
-#ifdef MRT_METAL_COOLING
-#include "../MRT/RT_proto.h"
-#endif
 
 #ifdef GFM_COOLING_METAL
 
@@ -723,7 +720,8 @@ void read_cooling_tables_init(void)
 #ifndef RADCOOL
   tmpdbl  = (double *)mymalloc("tmpdbl", tmpdbllen);
   dataset = my_H5Dopen(file_id, "NetCoolingRate");
-  mpi_printf("GFM_COOLING_METAL: reading %010llu/%010d Bytes\n", (unsigned long long)(2 * H5Dget_storage_size(dataset) / *n_redshift), tmpdbllen);
+  mpi_printf("GFM_COOLING_METAL: reading %010llu/%010d Bytes\n", (unsigned long long)(2 * H5Dget_storage_size(dataset) / *n_redshift),
+             tmpdbllen);
 
   hsize_t len = (hsize_t)(tmpdbllen / sizeof(double));
 
@@ -735,7 +733,8 @@ void read_cooling_tables_init(void)
 #else
   tmpfl                = (float *)mymalloc("tmpfl", tmpfllen);
   dataset              = my_H5Dopen(file_id, "NetCoolingRate");
-  mpi_printf("GFM_COOLING_METAL: reading %010llu/%010d Bytes\n", (unsigned long long)(2 * H5Dget_storage_size(dataset) / *n_redshift), tmpfllen);
+  mpi_printf("GFM_COOLING_METAL: reading %010llu/%010d Bytes\n", (unsigned long long)(2 * H5Dget_storage_size(dataset) / *n_redshift),
+             tmpfllen);
 
   hsize_t len = (hsize_t)(tmpfllen / sizeof(float));
 
@@ -747,7 +746,8 @@ void read_cooling_tables_init(void)
 
   tmpflh  = (float *)mymalloc("tmpflh", tmpfllen);
   dataset = my_H5Dopen(file_id, "NetHeatingRate");
-  mpi_printf("GFM_COOLING_METAL: reading %010llu/%010d Bytes\n", (unsigned long long)(2 * H5Dget_storage_size(dataset) / *n_redshift), tmpfllen);
+  mpi_printf("GFM_COOLING_METAL: reading %010llu/%010d Bytes\n", (unsigned long long)(2 * H5Dget_storage_size(dataset) / *n_redshift),
+             tmpfllen);
 
   len = (hsize_t)(tmpfllen / sizeof(float));
 
@@ -1009,7 +1009,8 @@ void read_cooling_tables_current_time(void)
 #ifndef RADCOOL
       tmpdbl  = (double *)mymalloc("tmpdbl", tmpdbllen);
       dataset = my_H5Dopen(file_id, "NetCoolingRate");
-      mpi_printf("GFM_COOLING_METAL: reading %010llu/%010d bytes\n", (unsigned long long)(2 * H5Dget_storage_size(dataset) / *n_redshift), tmpdbllen);
+      mpi_printf("GFM_COOLING_METAL: reading %010llu/%010d bytes\n",
+                 (unsigned long long)(2 * H5Dget_storage_size(dataset) / *n_redshift), tmpdbllen);
 
       hsize_t len = (hsize_t)(tmpdbllen / sizeof(double));
 
@@ -1021,7 +1022,8 @@ void read_cooling_tables_current_time(void)
 #else
       tmpfl             = (float *)mymalloc("tmpfl", tmpfllen);
       dataset           = my_H5Dopen(file_id, "NetCoolingRate");
-      mpi_printf("GFM_COOLING_METAL: reading %010llu/%010d Bytes\n", (unsigned long long)(2 * H5Dget_storage_size(dataset) / *n_redshift), tmpfllen);
+      mpi_printf("GFM_COOLING_METAL: reading %010llu/%010d Bytes\n",
+                 (unsigned long long)(2 * H5Dget_storage_size(dataset) / *n_redshift), tmpfllen);
 
       hsize_t len = (hsize_t)(tmpfllen / sizeof(float));
 
@@ -1033,7 +1035,8 @@ void read_cooling_tables_current_time(void)
 
       tmpflh  = (float *)mymalloc("tmpflh", tmpfllen);
       dataset = my_H5Dopen(file_id, "NetHeatingRate");
-      mpi_printf("GFM_COOLING_METAL: reading %010llu/%010d Bytes\n", (unsigned long long)(2 * H5Dget_storage_size(dataset) / *n_redshift), tmpfllen);
+      mpi_printf("GFM_COOLING_METAL: reading %010llu/%010d Bytes\n",
+                 (unsigned long long)(2 * H5Dget_storage_size(dataset) / *n_redshift), tmpfllen);
 
       len = (hsize_t)(tmpfllen / sizeof(float));
 
@@ -1109,7 +1112,8 @@ void read_cooling_tables_current_time(void)
 
           tmpfl   = (float *)mymalloc("tmpfl", tmpfllen);
           dataset = my_H5Dopen(file_id, "NetCoolingRateLowZ");
-          mpi_printf("GFM_COOLING_METAL: reading %010llu/%010d Bytes\n", (unsigned long long)(2 * H5Dget_storage_size(dataset) / *n_redshift_lz), tmpfllen);
+          mpi_printf("GFM_COOLING_METAL: reading %010llu/%010d Bytes\n",
+                     (unsigned long long)(2 * H5Dget_storage_size(dataset) / *n_redshift_lz), tmpfllen);
 
           hsize_t len = (hsize_t)(tmpfllen / sizeof(float));
 
@@ -1121,7 +1125,8 @@ void read_cooling_tables_current_time(void)
 
           tmpflh  = (float *)mymalloc("tmpflh", tmpfllen);
           dataset = my_H5Dopen(file_id, "NetHeatingRateLowZ");
-          mpi_printf("GFM_COOLING_METAL: reading %010llu/%010d Bytes\n", (unsigned long long)(2 * H5Dget_storage_size(dataset) / *n_redshift_lz), tmpfllen);
+          mpi_printf("GFM_COOLING_METAL: reading %010llu/%010d Bytes\n",
+                     (unsigned long long)(2 * H5Dget_storage_size(dataset) / *n_redshift_lz), tmpfllen);
 
           len = (hsize_t)(tmpfllen / sizeof(float));
 
@@ -1174,7 +1179,8 @@ void read_cooling_tables_current_time(void)
 
           tmpfl   = (float *)mymalloc("tmpfl", tmpfllen);
           dataset = my_H5Dopen(file_id, "NetCoolingRate");
-          mpi_printf("GFM_COOLING_METAL: reading %010llu/%010d Bytes\n", (unsigned long long)(2 * H5Dget_storage_size(dataset) / *n_redshift), tmpfllen);
+          mpi_printf("GFM_COOLING_METAL: reading %010llu/%010d Bytes\n",
+                     (unsigned long long)(2 * H5Dget_storage_size(dataset) / *n_redshift), tmpfllen);
 
           hsize_t len = (hsize_t)(tmpfllen / sizeof(float));
 
@@ -1186,7 +1192,8 @@ void read_cooling_tables_current_time(void)
 
           tmpflh  = (float *)mymalloc("tmpflh", tmpfllen);
           dataset = my_H5Dopen(file_id, "NetHeatingRate");
-          mpi_printf("GFM_COOLING_METAL: reading %010llu/%010d Bytes\n", (unsigned long long)(2 * H5Dget_storage_size(dataset) / *n_redshift), tmpfllen);
+          mpi_printf("GFM_COOLING_METAL: reading %010llu/%010d Bytes\n",
+                     (unsigned long long)(2 * H5Dget_storage_size(dataset) / *n_redshift), tmpfllen);
 
           len = (hsize_t)(tmpfllen / sizeof(float));
 
@@ -1284,9 +1291,14 @@ MyFloat get_CoolingMetalRate(MyFloat log_MetallicityInSolar, MyFloat log_Hydroge
   double cool, heat;
 #endif
 
-  /* no metal line cooling beyond the largest redshift */
+/* no metal line cooling beyond the largest redshift */
   if(All.cf_redshift > redshift_bins[*n_redshift - 1])
     return 0.0;
+  
+#ifdef GFM_COOLING_METAL_START
+  if(All.cf_redshift > All.MetalCoolStartRedshift)
+    return 0.0;
+#endif
 
   /* no metal line cooling outside of temperature range */
   if(log_Temperature < temperature_bins[0] || log_Temperature > temperature_bins[*n_temperature - 1])

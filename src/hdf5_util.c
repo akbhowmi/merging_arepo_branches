@@ -39,19 +39,26 @@
  *             access is desired, this is a collective call according to the
  *             communicator stored in the fapl_id. Use H5P_DEFAULT for default
  *             file access properties.
+ *  \param[in] func Name of the function that has called the HDF5 routine
+ *             (usually given by the __func__ macro).
+ *  \param[in] file File where the function that has called the HDF5
+ *             routine resides (usually given by the __FILE__ macro).
+ *  \param[in] line Line number of the file where the HDF5 routine was
+ *             called (usually given by the __LINE__ macro).
  *
  *  \return File identifier.
  */
-hid_t my_H5Fcreate(const char *fname, unsigned int flags, hid_t fcpl_id, hid_t fapl_id)
+hid_t my_H5Fcreate_fullinfo(const char *fname, unsigned int flags, hid_t fcpl_id, hid_t fapl_id, const char *func, const char *file,
+                            const int line)
 {
   hid_t file_id = H5Fcreate(fname, flags, fcpl_id, fapl_id);
 
 #ifndef TOLERATE_WRITE_ERROR
   if(file_id < 0)
-    {
-      H5Eset_auto(NULL, NULL);
-      terminate("On Task %d, error detected in HDF5: unable to create file %s\n", ThisTask, fname);
-    }
+    terminate(
+        "On Task %d, error detected in HDF5: unable to create file %s\n"
+        "  at %s()/%s/line %d.",
+        ThisTask, fname, func, file, line);
 #endif
 
   return file_id;
@@ -70,19 +77,25 @@ hid_t my_H5Fcreate(const char *fname, unsigned int flags, hid_t fcpl_id, hid_t f
  *             could result in a single large I/O request even when the group
  *             has just a few names. HDF5 stores each name with a null
  *             terminator.
+ *  \param[in] func Name of the function that has called the HDF5 routine
+ *             (usually given by the __func__ macro).
+ *  \param[in] file File where the function that has called the HDF5
+ *             routine resides (usually given by the __FILE__ macro).
+ *  \param[in] line Line number of the file where the HDF5 routine was
+ *             called (usually given by the __LINE__ macro).
  *
  *  \return Group identifier.
  */
-hid_t my_H5Gcreate(hid_t loc_id, const char *groupname, size_t size_hint)
+hid_t my_H5Gcreate_fullinfo(hid_t loc_id, const char *groupname, size_t size_hint, const char *func, const char *file, const int line)
 {
   hid_t group_id = H5Gcreate(loc_id, groupname, size_hint);
 
 #ifndef TOLERATE_WRITE_ERROR
   if(group_id < 0)
-    {
-      H5Eset_auto(NULL, NULL);
-      terminate("On Task %d, error detected in HDF5: unable to create group %s\n", ThisTask, groupname);
-    }
+    terminate(
+        "On Task %d, error detected in HDF5: unable to create group %s\n"
+        "  at %s()/%s/line %d.",
+        ThisTask, groupname, func, file, line);
 #endif
 
   return group_id;
@@ -100,19 +113,26 @@ hid_t my_H5Gcreate(hid_t loc_id, const char *groupname, size_t size_hint)
  *  \param[in] space_id Identifier of the dataspace to use when creating the
  *             dataset.
  *  \param[in] dcpl_id Dataset creation property list identifier.
+ *  \param[in] func Name of the function that has called the HDF5 routine
+ *             (usually given by the __func__ macro).
+ *  \param[in] file File where the function that has called the HDF5
+ *             routine resides (usually given by the __FILE__ macro).
+ *  \param[in] line Line number of the file where the HDF5 routine was
+ *             called (usually given by the __LINE__ macro).
  *
  *  \return Dataset identifier.
  */
-hid_t my_H5Dcreate(hid_t loc_id, const char *datasetname, hid_t type_id, hid_t space_id, hid_t dcpl_id)
+hid_t my_H5Dcreate_fullinfo(hid_t loc_id, const char *datasetname, hid_t type_id, hid_t space_id, hid_t dcpl_id, const char *func,
+                            const char *file, const int line)
 {
   hid_t dataset_id = H5Dcreate(loc_id, datasetname, type_id, space_id, dcpl_id);
 
 #ifndef TOLERATE_WRITE_ERROR
   if(dataset_id < 0)
-    {
-      H5Eset_auto(NULL, NULL);
-      terminate("On Task %d, Error detected in HDF5: unable to create dataset %s\n", ThisTask, datasetname);
-    }
+    terminate(
+        "On Task %d, Error detected in HDF5: unable to create dataset %s\n"
+        "  at %s()/%s/line %d.",
+        ThisTask, datasetname, func, file, line);
 #endif
 
   return dataset_id;
@@ -130,11 +150,17 @@ hid_t my_H5Dcreate(hid_t loc_id, const char *datasetname, hid_t type_id, hid_t s
  *             I/O operation.
  *  \param[in] buf Buffer with data to be written to the file.
  *  \param[in] datasetname Name of dataset (for error message only)
+ *  \param[in] func Name of the function that has called the HDF5 routine
+ *             (usually given by the __func__ macro).
+ *  \param[in] file File where the function that has called the HDF5
+ *             routine resides (usually given by the __FILE__ macro).
+ *  \param[in] line Line number of the file where the HDF5 routine was
+ *             called (usually given by the __LINE__ macro).
  *
  *  \return Status of write operation.
  */
-herr_t my_H5Dwrite(hid_t dataset_id, hid_t mem_type_id, hid_t mem_space_id, hid_t file_space_id, hid_t xfer_plist_id, const void *buf,
-                   const char *datasetname)
+herr_t my_H5Dwrite_fullinfo(hid_t dataset_id, hid_t mem_type_id, hid_t mem_space_id, hid_t file_space_id, hid_t xfer_plist_id,
+                            const void *buf, const char *datasetname, const char *func, const char *file, const int line)
 {
 #ifdef TOLERATE_WRITE_ERROR
   if(WriteErrorFlag)
@@ -145,10 +171,10 @@ herr_t my_H5Dwrite(hid_t dataset_id, hid_t mem_type_id, hid_t mem_space_id, hid_
 
 #ifndef TOLERATE_WRITE_ERROR
   if(status < 0)
-    {
-      H5Eset_auto(NULL, NULL);
-      terminate("On Task %d, error detected in HDF5: unable to write dataset %s\n", ThisTask, datasetname);
-    }
+    terminate(
+        "On Task %d, error detected in HDF5: unable to write dataset %s\n"
+        "  at %s()/%s/line %d.",
+        ThisTask, datasetname, func, file, line);
 #endif
 
   return status;
@@ -166,19 +192,26 @@ herr_t my_H5Dwrite(hid_t dataset_id, hid_t mem_type_id, hid_t mem_space_id, hid_
  *  \param[in] space_id Identifier of dataspace for attribute.
  *  \param[in] acpl_id Identifier of creation property list (specify
  *             H5P_DEFAULT).
+ *  \param[in] func Name of the function that has called the HDF5 routine
+ *             (usually given by the __func__ macro).
+ *  \param[in] file File where the function that has called the HDF5
+ *             routine resides (usually given by the __FILE__ macro).
+ *  \param[in] line Line number of the file where the HDF5 routine was
+ *             called (usually given by the __LINE__ macro).
  *
  *  \return Attribute identifier.
  */
-hid_t my_H5Acreate(hid_t loc_id, const char *attr_name, hid_t type_id, hid_t space_id, hid_t acpl_id)
+hid_t my_H5Acreate_fullinfo(hid_t loc_id, const char *attr_name, hid_t type_id, hid_t space_id, hid_t acpl_id, const char *func,
+                            const char *file, const int line)
 {
   hid_t attribute_id = H5Acreate(loc_id, attr_name, type_id, space_id, acpl_id);
 
 #ifndef TOLERATE_WRITE_ERROR
   if(attribute_id < 0)
-    {
-      H5Eset_auto(NULL, NULL);
-      terminate("On Task %d, error detected in HDF5: unable to create attribute %s\n", ThisTask, attr_name);
-    }
+    terminate(
+        "On Task %d, error detected in HDF5: unable to create attribute %s\n"
+        "  at %s()/%s/line %d.",
+        ThisTask, attr_name, func, file, line);
 #endif
 
   return attribute_id;
@@ -190,10 +223,17 @@ hid_t my_H5Acreate(hid_t loc_id, const char *attr_name, hid_t type_id, hid_t spa
  *  \param[in] mem_type_id Identifier of the attribute datatype (in memory).
  *  \param[in] buf Data to be written.
  *  \param[in] attr_name Name of attribute (for error message only).
+ *  \param[in] func Name of the function that has called the HDF5 routine
+ *             (usually given by the __func__ macro).
+ *  \param[in] file File where the function that has called the HDF5
+ *             routine resides (usually given by the __FILE__ macro).
+ *  \param[in] line Line number of the file where the HDF5 routine was
+ *             called (usually given by the __LINE__ macro).
  *
  *  \return status (non-negative if successful).
  */
-herr_t my_H5Awrite(hid_t attr_id, hid_t mem_type_id, const void *buf, const char *attr_name)
+herr_t my_H5Awrite_fullinfo(hid_t attr_id, hid_t mem_type_id, const void *buf, const char *attr_name, const char *func,
+                            const char *file, const int line)
 {
 #ifdef TOLERATE_WRITE_ERROR
   if(WriteErrorFlag)
@@ -204,10 +244,10 @@ herr_t my_H5Awrite(hid_t attr_id, hid_t mem_type_id, const void *buf, const char
 
 #ifndef TOLERATE_WRITE_ERROR
   if(status < 0)
-    {
-      H5Eset_auto(NULL, NULL);
-      terminate("On Task %d, error detected in HDF5: unable to write attribute %s\n", ThisTask, attr_name);
-    }
+    terminate(
+        "On Task %d, error detected in HDF5: unable to write attribute %s\n"
+        "  at %s()/%s/line %d.",
+        ThisTask, attr_name, func, file, line);
 #endif
 
   return status;
@@ -216,27 +256,41 @@ herr_t my_H5Awrite(hid_t attr_id, hid_t mem_type_id, const void *buf, const char
 /*! \brief Wraps creating a dataspace to give a nice error message.
  *
  *  \param[in] type Type of dataspace to be created.
+ *  \param[in] func Name of the function that has called the HDF5 routine
+ *             (usually given by the __func__ macro).
+ *  \param[in] file File where the function that has called the HDF5
+ *             routine resides (usually given by the __FILE__ macro).
+ *  \param[in] line Line number of the file where the HDF5 routine was
+ *             called (usually given by the __LINE__ macro).
  *
  *  \return Dataspace identifier if successful.
  */
-hid_t my_H5Screate(H5S_class_t type)
+hid_t my_H5Screate_fullinfo(H5S_class_t type, const char *func, const char *file, const int line)
 {
   hid_t dataspace_id = H5Screate(type);
 
 #ifndef TOLERATE_WRITE_ERROR
   if(dataspace_id < 0)
     {
-      H5Eset_auto(NULL, NULL);
       switch(type)
         {
           case H5S_SCALAR:
-            terminate("On Task %d, error detected in HDF5: unable to create a scalar dataspace\n", ThisTask);
+            terminate(
+                "On Task %d, error detected in HDF5: unable to create a scalar dataspace\n"
+                "  at %s()/%s/line %d.",
+                ThisTask, func, file, line);
             break;
           case H5S_SIMPLE:
-            terminate("On Task %d, error detected in HDF5: unable to create a simple dataspace\n", ThisTask);
+            terminate(
+                "On Task %d, error detected in HDF5: unable to create a simple dataspace\n"
+                "  at %s()/%s/line %d.",
+                ThisTask, func, file, line);
             break;
           default:
-            terminate("On Task %d, error detected in HDF5: unknown dataspace type\n", ThisTask);
+            terminate(
+                "On Task %d, error detected in HDF5: unknown dataspace type\n"
+                "  at %s()/%s/line %d.",
+                ThisTask, func, file, line);
             break;
         }
     }
@@ -251,19 +305,26 @@ hid_t my_H5Screate(H5S_class_t type)
  *  \param[in] current_dims Array specifying the size of each dimension.
  *  \param[in] maximum_dims Array specifying the maximum size of each
  *             dimension.
+ *  \param[in] func Name of the function that has called the HDF5 routine
+ *             (usually given by the __func__ macro).
+ *  \param[in] file File where the function that has called the HDF5
+ *             routine resides (usually given by the __FILE__ macro).
+ *  \param[in] line Line number of the file where the HDF5 routine was
+ *             called (usually given by the __LINE__ macro).
  *
  *  \return Dataspace identifier if successful.
  */
-hid_t my_H5Screate_simple(int rank, const hsize_t *current_dims, const hsize_t *maximum_dims)
+hid_t my_H5Screate_simple_fullinfo(int rank, const hsize_t *current_dims, const hsize_t *maximum_dims, const char *func,
+                                   const char *file, const int line)
 {
   hid_t dataspace_id = H5Screate_simple(rank, current_dims, maximum_dims);
 
 #ifndef TOLERATE_WRITE_ERROR
   if(dataspace_id < 0)
-    {
-      H5Eset_auto(NULL, NULL);
-      terminate("On Task %d, error detected in HDF5: unable to create a simple dataspace\n", ThisTask);
-    }
+    terminate(
+        "On Task %d, error detected in HDF5: unable to create a simple dataspace\n"
+        "  at %s()/%s/line %d.",
+        ThisTask, func, file, line);
 #endif
 
   return dataspace_id;
@@ -279,18 +340,24 @@ hid_t my_H5Screate_simple(int rank, const hsize_t *current_dims, const hsize_t *
  *             parallel file access is desired, this is a collective call
  *             according to the communicator stored in the fapl_id. Use
  *             H5P_DEFAULT for default file access properties.
+ *  \param[in] func Name of the function that has called the HDF5 routine
+ *             (usually given by the __func__ macro).
+ *  \param[in] file File where the function that has called the HDF5
+ *             routine resides (usually given by the __FILE__ macro).
+ *  \param[in] line Line number of the file where the HDF5 routine was
+ *             called (usually given by the __LINE__ macro).
  *
  *  \return File identifier if successful.
  */
-hid_t my_H5Fopen(const char *fname, unsigned int flags, hid_t fapl_id)
+hid_t my_H5Fopen_fullinfo(const char *fname, unsigned int flags, hid_t fapl_id, const char *func, const char *file, const int line)
 {
   hid_t file_id = H5Fopen(fname, flags, fapl_id);
 
   if(file_id < 0)
-    {
-      H5Eset_auto(NULL, NULL);
-      terminate("On Task %d, error detected in HDF5: unable to open file %s\n", ThisTask, fname);
-    }
+    terminate(
+        "On Task %d, error detected in HDF5: unable to open file %s\n"
+        "  at %s()/%s/line %d.",
+        ThisTask, fname, func, file, line);
 
   return file_id;
 }
@@ -300,19 +367,25 @@ hid_t my_H5Fopen(const char *fname, unsigned int flags, hid_t fapl_id)
  *  \param[in] loc_id File or group identifier within which the group is to be
  *             opened.
  *  \param[in] groupname Name of group.
+ *  \param[in] func Name of the function that has called the HDF5 routine
+ *             (usually given by the __func__ macro).
+ *  \param[in] file File where the function that has called the HDF5
+ *             routine resides (usually given by the __FILE__ macro).
+ *  \param[in] line Line number of the file where the HDF5 routine was
+ *             called (usually given by the __LINE__ macro).
  *
  *  \return Valid group identifier if successful.
  */
-hid_t my_H5Gopen(hid_t loc_id, const char *groupname)
+hid_t my_H5Gopen_fullinfo(hid_t loc_id, const char *groupname, const char *func, const char *file, const int line)
 {
   hid_t group = H5Gopen(loc_id, groupname);
 
 #ifndef TOLERATE_WRITE_ERROR
   if(group < 0)
-    {
-      H5Eset_auto(NULL, NULL);
-      terminate("On Task %d, error detected in HDF5: unable to open group %s\n", ThisTask, groupname);
-    }
+    terminate(
+        "On Task %d, error detected in HDF5: unable to open group %s\n"
+        "  at %s()/%s/line %d.",
+        ThisTask, groupname, func, file, line);
 #endif
 
   return group;
@@ -323,19 +396,25 @@ hid_t my_H5Gopen(hid_t loc_id, const char *groupname)
  *  \param[in] file_id Identifier of the file or group within which the
  *             dataset to be accessed will be found.
  *  \param[in] datasetname Name of the dataset to access.
+ *  \param[in] func Name of the function that has called the HDF5 routine
+ *             (usually given by the __func__ macro).
+ *  \param[in] file File where the function that has called the HDF5
+ *             routine resides (usually given by the __FILE__ macro).
+ *  \param[in] line Line number of the file where the HDF5 routine was
+ *             called (usually given by the __LINE__ macro).
  *
  *  \return Dataset identifier if successful.
  */
-hid_t my_H5Dopen(hid_t file_id, const char *datasetname)
+hid_t my_H5Dopen_fullinfo(hid_t file_id, const char *datasetname, const char *func, const char *file, const int line)
 {
   hid_t dataset = H5Dopen(file_id, datasetname);
 
 #ifndef TOLERATE_WRITE_ERROR
   if(dataset < 0)
-    {
-      H5Eset_auto(NULL, NULL);
-      terminate("On Task %d, error detected in HDF5: unable to open dataset %s\n", ThisTask, datasetname);
-    }
+    terminate(
+        "On Task %d, error detected in HDF5: unable to open dataset %s\n"
+        "  at %s()/%s/line %d.",
+        ThisTask, datasetname, func, file, line);
 #endif
 
   return dataset;
@@ -343,10 +422,10 @@ hid_t my_H5Dopen(hid_t file_id, const char *datasetname)
 
 /*! \brief Wraps opening a dataset.
  *
- *  In contrast to my_H5Dopen(), if the dataset does not exist it does not
- *  terminate the run. This is useful while reading an ICs file
- *  because in that case a non-exisitng dataset is put to zero (see also
- *  read_ic.c).
+ *  In contrast to #my_H5Dopen(), if the dataset does not exist or opening
+ *  fails for other reasons, it does not terminate the run. This is useful
+ *  while reading an IC file because in that case a non-exisitng dataset is
+ *  put to zero (see also read_ic.c).
  *
  *  \param[in] file_id file_id Identifier of the file or group within which the
  *             dataset to be accessed will be found.
@@ -375,19 +454,25 @@ hid_t my_H5Dopen_if_existing(hid_t file_id, const char *datasetname)
  *  \param[in] loc_id  Identifier of a group, dataset, or named datatype that
  *             attribute is attached to.
  *  \param[in] attr_name Attribute name.
+ *  \param[in] func Name of the function that has called the HDF5 routine
+ *             (usually given by the __func__ macro).
+ *  \param[in] file File where the function that has called the HDF5
+ *             routine resides (usually given by the __FILE__ macro).
+ *  \param[in] line Line number of the file where the HDF5 routine was
+ *             called (usually given by the __LINE__ macro).
  *
  *  \return Returns attribute identifier if successful.
  */
-hid_t my_H5Aopen_name(hid_t loc_id, const char *attr_name)
+hid_t my_H5Aopen_name_fullinfo(hid_t loc_id, const char *attr_name, const char *func, const char *file, const int line)
 {
   hid_t attribute_id = H5Aopen_name(loc_id, attr_name);
 
 #ifndef TOLERATE_WRITE_ERROR
   if(attribute_id < 0)
-    {
-      H5Eset_auto(NULL, NULL);
-      terminate("On Task %d, error detected in HDF5: unable to open attribute %s\n", ThisTask, attr_name);
-    }
+    terminate(
+        "On Task %d, error detected in HDF5: unable to open attribute %s\n"
+        "  at %s()/%s/line %d.",
+        ThisTask, attr_name, func, file, line);
 #endif
 
   return attribute_id;
@@ -403,18 +488,24 @@ hid_t my_H5Aopen_name(hid_t loc_id, const char *attr_name)
  *             I/O operation.
  *  \param[out] buf Buffer to receive data read from file.
  *  \param[in] datasetname Name of dataset (only for error message).
+ *  \param[in] func Name of the function that has called the HDF5 routine
+ *             (usually given by the __func__ macro).
+ *  \param[in] file File where the function that has called the HDF5
+ *             routine resides (usually given by the __FILE__ macro).
+ *  \param[in] line Line number of the file where the HDF5 routine was
+ *             called (usually given by the __LINE__ macro).
  *
  *  \return Returns a non-negative value if successful.
  */
-herr_t my_H5Dread(hid_t dataset_id, hid_t mem_type_id, hid_t mem_space_id, hid_t file_space_id, hid_t xfer_plist_id, void *buf,
-                  const char *datasetname)
+herr_t my_H5Dread_fullinfo(hid_t dataset_id, hid_t mem_type_id, hid_t mem_space_id, hid_t file_space_id, hid_t xfer_plist_id,
+                           void *buf, const char *datasetname, const char *func, const char *file, const int line)
 {
   herr_t status = H5Dread(dataset_id, mem_type_id, mem_space_id, file_space_id, xfer_plist_id, buf);
   if(status < 0)
-    {
-      H5Eset_auto(NULL, NULL);
-      terminate("On Task %d, error detected in HDF5: unable to read dataset %s\n", ThisTask, datasetname);
-    }
+    terminate(
+        "On Task %d, error detected in HDF5: unable to read dataset %s\n"
+        "  at %s()/%s/line %d.",
+        ThisTask, datasetname, func, file, line);
   return status;
 }
 
@@ -422,19 +513,25 @@ herr_t my_H5Dread(hid_t dataset_id, hid_t mem_type_id, hid_t mem_space_id, hid_t
  *
  *  \param[in] dataset_id Identifier of the dataset to query.
  *  \param[in] datasetname Name of the dataset (for error message only).
+ *  \param[in] func Name of the function that has called the HDF5 routine
+ *             (usually given by the __func__ macro).
+ *  \param[in] file File where the function that has called the HDF5
+ *             routine resides (usually given by the __FILE__ macro).
+ *  \param[in] line Line number of the file where the HDF5 routine was
+ *             called (usually given by the __LINE__ macro).
  *
  *  \return Dataspace identifier if successful.
  */
-hid_t my_H5Dget_space(hid_t dataset_id, const char *datasetname)
+hid_t my_H5Dget_space_fullinfo(hid_t dataset_id, const char *datasetname, const char *func, const char *file, const int line)
 {
   hid_t status = H5Dget_space(dataset_id);
 
 #ifndef TOLERATE_WRITE_ERROR
   if(status < 0)
-    {
-      H5Eset_auto(NULL, NULL);
-      terminate("On Task %d, error detected in HDF5: unable to determine space for dataset %s\n", ThisTask, datasetname);
-    }
+    terminate(
+        "On Task %d, error detected in HDF5: unable to determine space for dataset %s\n"
+        "  at %s()/%s/line %d.",
+        ThisTask, datasetname, func, file, line);
 #endif
 
   return status;
@@ -447,30 +544,35 @@ hid_t my_H5Dget_space(hid_t dataset_id, const char *datasetname)
  *  \param[out] buf Buffer for data to be read.
  *  \param[in] attr_name Name of the attribute.
  *  \param[in] size Size of the attribute.
+ *  \param[in] func Name of the function that has called the HDF5 routine
+ *             (usually given by the __func__ macro).
+ *  \param[in] file File where the function that has called the HDF5
+ *             routine resides (usually given by the __FILE__ macro).
+ *  \param[in] line Line number of the file where the HDF5 routine was
+ *             called (usually given by the __LINE__ macro).
  *
  *  \return Non-negative value if successful.
  */
-herr_t my_H5Aread(hid_t attr_id, hid_t mem_type_id, void *buf, const char *attr_name, hssize_t size)
+herr_t my_H5Aread_fullinfo(hid_t attr_id, hid_t mem_type_id, void *buf, const char *attr_name, hssize_t size, const char *func,
+                           const char *file, const int line)
 {
   hid_t hdf5_space   = H5Aget_space(attr_id);
   hssize_t attr_size = H5Sget_simple_extent_npoints(hdf5_space);
   H5Sclose(hdf5_space);
 
   if(attr_size != size)
-    {
-      H5Eset_auto(NULL, NULL);
-      terminate(
-          "On Task %d, error detected in HDF5: mismatch in size for attribute %s, expected size = %lld, actual attribute size = "
-          "%lld\n",
-          ThisTask, attr_name, size, attr_size);
-    }
+    terminate(
+        "On Task %d, error detected in HDF5: mismatch in size for attribute %s, expected size = %lld, actual attribute size = "
+        "%lld\n"
+        "  at %s()/%s/line %d.",
+        ThisTask, attr_name, size, attr_size, func, file, line);
 
   herr_t status = H5Aread(attr_id, mem_type_id, buf);
   if(status < 0)
-    {
-      H5Eset_auto(NULL, NULL);
-      terminate("On Task %d, error detected in HDF5: unable to read attribute %s\n", ThisTask, attr_name);
-    }
+    terminate(
+        "On Task %d, error detected in HDF5: unable to read attribute %s\n"
+        "  at %s()/%s/line %d.",
+        ThisTask, attr_name, func, file, line);
   return status;
 }
 
@@ -482,20 +584,26 @@ herr_t my_H5Aread(hid_t attr_id, hid_t mem_type_id, void *buf, const char *attr_
  *  \param[in] current_size Array containing current size of dataspace.
  *  \param[in] maximum_size Array containing maximum size of dataspace.
  *  \param[in] attr_name Name of attribute (only for error message).
+ *  \param[in] func Name of the function that has called the HDF5 routine
+ *             (usually given by the __func__ macro).
+ *  \param[in] file File where the function that has called the HDF5
+ *             routine resides (usually given by the __FILE__ macro).
+ *  \param[in] line Line number of the file where the HDF5 routine was
+ *             called (usually given by the __LINE__ macro).
  *
  *  \return Non-negative value if successful.
  */
-herr_t my_H5Sset_extent_simple(hid_t space_id, int rank, const hsize_t *current_size, const hsize_t *maximum_size,
-                               const char *attr_name)
+herr_t my_H5Sset_extent_simple_fullinfo(hid_t space_id, int rank, const hsize_t *current_size, const hsize_t *maximum_size,
+                                        const char *attr_name, const char *func, const char *file, const int line)
 {
   herr_t status = H5Sset_extent_simple(space_id, rank, current_size, maximum_size);
 
 #ifndef TOLERATE_WRITE_ERROR
   if(status < 0)
-    {
-      H5Eset_auto(NULL, NULL);
-      terminate("On Task %d, error detected in HDF5: unable to set extent for attribute %s\n", ThisTask, attr_name);
-    }
+    terminate(
+        "On Task %d, error detected in HDF5: unable to set extent for attribute %s\n"
+        "  at %s()/%s/line %d.",
+        ThisTask, attr_name, func, file, line);
 #endif
 
   return status;
@@ -505,19 +613,25 @@ herr_t my_H5Sset_extent_simple(hid_t space_id, int rank, const hsize_t *current_
  *
  *  \param[in] attr_id Attribute to release access to.
  *  \param[in] attr_name Name of the attribute (for error message only).
+ *  \param[in] func Name of the function that has called the HDF5 routine
+ *             (usually given by the __func__ macro).
+ *  \param[in] file File where the function that has called the HDF5
+ *             routine resides (usually given by the __FILE__ macro).
+ *  \param[in] line Line number of the file where the HDF5 routine was
+ *             called (usually given by the __LINE__ macro).
  *
  *  \return Non-negative value if successful.
  */
-herr_t my_H5Aclose(hid_t attr_id, const char *attr_name)
+herr_t my_H5Aclose_fullinfo(hid_t attr_id, const char *attr_name, const char *func, const char *file, const int line)
 {
   herr_t status = H5Aclose(attr_id);
 
 #ifndef TOLERATE_WRITE_ERROR
   if(status < 0)
-    {
-      H5Eset_auto(NULL, NULL);
-      terminate("On Task %d, error detected in HDF5: unable to close attribute %s\n", ThisTask, attr_name);
-    }
+    terminate(
+        "On Task %d, error detected in HDF5: unable to close attribute %s\n"
+        "  at %s()/%s/line %d.",
+        ThisTask, attr_name, func, file, line);
 #endif
 
   return status;
@@ -527,19 +641,25 @@ herr_t my_H5Aclose(hid_t attr_id, const char *attr_name)
  *
  *  \param[in] dataset_id Identifier of the dataset to close access to.
  *  \param[in] datasetname Name of the dataset (for error message only).
+ *  \param[in] func Name of the function that has called the HDF5 routine
+ *             (usually given by the __func__ macro).
+ *  \param[in] file File where the function that has called the HDF5
+ *             routine resides (usually given by the __FILE__ macro).
+ *  \param[in] line Line number of the file where the HDF5 routine was
+ *             called (usually given by the __LINE__ macro).
  *
  *  \return Non-negative value if successful.
  */
-herr_t my_H5Dclose(hid_t dataset_id, const char *datasetname)
+herr_t my_H5Dclose_fullinfo(hid_t dataset_id, const char *datasetname, const char *func, const char *file, const int line)
 {
   herr_t status = H5Dclose(dataset_id);
 
 #ifndef TOLERATE_WRITE_ERROR
   if(status < 0)
-    {
-      H5Eset_auto(NULL, NULL);
-      terminate("On Task %d, error detected in HDF5: unable to close dataset %s\n", ThisTask, datasetname);
-    }
+    terminate(
+        "On Task %d, error detected in HDF5: unable to close dataset %s\n"
+        "  at %s()/%s/line %d.",
+        ThisTask, datasetname, func, file, line);
 #endif
 
   return status;
@@ -549,19 +669,25 @@ herr_t my_H5Dclose(hid_t dataset_id, const char *datasetname)
  *
  *  \param[in] group_id Group identifier to release.
  *  \param[in] groupname Name of the group (for error message only).
+ *  \param[in] func Name of the function that has called the HDF5 routine
+ *             (usually given by the __func__ macro).
+ *  \param[in] file File where the function that has called the HDF5
+ *             routine resides (usually given by the __FILE__ macro).
+ *  \param[in] line Line number of the file where the HDF5 routine was
+ *             called (usually given by the __LINE__ macro).
  *
  *  \return Non-negative value if successful.
  */
-herr_t my_H5Gclose(hid_t group_id, const char *groupname)
+herr_t my_H5Gclose_fullinfo(hid_t group_id, const char *groupname, const char *func, const char *file, const int line)
 {
   herr_t status = H5Gclose(group_id);
 
 #ifndef TOLERATE_WRITE_ERROR
   if(status < 0)
-    {
-      H5Eset_auto(NULL, NULL);
-      terminate("On Task %d, error detected in HDF5: unable to close group %s\n", ThisTask, groupname);
-    }
+    terminate(
+        "On Task %d, error detected in HDF5: unable to close group %s\n"
+        "  at %s()/%s/line %d.",
+        ThisTask, groupname, func, file, line);
 #endif
 
   return status;
@@ -571,19 +697,25 @@ herr_t my_H5Gclose(hid_t group_id, const char *groupname)
  *
  *  \param[in] file_id Identifier of a file to terminate access to.
  *  \param[in] fname File  name (for error message only).
+ *  \param[in] func Name of the function that has called the HDF5 routine
+ *             (usually given by the __func__ macro).
+ *  \param[in] file File where the function that has called the HDF5
+ *             routine resides (usually given by the __FILE__ macro).
+ *  \param[in] line Line number of the file where the HDF5 routine was
+ *             called (usually given by the __LINE__ macro).
  *
  *  \return Non-negative value if successful.
  */
-herr_t my_H5Fclose(hid_t file_id, const char *fname)
+herr_t my_H5Fclose_fullinfo(hid_t file_id, const char *fname, const char *func, const char *file, const int line)
 {
   herr_t status = H5Fclose(file_id);
 
 #ifndef TOLERATE_WRITE_ERROR
   if(status < 0)
-    {
-      H5Eset_auto(NULL, NULL);
-      terminate("On Task %d, error detected in HDF5: unable to close file %s\n", ThisTask, fname);
-    }
+    terminate(
+        "On Task %d, error detected in HDF5: unable to close file %s\n"
+        "  at %s()/%s/line %d.",
+        ThisTask, fname, func, file, line);
 #endif
   return status;
 }
@@ -592,28 +724,42 @@ herr_t my_H5Fclose(hid_t file_id, const char *fname)
  *         error message.
  *
  *  \param[in] dataspace_id Identifier of dataspace to release.
- *  \param[in] type type of dataspace (simple, scalar,...).
+ *  \param[in] type type of dataspace (simple, scalar, ...).
+ *  \param[in] func Name of the function that has called the HDF5 routine
+ *             (usually given by the __func__ macro).
+ *  \param[in] file File where the function that has called the HDF5
+ *             routine resides (usually given by the __FILE__ macro).
+ *  \param[in] line Line number of the file where the HDF5 routine was
+ *             called (usually given by the __LINE__ macro).
  *
  *  \return Non-negative value if successful.
  */
-herr_t my_H5Sclose(hid_t dataspace_id, H5S_class_t type)
+herr_t my_H5Sclose_fullinfo(hid_t dataspace_id, H5S_class_t type, const char *func, const char *file, const int line)
 {
   herr_t status = H5Sclose(dataspace_id);
 
 #ifndef TOLERATE_WRITE_ERROR
   if(status < 0)
     {
-      H5Eset_auto(NULL, NULL);
       switch(type)
         {
           case H5S_SCALAR:
-            terminate("On Task %d, error detected in HDF5: unable to close a scalar dataspace\n", ThisTask);
+            terminate(
+                "On Task %d, error detected in HDF5: unable to close a scalar dataspace\n"
+                "  at %s()/%s/line %d.",
+                ThisTask, func, file, line);
             break;
           case H5S_SIMPLE:
-            terminate("On Task %d, error detected in HDF5: unable to close a simple dataspace\n", ThisTask);
+            terminate(
+                "On Task %d, error detected in HDF5: unable to close a simple dataspace\n"
+                "  at %s()/%s/line %d.",
+                ThisTask, func, file, line);
             break;
           default:
-            terminate("On Task %d, error detected in HDF5: unknown dataspace type\n", ThisTask);
+            terminate(
+                "On Task %d, error detected in HDF5: unknown dataspace type\n"
+                "  at %s()/%s/line %d.",
+                ThisTask, func, file, line);
             break;
         }
     }
@@ -627,18 +773,24 @@ herr_t my_H5Sclose(hid_t dataspace_id, H5S_class_t type)
  *  \param[in] type_id Identifier of datatype to copy. Can be a datatype
  *             identifier, a predefined datatype (defined in H5Tpublic.h), or
  *             a dataset identifier.
+ *  \param[in] func Name of the function that has called the HDF5 routine
+ *             (usually given by the __func__ macro).
+ *  \param[in] file File where the function that has called the HDF5
+ *             routine resides (usually given by the __FILE__ macro).
+ *  \param[in] line Line number of the file where the HDF5 routine was
+ *             called (usually given by the __LINE__ macro).
  *
  *  \return Datatype identifier if successful.
  */
-hid_t my_H5Tcopy(hid_t type_id)
+hid_t my_H5Tcopy_fullinfo(hid_t type_id, const char *func, const char *file, const int line)
 {
   hid_t datatype_id = H5Tcopy(type_id);
 #ifndef TOLERATE_WRITE_ERROR
   if(datatype_id < 0)
-    {
-      H5Eset_auto(NULL, NULL);
-      terminate("On Task %d, error detected in HDF5: could not properly copy datatype\n", ThisTask);
-    }
+    terminate(
+        "On Task %d, error detected in HDF5: could not properly copy datatype\n"
+        "  at %s()/%s/line %d.",
+        ThisTask, func, file, line);
 #endif
   return datatype_id;
 }
@@ -646,18 +798,24 @@ hid_t my_H5Tcopy(hid_t type_id)
 /*! \brief Wraps closing a datatype to give a nice error message.
  *
  *  \param[in] type_id Identifier of datatype to release.
+ *  \param[in] func Name of the function that has called the HDF5 routine
+ *             (usually given by the __func__ macro).
+ *  \param[in] file File where the function that has called the HDF5
+ *             routine resides (usually given by the __FILE__ macro).
+ *  \param[in] line Line number of the file where the HDF5 routine was
+ *             called (usually given by the __LINE__ macro).
  *
  *  \return Non-negative value if successful.
  */
-herr_t my_H5Tclose(hid_t type_id)
+herr_t my_H5Tclose_fullinfo(hid_t type_id, const char *func, const char *file, const int line)
 {
   herr_t status = H5Tclose(type_id);
 #ifndef TOLERATE_WRITE_ERROR
   if(status < 0)
-    {
-      H5Eset_auto(NULL, NULL);
-      terminate("On Task %d, error detected in HDF5: could not properly close datatype\n", ThisTask);
-    }
+    terminate(
+        "On Task %d, error detected in HDF5: could not properly close datatype\n"
+        "  at %s()/%s/line %d.",
+        ThisTask, func, file, line);
 #endif
   return status;
 }
@@ -670,20 +828,26 @@ herr_t my_H5Tclose(hid_t type_id)
  *  \param[in] stride Hyperslab stride.
  *  \param[in] count Number of blocks included in hyperslab.
  *  \param[in] block Size of block in hyperslab.
+ *  \param[in] func Name of the function that has called the HDF5 routine
+ *             (usually given by the __func__ macro).
+ *  \param[in] file File where the function that has called the HDF5
+ *             routine resides (usually given by the __FILE__ macro).
+ *  \param[in] line Line number of the file where the HDF5 routine was
+ *             called (usually given by the __LINE__ macro).
  *
  *  \return Non-negative value if successful.
  */
-herr_t my_H5Sselect_hyperslab(hid_t space_id, H5S_seloper_t op, const hsize_t *start, const hsize_t *stride, const hsize_t *count,
-                              const hsize_t *block)
+herr_t my_H5Sselect_hyperslab_fullinfo(hid_t space_id, H5S_seloper_t op, const hsize_t *start, const hsize_t *stride,
+                                       const hsize_t *count, const hsize_t *block, const char *func, const char *file, const int line)
 {
   herr_t status = H5Sselect_hyperslab(space_id, op, start, stride, count, block);
 
 #ifndef TOLERATE_WRITE_ERROR
   if(status < 0)
-    {
-      H5Eset_auto(NULL, NULL);
-      terminate("On Task %d, error detected in HDF5: could not properly select the chosen hyperslab\n", ThisTask);
-    }
+    terminate(
+        "On Task %d, error detected in HDF5: could not properly select the chosen hyperslab\n"
+        "  at %s()/%s/line %d.",
+        ThisTask, func, file, line);
 #endif
   return status;
 }
@@ -692,19 +856,25 @@ herr_t my_H5Sselect_hyperslab(hid_t space_id, H5S_seloper_t op, const hsize_t *s
  *         error message.
  *
  *  \param[in] datatype_id Identifier of datatype to query.
+ *  \param[in] func Name of the function that has called the HDF5 routine
+ *             (usually given by the __func__ macro).
+ *  \param[in] file File where the function that has called the HDF5
+ *             routine resides (usually given by the __FILE__ macro).
+ *  \param[in] line Line number of the file where the HDF5 routine was
+ *             called (usually given by the __LINE__ macro).
  *
  *  \return The size of the datatype in bytes.
  */
-size_t my_H5Tget_size(hid_t datatype_id)
+size_t my_H5Tget_size_fullinfo(hid_t datatype_id, const char *func, const char *file, const int line)
 {
   size_t size = H5Tget_size(datatype_id);
 
 #ifndef TOLERATE_WRITE_ERROR
   if(size == 0)
-    {
-      H5Eset_auto(NULL, NULL);
-      terminate("On Task %d, error detected in HDF5: unable to determine the size of the given datatype\n", ThisTask);
-    }
+    terminate(
+        "On Task %d, error detected in HDF5: unable to determine the size of the given datatype\n"
+        "  at %s()/%s/line %d.",
+        ThisTask, func, file, line);
 #endif
   return size;
 }
@@ -715,19 +885,25 @@ size_t my_H5Tget_size(hid_t datatype_id)
  *  \param[in] datatype_id Identifier of datatype for which the size is being
  *             changed.
  *  \param[in] size New datatype size in bytes or H5T_VARIABLE.
+ *  \param[in] func Name of the function that has called the HDF5 routine
+ *             (usually given by the __func__ macro).
+ *  \param[in] file File where the function that has called the HDF5
+ *             routine resides (usually given by the __FILE__ macro).
+ *  \param[in] line Line number of the file where the HDF5 routine was
+ *             called (usually given by the __LINE__ macro).
  *
  *  \return Non-negative value if successful.
  */
-herr_t my_H5Tset_size(hid_t datatype_id, size_t size)
+herr_t my_H5Tset_size_fullinfo(hid_t datatype_id, size_t size, const char *func, const char *file, const int line)
 {
   herr_t status = H5Tset_size(datatype_id, size);
 
 #ifndef TOLERATE_WRITE_ERROR
   if(status < 0)
-    {
-      H5Eset_auto(NULL, NULL);
-      terminate("On Task %d, error detected in HDF5: could not properly set the size of the given datatype\n", ThisTask);
-    }
+    terminate(
+        "On Task %d, error detected in HDF5: could not properly set the size of the given datatype\n"
+        "  at %s()/%s/line %d.",
+        ThisTask, func, file, line);
 #endif
 
   return status;
@@ -738,18 +914,24 @@ herr_t my_H5Tset_size(hid_t datatype_id, size_t size)
  *         available to give a nice error message.
  *
  *  \param[in] plist_id Dataset or group creation property list identifier.
+ *  \param[in] func Name of the function that has called the HDF5 routine
+ *             (usually given by the __func__ macro).
+ *  \param[in] file File where the function that has called the HDF5
+ *             routine resides (usually given by the __FILE__ macro).
+ *  \param[in] line Line number of the file where the HDF5 routine was
+ *             called (usually given by the __LINE__ macro).
  *
  *  \return Positive value if all filters are available;
  *          0 if at least one filter is not currently available.
  */
-htri_t my_H5Pall_filters_avail(hid_t plist_id)
+htri_t my_H5Pall_filters_avail_fullinfo(hid_t plist_id, const char *func, const char *file, const int line)
 {
   htri_t status = H5Pall_filters_avail(plist_id);
   if(status < 0)
-    {
-      H5Eset_auto(NULL, NULL);
-      terminate("On Task %d, error detected in HDF5: could not properly verify the availability of all filters\n", ThisTask);
-    }
+    terminate(
+        "On Task %d, error detected in HDF5: could not properly verify the availability of all filters\n"
+        "  at %s()/%s/line %d.",
+        ThisTask, func, file, line);
   return status;
 }
 
@@ -757,35 +939,46 @@ htri_t my_H5Pall_filters_avail(hid_t plist_id)
  *         identified by class_id to give a nice error message.
  *
  *  \param[in] The class of the property list to create.
+ *  \param[in] func Name of the function that has called the HDF5 routine
+ *             (usually given by the __func__ macro).
+ *  \param[in] file File where the function that has called the HDF5
+ *             routine resides (usually given by the __FILE__ macro).
+ *  \param[in] line Line number of the file where the HDF5 routine was
+ *             called (usually given by the __LINE__ macro).
  *
  *  \return Property list identifier if successful.
  */
-hid_t my_H5Pcreate(hid_t class_id)
+hid_t my_H5Pcreate_fullinfo(hid_t class_id, const char *func, const char *file, const int line)
 {
   hid_t plist_id = H5Pcreate(class_id);
   if(plist_id < 0)
-    {
-      H5Eset_auto(NULL, NULL);
-      terminate("On Task %d, error detected in HDF5: could not create the property list associated to the given property class\n",
-                ThisTask);
-    }
+    terminate(
+        "On Task %d, error detected in HDF5: could not create the property list associated to the given property class\n"
+        "  at %s()/%s/line %d.",
+        ThisTask, func, file, line);
   return plist_id;
 }
 
 /*! \brief Wraps closing a property list to give a nice error message.
  *
- * \param[in] Identifier of the property list to terminate access to.
+ *  \param[in] Identifier of the property list to terminate access to.
+ *  \param[in] func Name of the function that has called the HDF5 routine
+ *             (usually given by the __func__ macro).
+ *  \param[in] file File where the function that has called the HDF5
+ *             routine resides (usually given by the __FILE__ macro).
+ *  \param[in] line Line number of the file where the HDF5 routine was
+ *             called (usually given by the __LINE__ macro).
  *
  * \return Non-negative value if successful.
  */
-herr_t my_H5Pclose(hid_t plist)
+herr_t my_H5Pclose_fullinfo(hid_t plist, const char *func, const char *file, const int line)
 {
   herr_t status = H5Pclose(plist);
   if(status < 0)
-    {
-      H5Eset_auto(NULL, NULL);
-      terminate("On Task %d, error detected in HDF5: could not close the input property list\n", ThisTask);
-    }
+    terminate(
+        "On Task %d, error detected in HDF5: could not close the input property list\n"
+        "  at %s()/%s/line %d.",
+        ThisTask, func, file, line);
   return status;
 }
 
@@ -796,17 +989,23 @@ herr_t my_H5Pclose(hid_t plist)
  *  \param[in] ndims The number of dimensions of each chunk.
  *  \param[in] dim An array defining the size, in dataset elements, of each
  *             chunk.
+ *  \param[in] func Name of the function that has called the HDF5 routine
+ *             (usually given by the __func__ macro).
+ *  \param[in] file File where the function that has called the HDF5
+ *             routine resides (usually given by the __FILE__ macro).
+ *  \param[in] line Line number of the file where the HDF5 routine was
+ *             called (usually given by the __LINE__ macro).
  *
  *  \return Non-negative value if successful.
  */
-herr_t my_H5Pset_chunk(hid_t plist, int ndims, const hsize_t *dim)
+herr_t my_H5Pset_chunk_fullinfo(hid_t plist, int ndims, const hsize_t *dim, const char *func, const char *file, const int line)
 {
   herr_t status = H5Pset_chunk(plist, ndims, dim);
   if(status < 0)
-    {
-      H5Eset_auto(NULL, NULL);
-      terminate("On Task %d, error detected in HDF5: could not set chunk size for the dataset\n", ThisTask);
-    }
+    terminate(
+        "On Task %d, error detected in HDF5: could not set chunk size for the dataset\n"
+        "  at %s()/%s/line %d.",
+        ThisTask, func, file, line);
   return status;
 }
 
@@ -814,17 +1013,23 @@ herr_t my_H5Pset_chunk(hid_t plist, int ndims, const hsize_t *dim)
  *         message.
  *
  *  \param[in] plist_id Dataset creation property list identifier.
+ *  \param[in] func Name of the function that has called the HDF5 routine
+ *             (usually given by the __func__ macro).
+ *  \param[in] file File where the function that has called the HDF5
+ *             routine resides (usually given by the __FILE__ macro).
+ *  \param[in] line Line number of the file where the HDF5 routine was
+ *             called (usually given by the __LINE__ macro).
  *
  *  \return Non-negative value if successful.
  */
-herr_t my_H5Pset_shuffle(hid_t plist_id)
+herr_t my_H5Pset_shuffle_fullinfo(hid_t plist_id, const char *func, const char *file, const int line)
 {
   herr_t status = H5Pset_shuffle(plist_id);
   if(status < 0)
-    {
-      H5Eset_auto(NULL, NULL);
-      terminate("On Task %d, error detected in HDF5: could not set the shuffle filter in the properties list\n", ThisTask);
-    }
+    terminate(
+        "On Task %d, error detected in HDF5: could not set the shuffle filter in the properties list\n"
+        "  at %s()/%s/line %d.",
+        ThisTask, func, file, line);
   return status;
 }
 
@@ -833,35 +1038,47 @@ herr_t my_H5Pset_shuffle(hid_t plist_id)
  *
  *  \param[in] plist_id Dataset or group creation property list identifier.
  *  \param[in] level Compression level.
+ *  \param[in] func Name of the function that has called the HDF5 routine
+ *             (usually given by the __func__ macro).
+ *  \param[in] file File where the function that has called the HDF5
+ *             routine resides (usually given by the __FILE__ macro).
+ *  \param[in] line Line number of the file where the HDF5 routine was
+ *             called (usually given by the __LINE__ macro).
  *
  *  \return Non-negative value if successful.
  */
-herr_t my_H5Pset_deflate(hid_t plist_id, uint level)
+herr_t my_H5Pset_deflate_fullinfo(hid_t plist_id, unsigned level, const char *func, const char *file, const int line)
 {
   herr_t status = H5Pset_deflate(plist_id, level);
   if(status < 0)
-    {
-      H5Eset_auto(NULL, NULL);
-      terminate("On Task %d, error detected in HDF5: could not set the deflate compression in the properties list\n", ThisTask);
-    }
+    terminate(
+        "On Task %d, error detected in HDF5: could not set the deflate compression in the properties list\n"
+        "  at %s()/%s/line %d.",
+        ThisTask, func, file, line);
   return status;
 }
 
 /*! \brief Wraps setting the use of the Fletcher32 checksum to give a nice
  *         error message.
  *
- *  \param plist_id Dataset or group creation property list identifier.
+ *  \param[in] plist_id Dataset or group creation property list identifier.
+ *  \param[in] func Name of the function that has called the HDF5 routine
+ *             (usually given by the __func__ macro).
+ *  \param[in] file File where the function that has called the HDF5
+ *             routine resides (usually given by the __FILE__ macro).
+ *  \param[in] line Line number of the file where the HDF5 routine was
+ *             called (usually given by the __LINE__ macro).
  *
  *  \return Non-negative value if successful.
  */
-herr_t my_H5Pset_fletcher32(hid_t plist_id)
+herr_t my_H5Pset_fletcher32_fullinfo(hid_t plist_id, const char *func, const char *file, const int line)
 {
   herr_t status = H5Pset_fletcher32(plist_id);
   if(status < 0)
-    {
-      H5Eset_auto(NULL, NULL);
-      terminate("On Task %d, error detected in HDF5: could not set the Fletcher32 checksum in the properties list\n", ThisTask);
-    }
+    terminate(
+        "On Task %d, error detected in HDF5: could not set the Fletcher32 checksum in the properties list\n"
+        "  at %s()/%s/line %d.",
+        ThisTask, func, file, line);
   return status;
 }
 #endif

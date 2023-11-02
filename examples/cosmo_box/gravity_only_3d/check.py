@@ -73,8 +73,10 @@ for i_file, z in enumerate(Redshifts):
         ## empirically based tolerances
         tolerance_average = 0.01
         tolerance_std = 0.05
-        if np.abs(np.average(delta)) > tolerance_average or np.abs(
-                np.std(delta)) > tolerance_std:
+        if not (
+            np.abs(np.average(delta)) <= tolerance_average and
+            np.abs(np.std(delta)) <= tolerance_std
+        ):
             status = 1
             print('ERROR: z=%g difference in halo masses exceeding limits!' %
                   z)
@@ -98,10 +100,10 @@ for i_file, z in enumerate(Redshifts):
         fig = plt.figure(figsize=(6.9, 6.9))
         ax = plt.axes([0.1, 0.1, 0.87, 0.87])
 
-        if (pos.shape[0] > 32**3):
+        if pos.shape[0] > 32**3:
             i_select = np.random.uniform(low=0.0,
                                          high=pos.shape[0],
-                                         size=32**3).astype(np.int)
+                                         size=32**3).astype(int)
         else:
             i_select = np.arange(pos.shape[0])
         ax.scatter(pos[i_select, 0],

@@ -441,7 +441,8 @@ int check_for_additional_sne(int sinkidx, int idx, int n_thistimeAlreadyDone)
     }
 
   return n_thistime;
-
+#else
+  return 0;
 #endif
 }
 
@@ -504,7 +505,7 @@ enum SNE_type sne_sink_feedback_TIMING(void)
 #else
   terminate(
       "If you want SN feedback coupled with sink particles recompile the code with SINK_PARTICLES and SINK_PARTICLES_FEEDBACK, "
-      "otherwise change injection criterion.\n");
+      "otherwise change injection criterion.");
 #endif
   return NO_SNE;
 }
@@ -545,7 +546,6 @@ void sne_sink_feedback_POSITIONING(double sne_pos[3])
 void sne_at_disc_particle_position_POSITIONING(double sne_pos[3])
 {
   int nDiscStarsThisTask = 0;
-  int *nDiscStarsEachTask;
   int selectedTask;
 
   // find total number of disc particles on each processor
@@ -555,7 +555,7 @@ void sne_at_disc_particle_position_POSITIONING(double sne_pos[3])
         nDiscStarsThisTask++;
     }
 
-  nDiscStarsEachTask = mymalloc("nDiscStarsEachTask", NTask * sizeof(int));
+  int *nDiscStarsEachTask = (int *)mymalloc("nDiscStarsEachTask", NTask * sizeof(int));
   MPI_Allgather(&nDiscStarsThisTask, 1, MPI_INT, nDiscStarsEachTask, 1, MPI_INT, MPI_COMM_WORLD);
 
   int nTotalDiscStars = header.npart[2];
@@ -627,10 +627,9 @@ enum SNE_type sne_poisson_sampling_SNII_AND_SNIa_TIMING(void)
   double rateSNII = .8 / (All.SNEPeriodInYears * SEC_PER_YEAR / All.UnitTime_in_s);
   double rateSNIa = .2 / (All.SNEPeriodInYears * SEC_PER_YEAR / All.UnitTime_in_s);
 
-  struct snPositions *localSNePos, *export_snPos;
-
   int nSNeEstimate = 10 * ceil(rateSNIa * All.TimeStep + rateSNII * All.TimeStep);
-  localSNePos      = mymalloc_movable(&localSNePos, "localSNePos", nSNeEstimate * sizeof(struct snPositions));
+  struct snPositions *localSNePos =
+      (struct snPositions *)mymalloc_movable(&localSNePos, "localSNePos", nSNeEstimate * sizeof(struct snPositions));
 
   int nSNeloc = 0;
   for(int i = 0; i < NumGas; i++)
@@ -681,7 +680,8 @@ enum SNE_type sne_poisson_sampling_SNII_AND_SNIa_TIMING(void)
     {
       if(nSNeEachTask[itask] > 0)
         {
-          export_snPos = (struct snPositions *)mymalloc("export_SinkP", nSNeEachTask[itask] * sizeof(struct snPositions));
+          struct snPositions *export_snPos =
+              (struct snPositions *)mymalloc("export_SinkP", nSNeEachTask[itask] * sizeof(struct snPositions));
 
           if(itask == ThisTask)
             {
@@ -715,9 +715,10 @@ enum SNE_type sne_poisson_sampling_SNII_AND_SNIa_TIMING(void)
 
   NSNetot = -1;
   myfree_movable(SNePositions);
-  return NO_SNE;
+#else
+  terminate("This SN injection criterium requires GALPOT to be active");
 #endif
-  terminate("This SN injection criterium requires GALPOT to be active\n");
+  return NO_SNE;
 }
 
 void sne_poisson_sampling_SNII_AND_SNIa_POSITIONING(double sne_pos[3])

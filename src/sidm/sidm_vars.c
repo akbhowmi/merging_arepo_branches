@@ -17,10 +17,6 @@
 
 #include "sidm_vars.h"
 
-int *TargetList;
-
-int Nforces;
-
 int SIDM_NumScatterParticles;
 
 double SIDM_Ekin_before_total[SIDM_REACTIONS], SIDM_Ekin_after_total[SIDM_REACTIONS], SIDM_Scattered_Mass[SIDM_REACTIONS];

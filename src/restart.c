@@ -38,10 +38,6 @@
 #include "proto.h"
 #include "voronoi.h"
 
-#ifdef STORE_MERGERS_IN_SNAPSHOT
-#include "./blackhole/store_mergers_in_snapshot/mergers_io.h"
-#endif
-
 #define MODUS_WRITE RESTART_MODUS_WRITE
 #define MODUS_READ RESTART_MODUS_READ
 #define MODUS_READCHECK RESTART_MODUS_READCHECK
@@ -137,6 +133,7 @@ void loadrestart(void)
   /* we need to do some initialization in SimpleX */
   sx_restart();
 #endif
+
 }
 
 /*! \brief This function takes from the parameter file values that are allowed
@@ -269,11 +266,30 @@ void reread_params_after_loading_restart(void)
   All.DerefinementCriterion = all.DerefinementCriterion;
 #endif
 
+#ifdef REFINEMENT_VOLUME_LIMIT
+  if(ThisTask == 0 && All.MaxVolume != all.MaxVolume)
+    warn("MaxVolume modified from %g to %g while restarting at Time=%g", All.MaxVolume, all.MaxVolume, All.Time);
+  All.MaxVolume = all.MaxVolume;
+
+  if(ThisTask == 0 && All.MinVolume != all.MinVolume)
+    warn("MinVolume modified from %g to %g while restarting at Time=%g", All.MinVolume, all.MinVolume, All.Time);
+  All.MinVolume = all.MinVolume;
+
+  if(ThisTask == 0 && All.MaxVolumeDiff != all.MaxVolumeDiff)
+    warn("MaxVolumeDiff modified from %g to %g while restarting at Time=%g", All.MaxVolumeDiff, all.MaxVolumeDiff, All.Time);
+  All.MaxVolumeDiff = all.MaxVolumeDiff;
+#endif
+
   if(ThisTask == 0 && All.OutputListLength != all.OutputListLength)
     warn("OutputListLength modified from %d to %d while restarting at Time=%g", All.OutputListLength, all.OutputListLength, All.Time);
   All.OutputListLength = all.OutputListLength;
   if(ThisTask == 0 && memcmp(All.OutputListTimes, all.OutputListTimes, sizeof(double) * All.OutputListLength) != 0)
+  {
     warn("OutputListTimes modified while restarting at Time=%g", All.Time);
+#ifdef BH_NEW_LOGS
+    warn("BH_NEW_LOGS: modifying OutputListTimes can contaminate BH logs!");
+#endif
+  }
   memcpy(All.OutputListTimes, all.OutputListTimes, sizeof(double) * All.OutputListLength);
   if(ThisTask == 0 && memcmp(All.OutputListFlag, all.OutputListFlag, sizeof(char) * All.OutputListLength) != 0)
     warn("OutputListFlag modified while restarting at Time=%g", All.Time);
@@ -1803,7 +1819,7 @@ static void contents_restart_file(int modus)
   in(&Stars_converted, modus);
 #endif
 
-#ifdef GFM
+#if defined(GFM) || defined(SFR_MCS)
   in(&N_star, modus);
 
   if(N_star > 0)
@@ -1815,21 +1831,6 @@ static void contents_restart_file(int modus)
   polling(modus);
 
 #endif
-
-#ifdef STORE_MERGERS_IN_SNAPSHOT
-  in(&Nmergers, modus);
-
-  if(Nmergers > 0)
-    {
-      /* Merger data  */
-      byten(&MergerEvents[0], Nmergers * sizeof(struct merger_properties), modus);
-    }
-
-  polling(modus);
-
-#endif
-
-
 #ifdef BLACK_HOLES
   in(&NumBHs, modus);
 

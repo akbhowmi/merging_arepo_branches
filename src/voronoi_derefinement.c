@@ -599,7 +599,7 @@ int do_derefinements(void)
                       ivec[2] = iz;
 #if NUMDIMS == 2
                       if(l > 0)
-                        ivec[1 - k / 2] -= 0.5 + (l - 1);
+                        ivec[1 - k / 2] = -0.5 + (l - 1);
 
 #elif NUMDIMS == 3
                       if(l > 0)
@@ -787,27 +787,6 @@ int do_derefinements(void)
                           SphP[p].Momentum[1] += fac * SphP[i].Momentum[1];
                           SphP[p].Momentum[2] += fac * SphP[i].Momentum[2];
 
-#ifdef PREVENT_SPURIOUS_RESEEDING
-                          SphP[p].SeedMass += fac * SphP[i].SeedMass;
-#endif
-
-//#ifdef SEED_BASED_ON_PROBABLISTIC_HALO_PROPERTIES
-//#ifdef PROBABILISTIC_SEED_MASS_HALO_MASS_RATIO_CRITERION
-//                          MyFloat random_num1 = get_random_number();
-//                          MyFloat random_num2 = get_random_number();
-//	                  SphP[p].RandomMinHaloMassForSeeding = sqrt(-2. * log(random_num1)) * cos(2. * log(random_num2) * M_PI);
-//#endif
-//#endif
-
-//#ifdef EVOLVING_SEEDING_PROBABILITY
-//                         SphP[p].SecondRandomNumberForSeeding = get_random_number();
-//#endif
-
-#ifdef PREVENT_SEEDING_AROUND_BLACKHOLE_NEIGHBORS2
-                       //   SphP[p].BHNeighborExists = SphP[i].BHNeighborExists;
-          
-                          mpi_printf_task(ThisTask, "Derefined gas: %d %d \n", SphP[p].BHNeighborExists, SphP[i].BHNeighborExists);
-#endif
 #ifdef MHD
                           SphP[p].BConserved[0] += fac * SphP[i].BConserved[0];
                           SphP[p].BConserved[1] += fac * SphP[i].BConserved[1];

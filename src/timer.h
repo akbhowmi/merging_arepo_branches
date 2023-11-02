@@ -248,7 +248,19 @@ TIMER_CREATE(CPU_TREE_TIMESTEPS, "treetimesteps", CPU_ALL, 'Y', 'u')
 #endif
 TIMER_CREATE(CPU_SNAPSHOT, "i/o", CPU_ALL, 'Z', 't')
 TIMER_CREATE(CPU_LOGS, "logs", CPU_ALL, '1', 's')
+#if defined(SN_MCS) || defined(HII_MCS) || defined(PE_MCS)
+TIMER_CREATE(CPU_STELLAR_FEEDBACK, "stellarfeed", CPU_ALL, 'S', 'A')
+#ifdef IMF_SAMPLING_MCS
+TIMER_CREATE(CPU_IMF_FEEDBACK, "imffeed", CPU_STELLAR_FEEDBACK, 'S', 'A')
+#endif
+TIMER_CREATE(CPU_SN_FEEDBACK, "snfeed", CPU_STELLAR_FEEDBACK, 'S', 'A')
+TIMER_CREATE(CPU_HII_FEEDBACK, "hiifeed", CPU_STELLAR_FEEDBACK, 'S', 'A')
+TIMER_CREATE(CPU_PE_FEEDBACK, "pefeed", CPU_STELLAR_FEEDBACK, 'S', 'A')
+#endif
 TIMER_CREATE(CPU_COOLINGSFR, "sfrcool", CPU_ALL, '2', 'r')
+#ifdef IMF_SAMPLING_MCS
+TIMER_CREATE(CPU_IMF_SAMPLE, "imfsample", CPU_COOLINGSFR, '2', 'r')
+#endif
 #ifdef CHIMES
 TIMER_CREATE(CPU_COOLSFRIMBAL, "sfrcoolimbal", CPU_ALL, '2', 'r')
 #endif
@@ -328,6 +340,9 @@ TIMER_CREATE(CPU_TURB_RESET, "turb_reset", CPU_TURB, 'T', 't')
 TIMER_CREATE(CPU_TURB_UPDATE, "turb_update", CPU_TURB, 'T', 't')
 TIMER_CREATE(CPU_TURB_FORCE, "turb_force", CPU_TURB, 'T', 't')
 #endif
+#ifdef TURB_APPROX_MCS
+TIMER_CREATE(CPU_TURB_APPROX,"turb_approx_mcs",CPU_ALL,'L','l')
+#endif
 #ifdef FLD
 TIMER_CREATE(CPU_FLD, "fld", CPU_ALL, 'F', 'f')
 TIMER_CREATE(CPU_FLD_MATRIX, "fld_matrix", CPU_FLD, 'M', 'm')
@@ -384,6 +399,9 @@ TIMER_CREATE(CPU_INIT, "initializ.", CPU_ALL, '*', 'c')
 TIMER_CREATE(CPU_RESTART, "restart", CPU_ALL, '(', 'b')
 #ifdef AURIGA_MOVIE
 TIMER_CREATE(CPU_AURIGA_MOVIE, "auriga movie", CPU_ALL, 'M', 'm')
+#endif
+#if defined(SOLAR_RADIATIVE_TRANSFER_DIFF) || defined(SOLAR_RADIATIVE_TRANSFER_EDD)
+TIMER_CREATE(CPU_SOLARRADTRANS, "solarradtrans", CPU_ALL, '(', 'b')
 #endif
 TIMER_CREATE(CPU_MISC, "misc", CPU_ALL, ')', 'a')
 TIMER_CREATE(CPU_LAST, "LAST", CPU_NONE, ' ', ' ') /*!<last item, do not use! */

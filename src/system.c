@@ -741,12 +741,13 @@ int flush_everything(void)
   fflush(FdBlackHoles);
   fflush(FdBlackHolesDetails);
   fflush(FdBlackHolesMergers);
-#ifdef OUTPUT_HOST_PROPERTIES_FOR_BH_MERGERS
-  fflush(FdBlackHolesMergerHosts);
-#endif
-
+  fflush(FdBHDetails);
+  fflush(FdBHMergers);
 #ifdef BH_SPIN_EVOLUTION
   fflush(FdBlackHolesSpin);
+#endif
+#ifdef BH_FAST_WIND_STOCHASTIC
+  fflush(FdBlackHolesFWstoch)
 #endif
 #ifdef BH_BIPOLAR_FEEDBACK
   fflush(FdBlackHolesBipolar);
@@ -821,6 +822,26 @@ int flush_everything(void)
 
 #ifdef SN_MCS
   fflush(FdSnr);
+#endif
+
+#ifdef HII_MCS_LOG
+  fflush(FdHii);
+#endif
+
+#ifdef SN_MCS_LOG
+  fflush(FdSNdens);
+#endif
+
+#ifdef SN_MCS_LOG_DETAILS
+  fflush(FdSNDetails);
+#endif
+
+#ifdef SFR_MCS_LOG
+  fflush(FdSFdens);
+#endif
+
+#ifdef SFR_MCS_LOG_DETAILS
+  fflush(FdSFDetails);
 #endif
 
 #ifdef GW_SIGNAL

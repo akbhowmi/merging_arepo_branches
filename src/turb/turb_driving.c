@@ -437,7 +437,7 @@ void log_turb_temp(void)
 
   double vmean[]        = {0., 0., 0.};
   double vmean_global[] = {0., 0., 0.};
-  int count = 0;
+  int count             = 0;
   long long sum;
 
   for(i = 0; i < NumGas; i++)

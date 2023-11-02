@@ -778,35 +778,6 @@ int force_treebuild_construct(
           export_Tree_Points[n].IntPos[1]     = Tree_IntPos_list[3 * i + 1];
           export_Tree_Points[n].IntPos[2]     = Tree_IntPos_list[3 * i + 2];
           export_Tree_Points[n].Mass          = P[i].Mass;
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-          if (P[i].Type == 5)
-              export_Tree_Points[n].no_of_BHs = 1;
-          else
-              export_Tree_Points[n].no_of_BHs =	0;
-
-#if(PTYPE_USED_FOR_ENVIRONMENT_BASED_SEEDING == 0)
-          if(P[i].Type == 0)
-            {
-              export_Tree_Points[n].HostHaloMass          = SphP[i].HostHaloMass;
-              export_Tree_Points[n].IsThisTheDensestCell          = SphP[i].IsThisTheDensestCell;
-#ifdef CREATE_SUBFOFS
-              export_Tree_Points[n].HostHaloMass_bFOF          = SphP[i].HostHaloMass_bFOF;
-              export_Tree_Points[n].IsThisTheDensestCell_bFOF          = SphP[i].IsThisTheDensestCell_bFOF;
-#endif
-            }
-#else
-          if(P[i].Type == 1)
-           {
-             export_Tree_Points[n].HostHaloMass          = P[i].HostHaloMass;
-             export_Tree_Points[n].IsThisTheMinPotential          = P[i].IsThisTheMinPotential;
-#ifdef CREATE_SUBFOFS
-             export_Tree_Points[n].HostHaloMass_bFOF          = P[i].HostHaloMass_bFOF;
-             export_Tree_Points[n].IsThisTheMinPotential_bFOF          = P[i].IsThisTheMinPotential_bFOF;
-#endif
-           }
-#endif
-#endif
-
           export_Tree_Points[n].OldAcc        = P[i].OldAcc;
           export_Tree_Points[n].SofteningType = P[i].SofteningType;
           export_Tree_Points[n].index         = i;
@@ -866,6 +837,11 @@ int force_treebuild_construct(
 #endif
             }
 #endif
+#endif // SGCHEM
+
+#ifdef BH_DF_DISCRETE
+          for(j = 0; j < 3; j++)
+            export_Tree_Points[n].DFD_Vel[j] = P[i].Vel[j];
 #endif
 
 #if defined(SMUGGLE_RADPRESS_OPT_THIN) && defined(GFM)
@@ -933,6 +909,20 @@ int force_treebuild_construct(
             }
 #endif
 
+#ifdef PE_MCS
+          if(P[i].Type == 4)
+            export_Tree_Points[n].lum_FUV = STP(i).L_FUV;
+          else
+            export_Tree_Points[n].lum_FUV = 0;
+#endif
+
+#ifdef HII_MCS_LR
+          if(P[i].Type == 0)
+            export_Tree_Points[n].lum_Hii = SphP[i].L_Hii;
+          else
+            export_Tree_Points[n].lum_Hii = 0;
+#endif
+
 #ifdef BLACK_HOLES
           if(P[i].Type == 5)
             {
@@ -963,23 +953,9 @@ int force_treebuild_construct(
               export_Tree_AuxBH_Points[k].BH_Mass_bubbles = BPP(i).BH_Mass_bubbles;
               export_Tree_AuxBH_Points[k].BH_Mass_ini     = BPP(i).BH_Mass_ini;
 #endif
-#if defined(MASSIVE_SEEDS_MERGER) || defined(SEED_HALO_ENVIRONMENT_CRITERION)
+#if defined(MASSIVE_SEEDS_MERGER)
               export_Tree_AuxBH_Points[k].HostHaloMass = BPP(i).HostHaloMass;
 #endif
-
-#ifdef OUTPUT_HOST_PROPERTIES_FOR_BH_MERGERS
-              export_Tree_AuxBH_Points[k].HostHaloTotalMass = BPP(i).HostHaloTotalMass;
-              export_Tree_AuxBH_Points[k].HostHaloGasMass = BPP(i).HostHaloGasMass;
-              export_Tree_AuxBH_Points[k].HostHaloStellarMass = BPP(i).HostHaloStellarMass;
-              export_Tree_AuxBH_Points[k].HostHaloDMMass = BPP(i).HostHaloDMMass;
-              export_Tree_AuxBH_Points[k].HostHaloSFR = BPP(i).HostHaloSFR;
-              export_Tree_AuxBH_Points[k].BH_Mdot = BPP(i).BH_Mdot;
-#endif
-
-#if defined(PREVENT_SPURIOUS_RESEEDING)
-              export_Tree_AuxBH_Points[k].Time_Of_Seeding = BPP(i).Time_Of_Seeding;
-#endif
-
 #ifdef BH_NF_RADIO
               export_Tree_AuxBH_Points[k].BH_HaloVvir         = BPP(i).BH_HaloVvir;
               export_Tree_AuxBH_Points[k].BH_RadioEgyFeedback = BPP(i).BH_RadioEgyFeedback;
@@ -1093,43 +1069,6 @@ int force_treebuild_construct(
         continue;
 #endif
 #if defined(FOF) || defined(SUBFIND)
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-       if(All.Build_tree_with_only_BHs == 1)
-          {
-#if(PTYPE_USED_FOR_ENVIRONMENT_BASED_SEEDING == 0)
-             if(!((1 << P[i].Type) & 1))
-              continue;
-             if(!(SphP[i].IsThisTheDensestCell == 1))
-              continue;
-#else
-             if(!((1 << P[i].Type) & 2))
-              continue;
-             if(!(P[i].IsThisTheMinPotential == 1))
-              continue;
-#endif
-
-          }
-      else
-       {
-#endif
-
-#if defined(CREATE_SUBFOFS) && defined(BFOFS_AS_GASCLUMPS) && defined(GAS_CLUMP_SECONDARY_LINK_TYPES)
-    if(All.SubFOF_mode == 1)
-     {
-      if(insert_only_primary == 1)
-        {
-          if(!((1 << P[i].Type) & (GAS_CLUMP_PRIMARY_LINK_TYPES)))
-            continue;
-        }
-      else if(insert_only_primary == 2)
-        {
-          if(!((1 << P[i].Type) & (GAS_CLUMP_SECONDARY_LINK_TYPES)))
-            continue;
-        }
-     }
-    else
-     {
-#else
       if(insert_only_primary == 1)
         {
           if(!((1 << P[i].Type) & (FOF_PRIMARY_LINK_TYPES)))
@@ -1140,16 +1079,6 @@ int force_treebuild_construct(
           if(!((1 << P[i].Type) & (FOF_SECONDARY_LINK_TARGET_TYPES)))
             continue;
         }
-#endif
-
-#if defined(CREATE_SUBFOFS) && defined(BFOFS_AS_GASCLUMPS)
-    }
-#endif
-
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-       }
-#endif
-
 #endif
       if(Tree_Task_list[i] == ThisTask)
         {
@@ -1179,24 +1108,6 @@ int force_treebuild_construct(
             continue;
 #endif
 #if defined(FOF) || defined(SUBFIND)
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-       if(All.Build_tree_with_only_BHs == 1)
-          {
-#if(PTYPE_USED_FOR_ENVIRONMENT_BASED_SEEDING == 0)
-             if(!((1 << Tree_Points[i].Type) & 1))
-              continue;
-             if(!(Tree_Points[i].IsThisTheDensestCell == 1))
-              continue;
-#else
-             if(!((1 << Tree_Points[i].Type) & 2))
-              continue;
-             if(!(Tree_Points[i].IsThisTheMinPotential == 1))
-              continue;
-#endif
-          }
-      else
-       {
-#endif
           if(insert_only_primary == 1)
             {
               if(!((1 << Tree_Points[i].Type) & (FOF_PRIMARY_LINK_TYPES)))
@@ -1207,9 +1118,6 @@ int force_treebuild_construct(
               if(!((1 << Tree_Points[i].Type) & (FOF_SECONDARY_LINK_TARGET_TYPES)))
                 continue;
             }
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-       }
-#endif
 #endif
           if(force_treebuild_insert_single_point(i + Tree_ImportedNodeOffset, Tree_Points[i].IntPos, Tree_Points[i].th,
                                                  Tree_Points[i].level) < 0)
@@ -1680,6 +1588,9 @@ void force_update_node_recursive(int no /*!< node for which the moments shall be
 #ifdef TREECOLV2_VEL
   float v[3];
 #endif
+#ifdef BH_DF_DISCRETE
+  float dfd_vel[3];
+#endif
 #ifdef SMUGGLE_RADPRESS_OPT_THIN
   MyFloat young_stellar_mass;
   MyFloat young_stellar_s[3];
@@ -1701,6 +1612,16 @@ void force_update_node_recursive(int no /*!< node for which the moments shall be
   double T8_gas_s[3];
   double log10temp;
 #endif
+#endif
+
+#ifdef PE_MCS
+  MyFloat lum_FUV;
+  MyFloat lum_FUV_s[3];
+#endif
+
+#ifdef HII_MCS_LR
+  MyFloat lum_Hii;
+  MyFloat lum_Hii_s[3];
 #endif
 
   if(no >= Tree_MaxPart && no < Tree_MaxPart + Tree_MaxNodes) /* internal node */
@@ -1765,11 +1686,6 @@ void force_update_node_recursive(int no /*!< node for which the moments shall be
 #endif
 #endif
 
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-      int no_of_BHs = 0;
-      MyDouble HostHaloMass = 0;
-#endif
-
 #ifdef TREECOLV2
       double gasmass = 0;
 #if defined(TREECOLV2) || defined(TREECOLV2_H2)
@@ -1783,6 +1699,20 @@ void force_update_node_recursive(int no /*!< node for which the moments shall be
 #endif
 #endif
 
+#ifdef PE_MCS
+      lum_FUV      = 0.0;
+      lum_FUV_s[0] = 0.0;
+      lum_FUV_s[1] = 0.0;
+      lum_FUV_s[2] = 0.0;
+#endif
+
+#ifdef HII_MCS_LR
+      lum_Hii      = 0.0;
+      lum_Hii_s[0] = 0.0;
+      lum_Hii_s[1] = 0.0;
+      lum_Hii_s[2] = 0.0;
+#endif
+
       mass = 0;
       s[0] = 0;
       s[1] = 0;
@@ -1791,6 +1721,11 @@ void force_update_node_recursive(int no /*!< node for which the moments shall be
       v[0] = 0;
       v[1] = 0;
       v[2] = 0;
+#endif
+#ifdef BH_DF_DISCRETE
+      dfd_vel[0] = 0;
+      dfd_vel[1] = 0;
+      dfd_vel[2] = 0;
 #endif
       maxsofttype = NSOFTTYPES + NSOFTTYPES_HYDRO;
 
@@ -1842,16 +1777,6 @@ void force_update_node_recursive(int no /*!< node for which the moments shall be
                     }
 #endif
 
-
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-                  if(P[p].Type == 5) /*Only do this for BHs! */
-                    {
-                      no_of_BHs += 1;
-                      HostHaloMass += BPP(p).HostHaloMass;
-                    }
-#endif
-
-
 #ifdef TREECOLV2
                   if(P[p].Type == 0) /*Only do this for gas! */
                     {
@@ -1891,6 +1816,11 @@ void force_update_node_recursive(int no /*!< node for which the moments shall be
                       v[2] += P[p].Mass * P[p].Vel[2];
                     }
 #endif
+#ifdef BH_DF_DISCRETE
+                  dfd_vel[0] += P[p].Mass * P[p].Vel[0];
+                  dfd_vel[1] += P[p].Mass * P[p].Vel[1];
+                  dfd_vel[2] += P[p].Mass * P[p].Vel[2];
+#endif // BH_DF_DISCRETE
 
 #ifdef SMUGGLE_RADPRESS_OPT_THIN
                   if(P[p].Type == 4) /* stars */
@@ -1980,6 +1910,29 @@ void force_update_node_recursive(int no /*!< node for which the moments shall be
 #endif
 #endif
 
+#ifdef PE_MCS
+                  if(P[p].Type == 4) /* stars */
+                    {
+                      lum_FUV_s[0] += (STP(p).L_FUV * P[p].Pos[0]);
+                      lum_FUV_s[1] += (STP(p).L_FUV * P[p].Pos[1]);
+                      lum_FUV_s[2] += (STP(p).L_FUV * P[p].Pos[2]);
+                      lum_FUV += STP(p).L_FUV;
+                    }
+#endif
+
+#ifdef HII_MCS_LR
+                  if(P[p].Type == 0) /* Gas */
+                    {
+                      if(SphP[p].L_Hii > 0)
+                        {
+                          lum_Hii_s[0] += (SphP[p].L_Hii * P[p].Pos[0]);
+                          lum_Hii_s[1] += (SphP[p].L_Hii * P[p].Pos[1]);
+                          lum_Hii_s[2] += (SphP[p].L_Hii * P[p].Pos[2]);
+                          lum_Hii += SphP[p].L_Hii;
+                        }
+                    }
+#endif
+
                   if(All.ForceSoftening[maxsofttype] < All.ForceSoftening[P[p].SofteningType])
                     maxsofttype = P[p].SofteningType;
 
@@ -1998,7 +1951,7 @@ void force_update_node_recursive(int no /*!< node for which the moments shall be
                   mass_per_type[P[p].SofteningType] += P[p].Mass;
 #endif
 #endif
-                }
+                } // a particle
               else if(p < Tree_MaxPart + Tree_MaxNodes) /* an internal node  */
                 {
                   mass += Nodes[p].u.d.mass;
@@ -2048,12 +2001,6 @@ void force_update_node_recursive(int no /*!< node for which the moments shall be
 #endif
 #endif
 
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-                  no_of_BHs += Nodes[p].u.d.no_of_BHs;
-                  HostHaloMass += Nodes[p].u.d.HostHaloMass;
-#endif
-
-
 #ifdef TREECOLV2
                   gasmass += Nodes[p].u.d.gasmass;
 #ifdef TREECOLV2_H2
@@ -2081,6 +2028,28 @@ void force_update_node_recursive(int no /*!< node for which the moments shall be
 
 #endif /* TREECOLV2_H2 */
 #endif
+
+#ifdef PE_MCS
+                  lum_FUV_s[0] += (Nodes[p].lum_FUV * Nodes[p].lum_FUV_s[0]);
+                  lum_FUV_s[1] += (Nodes[p].lum_FUV * Nodes[p].lum_FUV_s[1]);
+                  lum_FUV_s[2] += (Nodes[p].lum_FUV * Nodes[p].lum_FUV_s[2]);
+                  lum_FUV += Nodes[p].lum_FUV;
+#endif
+
+#ifdef HII_MCS_LR
+                  lum_Hii_s[0] += (Nodes[p].lum_Hii * Nodes[p].lum_Hii_s[0]);
+                  lum_Hii_s[1] += (Nodes[p].lum_Hii * Nodes[p].lum_Hii_s[1]);
+                  lum_Hii_s[2] += (Nodes[p].lum_Hii * Nodes[p].lum_Hii_s[2]);
+                  lum_Hii += Nodes[p].lum_Hii;
+#endif
+
+#ifdef BH_DF_DISCRETE
+                  /* Mass-weighted contribution to velocity */
+                  dfd_vel[0] += Nodes[p].u.d.mass * Nodes[p].DFD_Vel[0];
+                  dfd_vel[1] += Nodes[p].u.d.mass * Nodes[p].DFD_Vel[1];
+                  dfd_vel[2] += Nodes[p].u.d.mass * Nodes[p].DFD_Vel[2];
+#endif // BH_DF_DISCRETE
+
                   if(All.ForceSoftening[maxsofttype] < All.ForceSoftening[Nodes[p].u.d.maxsofttype])
                     maxsofttype = Nodes[p].u.d.maxsofttype;
 
@@ -2096,7 +2065,7 @@ void force_update_node_recursive(int no /*!< node for which the moments shall be
                     minhydrosofttype = Nodes[p].u.d.minhydrosofttype;
 #endif
 #endif
-                }
+                } // an internal node
               else if(p < Tree_MaxPart + Tree_MaxNodes + NTopleaves) /* a pseudo particle */
                 {
                   /* nothing to be done here because the mass of the
@@ -2125,15 +2094,6 @@ void force_update_node_recursive(int no /*!< node for which the moments shall be
                       stellar_mass += (Tree_Points[n].Mass);
                     }
 #endif
-
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-                  if(Tree_Points[n].Type == 5)
-                    {
-                      no_of_BHs += 1;
-                      HostHaloMass += Tree_Points[n].HostHaloMass;
-                    }
-#endif
-
 
 #ifdef TREECOLV2
                   if(Tree_Points[n].Type == 0)
@@ -2168,6 +2128,12 @@ void force_update_node_recursive(int no /*!< node for which the moments shall be
 #endif
                     }
 #endif /*TREECOLV2*/
+
+#ifdef BH_DF_DISCRETE
+                  dfd_vel[0] += Tree_Points[n].Mass * Tree_Points[n].DFD_Vel[0];
+                  dfd_vel[1] += Tree_Points[n].Mass * Tree_Points[n].DFD_Vel[1];
+                  dfd_vel[2] += Tree_Points[n].Mass * Tree_Points[n].DFD_Vel[2];
+#endif // BH_DF_DISCRETE
 
 #ifdef SMUGGLE_RADPRESS_OPT_THIN
                   if(Tree_Points[n].Type == 4)
@@ -2260,6 +2226,27 @@ void force_update_node_recursive(int no /*!< node for which the moments shall be
                     }
 #endif
 #endif
+
+#ifdef PE_MCS
+                  if(Tree_Points[n].Type == 4)
+                    {
+                      lum_FUV_s[0] += (Tree_Points[n].lum_FUV * Tree_Points[n].Pos[0]);
+                      lum_FUV_s[1] += (Tree_Points[n].lum_FUV * Tree_Points[n].Pos[1]);
+                      lum_FUV_s[2] += (Tree_Points[n].lum_FUV * Tree_Points[n].Pos[2]);
+                      lum_FUV += Tree_Points[n].lum_FUV;
+                    }
+#endif
+
+#ifdef HII_MCS_LR
+                  if(Tree_Points[n].Type == 0)
+                    {
+                      lum_Hii_s[0] += (Tree_Points[n].lum_Hii * Tree_Points[n].Pos[0]);
+                      lum_Hii_s[1] += (Tree_Points[n].lum_Hii * Tree_Points[n].Pos[1]);
+                      lum_Hii_s[2] += (Tree_Points[n].lum_Hii * Tree_Points[n].Pos[2]);
+                      lum_Hii += Tree_Points[n].lum_Hii;
+                    }
+#endif
+
                   if(All.ForceSoftening[maxsofttype] < All.ForceSoftening[Tree_Points[n].SofteningType])
                     maxsofttype = Tree_Points[n].SofteningType;
 
@@ -2301,12 +2288,23 @@ void force_update_node_recursive(int no /*!< node for which the moments shall be
               v[2] /= mass;
             }
 #endif
+
+#ifdef BH_DF_DISCRETE
+          dfd_vel[0] /= mass;
+          dfd_vel[1] /= mass;
+          dfd_vel[2] /= mass;
+#endif // BH_DF_DISCRETE
         }
       else
         {
           s[0] = Nodes[no].center[0];
           s[1] = Nodes[no].center[1];
           s[2] = Nodes[no].center[2];
+#ifdef BH_DF_DISCRETE
+          dfd_vel[0] = 0;
+          dfd_vel[1] = 0;
+          dfd_vel[2] = 0;
+#endif // BH_DF_DISCRETE
         }
 
 #if defined(OTVET) && defined(EDDINGTON_TENSOR_STARS)
@@ -2405,15 +2403,49 @@ void force_update_node_recursive(int no /*!< node for which the moments shall be
 #endif
 #endif
 
+#ifdef PE_MCS
+      if(lum_FUV)
+        {
+          lum_FUV_s[0] /= lum_FUV;
+          lum_FUV_s[1] /= lum_FUV;
+          lum_FUV_s[2] /= lum_FUV;
+        }
+      else
+        {
+          lum_FUV_s[0] = Nodes[no].center[0];
+          lum_FUV_s[1] = Nodes[no].center[1];
+          lum_FUV_s[2] = Nodes[no].center[2];
+        }
+#endif
+
+#ifdef HII_MCS_LR
+      if(lum_Hii)
+        {
+          lum_Hii_s[0] /= lum_Hii;
+          lum_Hii_s[1] /= lum_Hii;
+          lum_Hii_s[2] /= lum_Hii;
+        }
+      else
+        {
+          lum_Hii_s[0] = Nodes[no].center[0];
+          lum_Hii_s[1] = Nodes[no].center[1];
+          lum_Hii_s[2] = Nodes[no].center[2];
+        }
+#endif
+
       Nodes[no].u.d.mass = mass;
       Nodes[no].u.d.s[0] = s[0];
       Nodes[no].u.d.s[1] = s[1];
       Nodes[no].u.d.s[2] = s[2];
-
 #ifdef TREECOLV2_VEL
       Nodes[no].Vel[0] = v[0];
       Nodes[no].Vel[1] = v[1];
       Nodes[no].Vel[2] = v[2];
+#endif
+#ifdef BH_DF_DISCRETE
+      Nodes[no].DFD_Vel[0] = dfd_vel[0];
+      Nodes[no].DFD_Vel[1] = dfd_vel[1];
+      Nodes[no].DFD_Vel[2] = dfd_vel[2];
 #endif
       Nodes[no].u.d.maxsofttype = maxsofttype;
 #ifdef MULTIPLE_NODE_SOFTENING
@@ -2435,12 +2467,6 @@ void force_update_node_recursive(int no /*!< node for which the moments shall be
       Nodes[no].stellar_s[1] = stellar_s[1];
       Nodes[no].stellar_s[2] = stellar_s[2];
       Nodes[no].stellar_mass = stellar_mass;
-#endif
-
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-//      mpi_printf("\n Calculating BH_ngb %d",no_of_BHs);
-      Nodes[no].u.d.no_of_BHs = no_of_BHs;
-      Nodes[no].u.d.HostHaloMass = HostHaloMass;
 #endif
 
 #ifdef TREECOLV2
@@ -2491,6 +2517,20 @@ void force_update_node_recursive(int no /*!< node for which the moments shall be
       Nodes[no].T8_gas_mass = T8_gas_mass;
 #endif
 #endif
+
+#ifdef PE_MCS
+      Nodes[no].lum_FUV_s[0] = lum_FUV_s[0];
+      Nodes[no].lum_FUV_s[1] = lum_FUV_s[1];
+      Nodes[no].lum_FUV_s[2] = lum_FUV_s[2];
+      Nodes[no].lum_FUV      = lum_FUV;
+#endif
+
+#ifdef HII_MCS_LR
+      Nodes[no].lum_Hii_s[0] = lum_Hii_s[0];
+      Nodes[no].lum_Hii_s[1] = lum_Hii_s[1];
+      Nodes[no].lum_Hii_s[2] = lum_Hii_s[2];
+      Nodes[no].lum_Hii      = lum_Hii;
+#endif
     }
   else /* single particle or pseudo particle */
     {
@@ -2530,10 +2570,6 @@ void force_exchange_topleafdata(void)
   {
     MyDouble s[3];
     MyDouble mass;
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-    int no_of_BHs;
-    MyDouble HostHaloMass;
-#endif
 #ifdef MULTIPLE_NODE_SOFTENING
     MyDouble mass_per_type[NSOFTTYPES];
 #ifdef ADAPTIVE_HYDRO_SOFTENING
@@ -2561,6 +2597,9 @@ void force_exchange_topleafdata(void)
 #ifdef TREECOLV2_VEL
     MyFloat v[3];
 #endif
+#ifdef BH_DF_DISCRETE
+    MyFloat dfd_vel[3];
+#endif
 #ifdef SMUGGLE_RADPRESS_OPT_THIN
     MyFloat young_stellar_mass;
     MyFloat young_stellar_s[3];
@@ -2578,6 +2617,14 @@ void force_exchange_topleafdata(void)
     MyFloat T8_gas_mass;
     MyFloat T8_gas_s[3];
 #endif
+#endif
+#ifdef PE_MCS
+    MyFloat lum_FUV;
+    MyFloat lum_FUV_s[3];
+#endif
+#ifdef HII_MCS_LR
+    MyFloat lum_Hii;
+    MyFloat lum_Hii_s[3];
 #endif
 #if defined(SUBFIND) && defined(SUBFIND_EXTENDED_PROPERTIES)
     int NodeGrNr;
@@ -2629,6 +2676,11 @@ void force_exchange_topleafdata(void)
           loc_DomainMoment[idx].v[1] = Nodes[no].Vel[1];
           loc_DomainMoment[idx].v[2] = Nodes[no].Vel[2];
 #endif
+#ifdef BH_DF_DISCRETE
+          loc_DomainMoment[idx].dfd_vel[0] = Nodes[no].DFD_Vel[0];
+          loc_DomainMoment[idx].dfd_vel[1] = Nodes[no].DFD_Vel[1];
+          loc_DomainMoment[idx].dfd_vel[2] = Nodes[no].DFD_Vel[2];
+#endif
           loc_DomainMoment[idx].mass        = Nodes[no].u.d.mass;
           loc_DomainMoment[idx].maxsofttype = Nodes[no].u.d.maxsofttype;
 
@@ -2646,11 +2698,6 @@ void force_exchange_topleafdata(void)
           loc_DomainMoment[idx].stellar_s[1] = Nodes[no].stellar_s[1];
           loc_DomainMoment[idx].stellar_s[2] = Nodes[no].stellar_s[2];
           loc_DomainMoment[idx].stellar_mass = Nodes[no].stellar_mass;
-#endif
-
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-          loc_DomainMoment[idx].no_of_BHs = Nodes[no].u.d.no_of_BHs;
-          loc_DomainMoment[idx].HostHaloMass = Nodes[no].u.d.HostHaloMass;
 #endif
 
 #ifdef TREECOLV2
@@ -2703,6 +2750,18 @@ void force_exchange_topleafdata(void)
           loc_DomainMoment[idx].mg_bitflag.amr_node      = Nodes[no].mg_bitflag.amr_node;
           loc_DomainMoment[idx].mg_bitflag.num_daughters = Nodes[no].mg_bitflag.num_daughters;
 #endif
+#ifdef PE_MCS
+          loc_DomainMoment[idx].lum_FUV_s[0] = Nodes[no].lum_FUV_s[0];
+          loc_DomainMoment[idx].lum_FUV_s[1] = Nodes[no].lum_FUV_s[1];
+          loc_DomainMoment[idx].lum_FUV_s[2] = Nodes[no].lum_FUV_s[2];
+          loc_DomainMoment[idx].lum_FUV      = Nodes[no].lum_FUV;
+#endif
+#ifdef HII_MCS_LR
+          loc_DomainMoment[idx].lum_Hii_s[0] = Nodes[no].lum_Hii_s[0];
+          loc_DomainMoment[idx].lum_Hii_s[1] = Nodes[no].lum_Hii_s[1];
+          loc_DomainMoment[idx].lum_Hii_s[2] = Nodes[no].lum_Hii_s[2];
+          loc_DomainMoment[idx].lum_Hii      = Nodes[no].lum_Hii;
+#endif
           idx++;
         }
     }
@@ -2728,6 +2787,11 @@ void force_exchange_topleafdata(void)
           Nodes[no].Vel[1] = DomainMoment[idx].v[1];
           Nodes[no].Vel[2] = DomainMoment[idx].v[2];
 #endif
+#ifdef BH_DF_DISCRETE
+          Nodes[no].DFD_Vel[0] = DomainMoment[idx].dfd_vel[0];
+          Nodes[no].DFD_Vel[1] = DomainMoment[idx].dfd_vel[1];
+          Nodes[no].DFD_Vel[2] = DomainMoment[idx].dfd_vel[2];
+#endif
           Nodes[no].u.d.mass        = DomainMoment[idx].mass;
           Nodes[no].u.d.maxsofttype = DomainMoment[idx].maxsofttype;
 
@@ -2744,11 +2808,6 @@ void force_exchange_topleafdata(void)
           Nodes[no].stellar_s[1] = DomainMoment[idx].stellar_s[1];
           Nodes[no].stellar_s[2] = DomainMoment[idx].stellar_s[2];
           Nodes[no].stellar_mass = DomainMoment[idx].stellar_mass;
-#endif
-
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-          Nodes[no].u.d.no_of_BHs = DomainMoment[idx].no_of_BHs;
-          Nodes[no].u.d.HostHaloMass = DomainMoment[idx].HostHaloMass;
 #endif
 
 #ifdef TREECOLV2
@@ -2802,6 +2861,18 @@ void force_exchange_topleafdata(void)
           Nodes[no].mg_bitflag.amr_node      = DomainMoment[idx].mg_bitflag.amr_node;
           Nodes[no].mg_bitflag.num_daughters = DomainMoment[idx].mg_bitflag.num_daughters;
 #endif
+#ifdef PE_MCS
+          Nodes[no].lum_FUV_s[0] = DomainMoment[idx].lum_FUV_s[0];
+          Nodes[no].lum_FUV_s[1] = DomainMoment[idx].lum_FUV_s[1];
+          Nodes[no].lum_FUV_s[2] = DomainMoment[idx].lum_FUV_s[2];
+          Nodes[no].lum_FUV      = DomainMoment[idx].lum_FUV;
+#endif
+#ifdef HII_MCS_LR
+          Nodes[no].lum_Hii_s[0] = DomainMoment[idx].lum_Hii_s[0];
+          Nodes[no].lum_Hii_s[1] = DomainMoment[idx].lum_Hii_s[1];
+          Nodes[no].lum_Hii_s[2] = DomainMoment[idx].lum_Hii_s[2];
+          Nodes[no].lum_Hii      = DomainMoment[idx].lum_Hii;
+#endif
         }
     }
 
@@ -2852,6 +2923,9 @@ void force_treeupdate_toplevel(
 #ifdef TREECOLV2_VEL
   float v[3];
 #endif
+#ifdef BH_DF_DISCRETE
+  float dfd_vel[3];
+#endif
 #ifdef SMUGGLE_RADPRESS_OPT_THIN
   MyFloat young_stellar_mass = 0;
   MyFloat young_stellar_s[3] = {0, 0, 0};
@@ -2869,6 +2943,14 @@ void force_treeupdate_toplevel(
   MyFloat T8_gas_mass = 0.0;
   MyFloat T8_gas_s[3] = {0.0, 0.0, 0.0};
 #endif
+#endif
+#ifdef PE_MCS
+  MyFloat lum_FUV      = 0.0;
+  MyFloat lum_FUV_s[3] = {0.0, 0.0, 0.0};
+#endif
+#ifdef HII_MCS_LR
+  MyFloat lum_Hii      = 0.0;
+  MyFloat lum_Hii_s[3] = {0.0, 0.0, 0.0};
 #endif
 
   if(TopNodes[topnode].Daughter >= 0)
@@ -2893,6 +2975,11 @@ void force_treeupdate_toplevel(
       v[1] = 0;
       v[2] = 0;
 #endif
+#ifdef BH_DF_DISCRETE
+      dfd_vel[0] = 0;
+      dfd_vel[1] = 0;
+      dfd_vel[2] = 0;
+#endif
       maxsofttype = NSOFTTYPES + NSOFTTYPES_HYDRO;
 #ifdef MULTIPLE_NODE_SOFTENING
       for(int j = 0; j < NSOFTTYPES; j++)
@@ -2902,11 +2989,6 @@ void force_treeupdate_toplevel(
       maxhydrosofttype = NSOFTTYPES;
       minhydrosofttype = NSOFTTYPES + NSOFTTYPES_HYDRO - 1;
 #endif
-#endif
-
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-      int no_of_BHs = 0;
-      MyDouble HostHaloMass = 0;
 #endif
 
 #ifdef TREECOLV2
@@ -2937,17 +3019,17 @@ void force_treeupdate_toplevel(
               v[1] += Nodes[p].u.d.mass * Nodes[p].Vel[1];
               v[2] += Nodes[p].u.d.mass * Nodes[p].Vel[2];
 #endif
+#ifdef BH_DF_DISCRETE
+              dfd_vel[0] += Nodes[p].u.d.mass * Nodes[p].DFD_Vel[0];
+              dfd_vel[1] += Nodes[p].u.d.mass * Nodes[p].DFD_Vel[1];
+              dfd_vel[2] += Nodes[p].u.d.mass * Nodes[p].DFD_Vel[2];
+#endif
 
 #if defined(OTVET) && defined(EDDINGTON_TENSOR_STARS)
               stellar_mass += (Nodes[p].stellar_mass);
               stellar_s[0] += (Nodes[p].stellar_mass * Nodes[p].stellar_s[0]);
               stellar_s[1] += (Nodes[p].stellar_mass * Nodes[p].stellar_s[1]);
               stellar_s[2] += (Nodes[p].stellar_mass * Nodes[p].stellar_s[2]);
-#endif
-
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-              no_of_BHs += Nodes[p].u.d.no_of_BHs; 
-              HostHaloMass += Nodes[p].u.d.HostHaloMass; 
 #endif
 
 #ifdef TREECOLV2
@@ -2974,6 +3056,11 @@ void force_treeupdate_toplevel(
               v[2] += Nodes[p].u.d.mass * Nodes[p].Vel[2];
 #endif /* TREECOLV2 */
 #endif
+#ifdef BH_DF_DISCRETE
+              dfd_vel[0] += Nodes[p].u.d.mass * Nodes[p].DFD_Vel[0];
+              dfd_vel[1] += Nodes[p].u.d.mass * Nodes[p].DFD_Vel[1];
+              dfd_vel[2] += Nodes[p].u.d.mass * Nodes[p].DFD_Vel[2];
+#endif // BH_DF_DISCRETE
 
 #ifdef SMUGGLE_RADPRESS_OPT_THIN
               young_stellar_mass += (Nodes[p].young_stellar_mass);
@@ -3009,6 +3096,21 @@ void force_treeupdate_toplevel(
               T8_gas_s[2] += (Nodes[p].T8_gas_mass * Nodes[p].T8_gas_s[2]);
 #endif
 #endif
+
+#ifdef PE_MCS
+              lum_FUV += Nodes[p].lum_FUV;
+              lum_FUV_s[0] += (Nodes[p].lum_FUV * Nodes[p].lum_FUV_s[0]);
+              lum_FUV_s[1] += (Nodes[p].lum_FUV * Nodes[p].lum_FUV_s[1]);
+              lum_FUV_s[2] += (Nodes[p].lum_FUV * Nodes[p].lum_FUV_s[2]);
+#endif
+
+#ifdef HII_MCS_LR
+              lum_Hii += Nodes[p].lum_Hii;
+              lum_Hii_s[0] += (Nodes[p].lum_Hii * Nodes[p].lum_Hii_s[0]);
+              lum_Hii_s[1] += (Nodes[p].lum_Hii * Nodes[p].lum_Hii_s[1]);
+              lum_Hii_s[2] += (Nodes[p].lum_Hii * Nodes[p].lum_Hii_s[2]);
+#endif
+
               if(All.ForceSoftening[maxsofttype] < All.ForceSoftening[Nodes[p].u.d.maxsofttype])
                 maxsofttype = Nodes[p].u.d.maxsofttype;
 #ifdef MULTIPLE_NODE_SOFTENING
@@ -3048,6 +3150,11 @@ void force_treeupdate_toplevel(
               v[2] /= mass;
             }
 #endif
+#ifdef BH_DF_DISCRETE
+          dfd_vel[0] /= mass;
+          dfd_vel[1] /= mass;
+          dfd_vel[2] /= mass;
+#endif
         }
       else
         {
@@ -3058,6 +3165,11 @@ void force_treeupdate_toplevel(
           v[0] = 0;
           v[1] = 0;
           v[2] = 0;
+#endif
+#ifdef BH_DF_DISCRETE
+          dfd_vel[0] = 0;
+          dfd_vel[1] = 0;
+          dfd_vel[2] = 0;
 #endif
         }
 
@@ -3155,6 +3267,34 @@ void force_treeupdate_toplevel(
         }
 #endif
 #endif
+#ifdef PE_MCS
+      if(lum_FUV)
+        {
+          lum_FUV_s[0] /= lum_FUV;
+          lum_FUV_s[1] /= lum_FUV;
+          lum_FUV_s[2] /= lum_FUV;
+        }
+      else
+        {
+          lum_FUV_s[0] = Nodes[no].center[0];
+          lum_FUV_s[1] = Nodes[no].center[1];
+          lum_FUV_s[2] = Nodes[no].center[2];
+        }
+#endif
+#ifdef HII_MCS_LR
+      if(lum_Hii)
+        {
+          lum_Hii_s[0] /= lum_Hii;
+          lum_Hii_s[1] /= lum_Hii;
+          lum_Hii_s[2] /= lum_Hii;
+        }
+      else
+        {
+          lum_Hii_s[0] = Nodes[no].center[0];
+          lum_Hii_s[1] = Nodes[no].center[1];
+          lum_Hii_s[2] = Nodes[no].center[2];
+        }
+#endif
       Nodes[no].u.d.s[0] = s[0];
       Nodes[no].u.d.s[1] = s[1];
       Nodes[no].u.d.s[2] = s[2];
@@ -3162,6 +3302,11 @@ void force_treeupdate_toplevel(
       Nodes[no].Vel[0] = v[0];
       Nodes[no].Vel[1] = v[1];
       Nodes[no].Vel[2] = v[2];
+#endif
+#ifdef BH_DF_DISCRETE
+      Nodes[no].DFD_Vel[0] = dfd_vel[0];
+      Nodes[no].DFD_Vel[1] = dfd_vel[1];
+      Nodes[no].DFD_Vel[2] = dfd_vel[2];
 #endif
       Nodes[no].u.d.mass        = mass;
       Nodes[no].u.d.maxsofttype = maxsofttype;
@@ -3179,11 +3324,6 @@ void force_treeupdate_toplevel(
       Nodes[no].stellar_s[1] = stellar_s[1];
       Nodes[no].stellar_s[2] = stellar_s[2];
       Nodes[no].stellar_mass = stellar_mass;
-#endif
-
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-      Nodes[no].u.d.no_of_BHs = no_of_BHs;
-      Nodes[no].u.d.HostHaloMass = HostHaloMass;
 #endif
 
 #ifdef TREECOLV2
@@ -3232,6 +3372,20 @@ void force_treeupdate_toplevel(
       Nodes[no].T8_gas_s[2] = T8_gas_s[2];
       Nodes[no].T8_gas_mass = T8_gas_mass;
 #endif
+#endif
+
+#ifdef PE_MCS
+      Nodes[no].lum_FUV_s[0] = lum_FUV_s[0];
+      Nodes[no].lum_FUV_s[1] = lum_FUV_s[1];
+      Nodes[no].lum_FUV_s[2] = lum_FUV_s[2];
+      Nodes[no].lum_FUV      = lum_FUV;
+#endif
+
+#ifdef HII_MCS_LR
+      Nodes[no].lum_Hii_s[0] = lum_Hii_s[0];
+      Nodes[no].lum_Hii_s[1] = lum_Hii_s[1];
+      Nodes[no].lum_Hii_s[2] = lum_Hii_s[2];
+      Nodes[no].lum_Hii      = lum_Hii;
 #endif
     }
 }

@@ -129,7 +129,7 @@ void start_stellar_sources(void)
 
   //  mpi_printf_rt(0,"GFM_STELLAR_EVOLUTION: GFM_STELLAR_EVOLUTION...\n");
 
-  StarParticle = mymalloc("StarParticle", N_star * sizeof(struct star_particle));
+  StarParticle = (struct star_particle *)mymalloc("StarParticle", N_star * sizeof(struct star_particle));
 
   Nsource = 0;
 
@@ -283,7 +283,7 @@ void start_blackhole_sources(void)
   for(int bin = 0; bin < MRT_BINS; bin++)
     local_released_photons[bin] = 0;
 
-  BHParticle = mymalloc("BHParticle", NumBHs * sizeof(struct bh_particle));
+  BHParticle = (struct bh_particle *)mymalloc("BHParticle", NumBHs * sizeof(struct bh_particle));
 
   Nsource = 0;
 

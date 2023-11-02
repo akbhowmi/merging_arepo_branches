@@ -58,6 +58,9 @@ void calculate_gradients(void)
       if(i < 0)
         continue;
 
+      for(int j = 0; j < 3; j++)
+        SphP[i].Grad.Center[j] = SphP[i].Center[j]; /* center of mass of cell at time of computation of gradient */
+
       for(k = 0; k < N_Grad; k++)
         {
           double Value = getValue(i, k);

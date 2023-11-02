@@ -114,7 +114,7 @@ void hcoutput_dump(void)
   All.HCSnipShotFileCount++;
 
   hcoutput_compute_center(center, cmvel, 5);
-  DumpFlag = 5;
+  DumpFlag = DUMP_HCOUTPUT;
   savepositions(outNum, 1);
 }
 

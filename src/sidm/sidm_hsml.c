@@ -224,9 +224,9 @@ void sidm_findHsml(void)
 
   mpi_printf("SIDM: Finding Hsml values\n");
 
-  Left  = mymalloc("Left", Nforces * sizeof(MyDouble));
-  Right = mymalloc("Right", Nforces * sizeof(MyDouble));
-  Todo  = mymalloc("Todo", Nforces * sizeof(unsigned char));
+  Left  = (MyDouble *)mymalloc("Left", Nforces * sizeof(MyDouble));
+  Right = (MyDouble *)mymalloc("Right", Nforces * sizeof(MyDouble));
+  Todo  = (unsigned char *)mymalloc("Todo", Nforces * sizeof(unsigned char));
 
   int nforces = 0;
   for(idx = 0; idx < TimeBinsGravity.NActiveParticles; idx++)

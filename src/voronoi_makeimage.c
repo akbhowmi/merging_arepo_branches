@@ -1797,7 +1797,8 @@ double assert_contains(tessellation *T, int cell, MyDouble p0[3])
   while(1)
     {
       const int neighbor = DC[edge].dp_index;
-      myassert((DC[edge].task != ThisTask) || (DC[edge].index != cell));
+      // myassert((DC[edge].task != ThisTask) || (DC[edge].index != cell));   // this assert is not fulfilled for reflective boundary
+      // conditions
 
       nb_p[0] = DP[neighbor].x;
       nb_p[1] = DP[neighbor].y;

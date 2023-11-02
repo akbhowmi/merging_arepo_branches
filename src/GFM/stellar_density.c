@@ -655,8 +655,13 @@ int find_cells_to_enrich_evaluate(int target, int mode, int thread_id)
           dhsmlrho += (-(NUMDIMS * hinv * wk + u * dwk));
 
 #ifdef SMUGGLE_STAR_FEEDBACK
+#ifdef BH_BASED_CGM_ZOOM
+          if(P[j].Mass < 0.3 * All.TargetGasMass / All.CGM_RefinementFactor)
+            continue;
+#else
           if(P[j].Mass < 0.3 * All.TargetGasMass)
             continue;
+#endif
 #endif
 
 #ifdef SMUGGLE_OMEGA_WEIGHT_SN

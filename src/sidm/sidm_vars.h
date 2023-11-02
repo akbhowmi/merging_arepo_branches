@@ -31,10 +31,6 @@
 #define SIDM_REACTIONS 1
 #endif
 
-extern int *TargetList;
-
-extern int Nforces;
-
 extern int SIDM_NumScatterParticles;
 
 extern double SIDM_Ekin_before_total[SIDM_REACTIONS], SIDM_Ekin_after_total[SIDM_REACTIONS], SIDM_Scattered_Mass[SIDM_REACTIONS];

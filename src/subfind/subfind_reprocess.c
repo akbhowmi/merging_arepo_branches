@@ -533,12 +533,7 @@ void subfind_add_grp_props_finalize(int num, int ngroups_cat, int nsubgroups_cat
   double t0 = second();
 
   if(ThisTask == 0)
-   {
     GroupAll = (struct group_properties *)mymalloc("GroupAll", TotNgroups * sizeof(struct group_properties));
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-    GroupAll2 = (struct group_properties *)mymalloc("GroupAll2", TotNgroups * sizeof(struct group_properties));
-#endif
-   }
 
   mpi_printf("FOF REPROCESS: Task 0 has to collect and store locally %d groups corresponding to %lld Byte.\n", TotNgroups,
              TotNgroups * sizeof(struct group_properties));
@@ -548,11 +543,7 @@ void subfind_add_grp_props_finalize(int num, int ngroups_cat, int nsubgroups_cat
   if(ThisTask == 0)
     {
       fof_append_group_properties(num, ngroups_cat);
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-      myfree(GroupAll2);
-#endif
       myfree(GroupAll);
-
     }
 
   double t1 = second();
@@ -2006,13 +1997,8 @@ void fof_append_group_properties(int snapnr, int NgroupsCat)
       ngroups = get_number_of_groups_in_file(snapnr, fnr);
 
       if(ThisTask == 0)
-       {
         Group = &GroupAll[start];
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-        Group2 = &GroupAll2[start];
-#endif
-       }
-        
+
       start += ngroups;
       NgroupsDiff -= ngroups;
 
@@ -2287,43 +2273,24 @@ void fof_collect_groups(void)
   if(ThisTask == 0)
     {
       char *buf = (char *)GroupAll;
-      memcpy(buf, Group, Ngroups * sizeof(struct group_properties));
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-      char *buf2 = (char *)GroupAll2;
-      memcpy(buf2, Group2, Ngroups * sizeof(struct group_properties));
-#endif
 
+      memcpy(buf, Group, Ngroups * sizeof(struct group_properties));
       buf += Ngroups * sizeof(struct group_properties);
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-      buf2 += Ngroups * sizeof(struct group_properties);
-#endif
+
       MPI_Status status;
 
       for(i = 1; i < NTask; i++)
         {
           if(count[i])
-           {
             MPI_Recv(buf, count[i] * sizeof(struct group_properties), MPI_BYTE, i, TAG_N + i, MPI_COMM_WORLD, &status);
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-            MPI_Recv(buf2, count[i] * sizeof(struct group_properties), MPI_BYTE, i, TAG_N2 + i, MPI_COMM_WORLD, &status);
-#endif
-           }
 
           buf += count[i] * sizeof(struct group_properties);
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-          buf2 += count[i] * sizeof(struct group_properties);
-#endif
         }
     }
   else
     {
       if(Ngroups)
-       {
         MPI_Ssend(Group, Ngroups * sizeof(struct group_properties), MPI_BYTE, 0, TAG_N + ThisTask, MPI_COMM_WORLD);
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-        MPI_Ssend(Group2, Ngroups * sizeof(struct group_properties), MPI_BYTE, 0, TAG_N2 + ThisTask, MPI_COMM_WORLD);
-#endif
-        }
     }
 
   if(ThisTask == 0)

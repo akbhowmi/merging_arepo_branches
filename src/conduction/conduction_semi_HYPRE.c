@@ -215,7 +215,7 @@ void update_U_and_Energy(void)
 double get_time_step(int *numcycles)
 {
   double dt;
-  dt = (All.conduction_Ti_endstep - All.conduction_Ti_begstep) * All.Timebase_interval;
+  dt = (All.Conduction_Ti_endstep - All.Conduction_Ti_begstep) * All.Timebase_interval;
   dt *= All.cf_atime / All.cf_time_hubble_a;
 
   double temp = dt / All.dt_conduction;
@@ -280,7 +280,7 @@ void initialize_kappa(void)
                            SphP[i].Grad.dutherm[2] * SphP[i].Grad.dutherm[2]);
       if(mod_dU != 0.0)
         {
-          double temp_scale_length = All.Time * fabs(SphP[i].Utherm) / mod_dU;
+          double temp_scale_length = All.cf_atime * fabs(SphP[i].Utherm) / mod_dU;
 
           Kappa[i] /= (1 + 4.2 * electron_free_path / temp_scale_length);
         }

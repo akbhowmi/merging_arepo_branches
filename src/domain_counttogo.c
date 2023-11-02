@@ -44,7 +44,7 @@ int domain_countToGo(void)
 #ifdef TRACER_MC
       toGoTracer[n] = 0;
 #endif
-#ifdef GFM
+#if defined(GFM) || defined(SFR_MCS)
       toGoStar[n] = 0;
 #endif
 #ifdef BLACK_HOLES
@@ -73,7 +73,7 @@ int domain_countToGo(void)
 
           if(P[n].Type == 0)
             toGoSph[DomainTask[no]] += 1;
-#ifdef GFM
+#if defined(GFM) || defined(SFR_MCS)
           if(P[n].Type == 4)
             toGoStar[DomainTask[no]] += 1;
 #endif
@@ -101,7 +101,7 @@ int domain_countToGo(void)
 #ifdef TRACER_MC
   MPI_Alltoall(toGoTracer, 1, MPI_INT, toGetTracer, 1, MPI_INT, MPI_COMM_WORLD);
 #endif
-#ifdef GFM
+#if defined(GFM) || defined(SFR_MCS)
   MPI_Alltoall(toGoStar, 1, MPI_INT, toGetStar, 1, MPI_INT, MPI_COMM_WORLD);
 #endif
 #ifdef BLACK_HOLES

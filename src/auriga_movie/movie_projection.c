@@ -249,7 +249,7 @@ void auriga_movie_projection_gas_fast(struct auriga_movie_projection *self)
   double dx = self->width / self->nx;
   double dy = self->height / self->ny;
 
-  double *len = mymalloc("len", self->nx * self->ny * sizeof(double));
+  double *len = (double *)mymalloc("len", self->nx * self->ny * sizeof(double));
   memset(len, 0, self->nx * self->ny * sizeof(double));
 
   double xoffset = 0;
@@ -650,7 +650,7 @@ void auriga_movie_projection_gas(struct auriga_movie_projection *self)
   MPI_Reduce(&Nray, &NrayAll, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
   mpi_printf("AURIGA MOVIE: Created %d of %d rays.\n", NrayAll, self->nx * self->ny);
 
-  mesh_search_data *searchdata = mymalloc("searchdata", Nray * sizeof(mesh_search_data));
+  mesh_search_data *searchdata = (mesh_search_data *)mymalloc("searchdata", Nray * sizeof(mesh_search_data));
   for(i = 0; i < Nray; i++)
     for(k = 0; k < 3; k++)
       searchdata[i].Pos[k] = Ray[i].pos[k];

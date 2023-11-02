@@ -37,6 +37,9 @@
 /* local data structure that holds results acquired on remote processors */
 void blackhole_accretion(void)
 {
+  if(All.Time < All.BHAccretionStartTime)
+    return;
+
   if(TimeBinsBHAccretion.GlobalNActiveParticles == 0)
     {
       mpi_printf("BLACK_HOLES: No active BHs\n");
@@ -82,8 +85,15 @@ void blackhole_accretion(void)
   blackhole_assign_feedback();
 #endif
 
-#ifdef BH_ADIOS_WIND
+#ifdef BH_FAST_WIND
+  blackhole_broadcast_tasknum();
+#endif
+
+#if defined(BH_ADIOS_WIND) || defined(BH_FAST_WIND)
   blackhole_blow_wind();
+#ifdef BH_FAST_WIND_STOCHASTIC
+  myflush(FdBlackHolesFWstoch);
+#endif
 #endif
 
 #ifdef BH_THERMALFEEDBACK_ACC

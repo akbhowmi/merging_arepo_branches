@@ -33,6 +33,9 @@ double accrete_onto_sink_particles(void)
     double com[3];
     double mom[3];
     double mass;
+#ifdef STORE_SINK_PARTICLE_SPIN
+    double AngularMomentum[3];
+#endif
   } * acc_in, *acc_out;
 
   /* Initialize variables
@@ -43,10 +46,10 @@ double accrete_onto_sink_particles(void)
   double MassAccretedViaBondiHoyle  = 0;
   double SinkAccretionRadiusSquared = SinkAccretionRadius * SinkAccretionRadius;
 
-  acc_in = mymalloc("acc_in", NSinksAllTasks * sizeof(struct accretion_buffer));
+  acc_in = (struct accretion_buffer *)mymalloc("acc_in", NSinksAllTasks * sizeof(struct accretion_buffer));
   memset(acc_in, 0, NSinksAllTasks * sizeof(struct accretion_buffer));
 
-  acc_out = mymalloc("acc_out", NSinksAllTasks * sizeof(struct accretion_buffer));
+  acc_out = (struct accretion_buffer *)mymalloc("acc_out", NSinksAllTasks * sizeof(struct accretion_buffer));
   memset(acc_out, 0, NSinksAllTasks * sizeof(struct accretion_buffer));
 
   /* The main loop around all gas cells on this Task.
@@ -189,7 +192,21 @@ double accrete_onto_sink_particles(void)
           acc_in[isink].mom[1] += P[icell].Vel[1] * mass_accreted;
           acc_in[isink].mom[2] += P[icell].Vel[2] * mass_accreted;
           acc_in[isink].mass += mass_accreted;
+#ifdef STORE_SINK_PARTICLE_SPIN
+          double dR       = sqrt(dx * dx + dy * dy + dz * dz);
+          double dvx_spin = P[icell].Vel[0] - SinkP[isink].Vel[0];
+          double dvy_spin = P[icell].Vel[1] - SinkP[isink].Vel[1];
+          double dvz_spin = P[icell].Vel[2] - SinkP[isink].Vel[2];
 
+          acc_in[isink].AngularMomentum[0] = mass_accreted * (dy * dvz_spin - dz * dvy_spin);
+          acc_in[isink].AngularMomentum[1] = mass_accreted * (-dx * dvz_spin + dz * dvx_spin);
+          acc_in[isink].AngularMomentum[2] = mass_accreted * (dx * dvy_spin - dy * dvx_spin);
+          /*
+           *           printf("SINK_PARTICLES: AngularMomentum variables:  %g, %g, %g, %g, %g, %g, %g, %g \n", mass_accreted,dx, dy,
+           * dz,P[icell].Vel[0],P[icell].Vel[1],P[icell].Vel[2],dR); printf("SINK_PARTICLES: AngularMomentum in:  %g, %g, %g,  \n",
+           * acc_in[isink].AngularMomentum[0], acc_in[isink].AngularMomentum[1], acc_in[isink].AngularMomentum[2]);
+           *                               */
+#endif
           /* Now accrete from the cell
            */
           num_accreted_this_timestep++;
@@ -257,7 +274,11 @@ double accrete_onto_sink_particles(void)
 
   /* Now sum up the contributions to the sinks from all Tasks.
    */
+#ifdef STORE_SINK_PARTICLE_SPIN
+  MPI_Allreduce(acc_in, acc_out, 10 * NSinksAllTasks, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+#else
   MPI_Allreduce(acc_in, acc_out, 7 * NSinksAllTasks, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+#endif
 
   /* Loop around the sinks and find those on this Task. Update their
      properties in the real (P.) particle structure.
@@ -331,6 +352,14 @@ double accrete_onto_sink_particles(void)
       SinkP[isink].Vel[1] = (SinkP[isink].Mass * SinkP[isink].Vel[1] + acc_out[isink].mom[1]) / mass_sum;
       SinkP[isink].Vel[2] = (SinkP[isink].Mass * SinkP[isink].Vel[2] + acc_out[isink].mom[2]) / mass_sum;
       SinkP[isink].Mass += acc_out[isink].mass;
+#ifdef STORE_SINK_PARTICLE_SPIN
+      SinkP[isink].AngularMomentum[0] += acc_out[isink].AngularMomentum[0];
+      SinkP[isink].AngularMomentum[1] += acc_out[isink].AngularMomentum[1];
+      SinkP[isink].AngularMomentum[2] += acc_out[isink].AngularMomentum[2];
+      /*printf("SINK_PARTICLES: AngularMomentum:  %g, %g, %g,  \n", SinkP[isink].AngularMomentum[0], SinkP[isink].AngularMomentum[1],
+       * SinkP[isink].AngularMomentum[2]);*/
+#endif
+
 #if defined(SINK_PARTICLES_FEEDBACK) && !defined(SINK_FEEDBACK_SINGLE_STAR)
       if(acc_out[isink].mass != 0.)
         {

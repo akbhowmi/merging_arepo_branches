@@ -79,7 +79,6 @@ typedef struct
   MyFloat Rho;
   MyFloat DhsmlDensity;
   MyFloat Ngb;
-
 #ifdef FIX_SPH_PARTICLES_AT_IDENTICAL_COORDINATES
   MyFloat MinDist;
 #endif
@@ -133,7 +132,6 @@ static void out2particle(data_out *out, int i, int mode)
         {
           SphP[i].Density += out->Rho;
           DhsmlDensityFactor[i] += out->DhsmlDensity;
-
 #ifdef FIX_SPH_PARTICLES_AT_IDENTICAL_COORDINATES
           if(MinDist[i] > out->MinDist)
             MinDist[i] = out->MinDist;

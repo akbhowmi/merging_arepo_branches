@@ -76,7 +76,7 @@ double get_fa_opacity(double rho, double t, opacitydata *data)
     {
       int err;
       err    = gsl_interp2d_eval_e(data->inter, (double *)data->logR, (double *)data->logT, (double *)data->logkappa, logr, logt,
-                                data->xacc, data->yacc, &result);
+                                   data->xacc, data->yacc, &result);
       result = pow(10, result);
     }
 

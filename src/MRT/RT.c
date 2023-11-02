@@ -34,6 +34,13 @@
 
 #ifdef MRT
 
+#if defined(MRT_RIEMANN_HLLE) || defined(MRT_RIEMANN_HLLE_NEW)
+double lambda1[101][101];
+double lambda2[101][101];
+double lambda3[101][101];
+double lambda4[101][101];
+#endif
+
 #ifdef MRT_SINGLE_STAR
 
 static int Nlines;

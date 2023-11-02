@@ -209,4 +209,13 @@ typedef struct
 
 #endif
 
+#ifdef RT_ADVECT
+struct diff_list
+{
+  int sourceid;
+  double dPhotons;
+  MyFloat sourcepos[3];
+};
+#endif
+
 #endif

@@ -30,7 +30,7 @@ print('create.py ' + simulation_directory)
 # output times
 outputTimes = np.array([0.0197, 0.2, 0.25, 0.33, 0.5, 0.66, 1],
                        dtype=np.float64)
-ones = np.ones(outputTimes.shape, dtype=np.int)
+ones = np.ones(outputTimes.shape, dtype=int)
 data = np.array([outputTimes, ones]).T
 np.savetxt(os.path.join(simulation_directory, 'output_list.txt'),
            data,

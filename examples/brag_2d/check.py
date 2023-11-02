@@ -143,16 +143,16 @@ for i in range(len(fnames)):
 
     # print(err0, err1, err2, err3)
 
-    if err0 > tol0:
+    if not err0 <= tol0:
         failed = True
         print(msg0.format(err0))
-    if err1 > tol1:
+    if not err1 <= tol1:
         failed = True
         print(msg1.format(err1))
-    if err2 > tol2:
+    if not err2 <= tol2:
         print(msg2.format(err2))
         failed = True
-    if err3 > tol3:
+    if not err3 <= tol3:
         print(msg3.format(err3))
         failed = True
 
@@ -266,10 +266,8 @@ if makeplots:
         pass
 
 
-""" criteria for failing the test """
+# criteria for failing the test
 if failed:
     sys.exit(1)
 
 print("normal exit")
-""" normal exit """
-sys.exit(0)

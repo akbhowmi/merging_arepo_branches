@@ -333,6 +333,64 @@ void read_parameter_file(const char *const fname)
       id[nt++] = PARAM_REAL;
 #endif
 
+#ifdef DM_WINDTUNNEL
+      strcpy(tag[nt], "DMWindtunnelInjectionRegion");
+      addr[nt] = &All.DMWindtunnelInjectionRegion;
+      id[nt++] = PARAM_REAL;
+
+      strcpy(tag[nt], "DMWindtunnelSigmaVX");
+      addr[nt] = &All.DMWindtunnelSigmaVX;
+      id[nt++] = PARAM_REAL;
+
+      strcpy(tag[nt], "DMWindtunnelSigmaVY");
+      addr[nt] = &All.DMWindtunnelSigmaVY;
+      id[nt++] = PARAM_REAL;
+
+      strcpy(tag[nt], "DMWindtunnelSigmaVZ");
+      addr[nt] = &All.DMWindtunnelSigmaVZ;
+      id[nt++] = PARAM_REAL;
+
+      strcpy(tag[nt], "DMWindtunnelVX");
+      addr[nt] = &All.DMWindtunnelVX;
+      id[nt++] = PARAM_REAL;
+
+      strcpy(tag[nt], "DMWindtunnelVY");
+      addr[nt] = &All.DMWindtunnelVY;
+      id[nt++] = PARAM_REAL;
+
+      strcpy(tag[nt], "DMWindtunnelVZ");
+      addr[nt] = &All.DMWindtunnelVZ;
+      id[nt++] = PARAM_REAL;
+
+      strcpy(tag[nt], "DMWindtunnelInjectionDensity");
+      addr[nt] = &All.DMWindtunnelInjectionDensity;
+      id[nt++] = PARAM_REAL;
+#endif
+
+#ifdef DM_WINDTUNNEL_STARS
+      strcpy(tag[nt], "StarWindtunnelSigmaVX");
+      addr[nt] = &All.StarWindtunnelSigmaVX;
+      id[nt++] = PARAM_REAL;
+
+      strcpy(tag[nt], "StarWindtunnelSigmaVY");
+      addr[nt] = &All.StarWindtunnelSigmaVY;
+      id[nt++] = PARAM_REAL;
+
+      strcpy(tag[nt], "StarWindtunnelSigmaVZ");
+      addr[nt] = &All.StarWindtunnelSigmaVZ;
+      id[nt++] = PARAM_REAL;
+
+      strcpy(tag[nt], "StarWindtunnelInjectionDensity");
+      addr[nt] = &All.StarWindtunnelInjectionDensity;
+      id[nt++] = PARAM_REAL;
+#endif
+
+#ifdef DM_WINDTUNNEL_EXTERNAL_SOURCE
+      strcpy(tag[nt], "DMWindtunnelExternalSourceFile");
+      addr[nt] = All.DMWindtunnelExternalSourceFile;
+      id[nt++] = PARAM_STRING;
+#endif
+
 #ifdef WINDTUNNEL
       strcpy(tag[nt], "InjectionDensity");
       addr[nt] = &All.InjectionDensity;
@@ -763,11 +821,36 @@ void read_parameter_file(const char *const fname)
 #endif
 
 #ifdef BLACK_HOLES
+      strcpy(tag[nt], "BHAccretionStartTime");
+      addr[nt] = &All.BHAccretionStartTime;
+      id[nt++] = PARAM_REAL;
 
 #ifdef BH_RELATIVE_NGB_DEVIATION
       strcpy(tag[nt], "DesNumNgbBlackHoleRelDeviationFactor");
       addr[nt] = &All.DesNumNgbBlackHoleRelDeviationFactor;
       id[nt++] = PARAM_REAL;
+#endif
+
+#ifdef BH_FAST_WIND
+      strcpy(tag[nt], "WindMassLoading");
+      addr[nt] = &All.WindMassLoading;
+      id[nt++] = PARAM_REAL;
+
+      strcpy(tag[nt], "FastWindVelocity");
+      addr[nt] = &All.FastWindVelocity;
+      id[nt++] = PARAM_REAL;
+
+      strcpy(tag[nt], "RadioFeedbackMinDensityFactor");
+      addr[nt] = &All.RadioFeedbackMinDensityFactor;
+      id[nt++] = PARAM_REAL;
+
+      strcpy(tag[nt], "FastWindQuasarThreshold");
+      addr[nt] = &All.FastWindQuasarThreshold;
+      id[nt++] = PARAM_REAL;
+
+      strcpy(tag[nt], "FastWindKickDirection");
+      addr[nt] = &All.FastWindKickDirection;
+      id[nt++] = PARAM_INT;
 #endif
 
 #ifdef BH_THERMALFEEDBACK_ACC
@@ -808,291 +891,11 @@ void read_parameter_file(const char *const fname)
       addr[nt] = &All.SeedBlackHoleMass;
       id[nt++] = PARAM_REAL;
 
-#ifdef CREATE_SUBFOFS
-      strcpy(tag[nt], "LinkingLengthReductionFactor");
-      addr[nt] = &All.LinkingLengthReductionFactor;
-      id[nt++] = PARAM_REAL;
-
-#ifndef FOF_STOREIDS
-      strcpy(tag[nt], "ParticleFOFdatacorrespondence");
-      addr[nt] = &All.ParticleFOFdatacorrespondence;
-      id[nt++] = PARAM_INT;
-#endif
-#ifdef BLACK_HOLES
-      strcpy(tag[nt], "SeedingModeFOForSubFOF");
-      addr[nt] = &All.SeedingModeFOForSubFOF;
-      id[nt++] = PARAM_INT;
-#endif
-
-#ifdef BFOFS_AS_GASCLUMPS
-      strcpy(tag[nt], "MinDensityForGasClumps");
-      addr[nt] = &All.MinDensityForGasClumps;
-      id[nt++] = PARAM_REAL;
-
-      strcpy(tag[nt], "MaxMetallicityForGasClumps");
-      addr[nt] = &All.MinDensityForGasClumps;
-      id[nt++] = PARAM_REAL;
-#endif
-#endif
-
-#ifdef INCLUDE_MERGERS_OF_UNRESOLVED_SEED_BHS
-#ifdef POWERLAW_MODEL_FOR_UNRESOLVED_MERGERS
-       strcpy(tag[nt], "SlopeMassGrowthPerResolvedEvent");
-       addr[nt] = &All.SlopeMassGrowthPerResolvedEvent;
-       id[nt++] = PARAM_REAL;
-
-       strcpy(tag[nt], "InterceptMassGrowthPerResolvedEvent");
-       addr[nt] = &All.InterceptMassGrowthPerResolvedEvent;
-       id[nt++] = PARAM_REAL;
-
-       strcpy(tag[nt], "MaxMassGrowthPerResolvedEvent");
-       addr[nt] = &All.MaxMassGrowthPerResolvedEvent;
-       id[nt++] = PARAM_REAL;
-#else
-       strcpy(tag[nt], "ConstantMassGrowthPerResolvedEvent");
-       addr[nt] = &All.ConstantMassGrowthPerResolvedEvent;
-       id[nt++] = PARAM_REAL;
-#endif
-#endif
-
 #ifdef FOF
       strcpy(tag[nt], "MinFoFMassForNewSeed");
       addr[nt] = &All.MinFoFMassForNewSeed;
       id[nt++] = PARAM_REAL;
-
-#ifdef UNIFORM_SEEDMASS_DISTRIBUTION
-      strcpy(tag[nt], "LogMinSeedBlackHoleMass");
-      addr[nt] = &All.LogMinSeedBlackHoleMass;
-      id[nt++] = PARAM_REAL;
-
-      strcpy(tag[nt], "LogMaxSeedBlackHoleMass");
-      addr[nt] = &All.LogMaxSeedBlackHoleMass;
-      id[nt++] = PARAM_REAL;
 #endif
-
-#if defined(GAS_BASED_SEED_MODEL) && defined(SEED_GAS_METALLICITY_CRITERION)
-      strcpy(tag[nt], "MinMetallicityForNewSeed");
-      addr[nt] = &All.MinMetallicityForNewSeed;
-      id[nt++] = PARAM_REAL;
-
-      strcpy(tag[nt], "MaxMetallicityForNewSeed");
-      addr[nt] = &All.MaxMetallicityForNewSeed;
-      id[nt++] = PARAM_REAL;
-#endif
-
-#if (defined(SEED_LYMAN_WERNER_INTENSITY_CRITERION) || defined(SEED_STARFORMINGMETALFREELYMANWERNERGASMASS_CRITERION)) || defined(CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS)
-      strcpy(tag[nt], "MinLymanWernerFluxForNewSeed");
-      addr[nt] = &All.MinLymanWernerFluxForNewSeed;
-      id[nt++] = PARAM_REAL;       
-#endif
-
-#ifdef PREVENT_SPURIOUS_RESEEDING
-      strcpy(tag[nt], "MaxPaintedGasFractionForReseeding");
-      addr[nt] = &All.MaxPaintedGasFractionForReseeding;
-      id[nt++] = PARAM_REAL;
-#endif
-
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-      strcpy(tag[nt], "MinHaloMassForTaggingMinPotential");
-      addr[nt] = &All.MinHaloMassForTaggingMinPotential;
-      id[nt++] = PARAM_REAL;
-#endif
-
-#ifdef CORRECT_FOR_HALO_MASS_BIAS_IN_ENVIRONMENT_BASED_SEEDING
-      strcpy(tag[nt], "SlopeForEnvironmentBasedSeedProbabilityvsbFOFmass");
-      addr[nt] = &All.SlopeForEnvironmentBasedSeedProbabilityvsbFOFmass;
-      id[nt++] = PARAM_REAL;
-#endif
-
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION1
-      strcpy(tag[nt], "MinNumberOfNeighborsForSeeding");
-      addr[nt] = &All.MinNumberOfNeighborsForSeeding;
-      id[nt++] = PARAM_INT;
-#endif
-
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION2
-      strcpy(tag[nt], "SeedProbabilityNoNeighbors");
-      addr[nt] = &All.SeedProbabilityNoNeighbors;
-      id[nt++] = PARAM_REAL;
-      strcpy(tag[nt], "SeedProbabilityTwentyNeighbors");
-      addr[nt] = &All.SeedProbabilityTwentyNeighbors;
-      id[nt++] = PARAM_REAL;
-      strcpy(tag[nt], "MinNumberOfBlackHolesForEnvironmentBasedSeeding");
-      addr[nt] = &All.MinNumberOfBlackHolesForEnvironmentBasedSeeding;
-      id[nt++] = PARAM_INT;
-#endif
-
-
-
-
-
-#ifdef SEED_BASED_ON_PROBABLISTIC_HALO_PROPERTIES
-#ifdef PROBABILISTIC_SEED_MASS_HALO_MASS_RATIO_CRITERION
-      strcpy(tag[nt], "LogMinHaloMassSeedingThresholdAverage");
-      addr[nt] = &All.LogMinHaloMassSeedingThresholdAverage;
-      id[nt++] = PARAM_REAL;
-
-      strcpy(tag[nt], "LogMinHaloMassSeedingThresholdOffset");
-      addr[nt] = &All.LogMinHaloMassSeedingThresholdOffset;
-      id[nt++] = PARAM_REAL;
-
-      strcpy(tag[nt], "LogMinHaloMassSeedingThresholdStdev");
-      addr[nt] = &All.LogMinHaloMassSeedingThresholdStdev;
-      id[nt++] = PARAM_REAL;
-
-#endif
-#endif
-
-#ifdef EVOLVING_SEEDING_PROBABILITY
-      strcpy(tag[nt], "SlopeLinearModelForSeedingProbability");
-      addr[nt] = &All.SlopeLinearModelForSeedingProbability;
-      id[nt++] = PARAM_REAL;
-
-      strcpy(tag[nt], "InterceptLinearModelForSeedingProbability");
-      addr[nt] = &All.InterceptLinearModelForSeedingProbability;
-      id[nt++] = PARAM_REAL;
-#endif
-
-#ifdef EVOLVING_SEEDHALOMASS_DISTRIBUTION_METALENRICHMENT
-      strcpy(tag[nt], "SlopeOnsetMetalEnrichmentImpact");
-      addr[nt] = &All.SlopeOnsetMetalEnrichmentImpact;
-      id[nt++] = PARAM_REAL;
-
-      strcpy(tag[nt], "RedshiftOnsetMetalEnrichmentImpact");
-      addr[nt] = &All.RedshiftOnsetMetalEnrichmentImpact;
-      id[nt++] = PARAM_REAL;
-#endif
-
-#ifdef EVOLVING_SEEDHALOMASS_DISTRIBUTION_QUADRATIC_MODEL
-      strcpy(tag[nt], "Coffmean_2");
-      addr[nt] = &All.Coffmean_2;
-      id[nt++] = PARAM_REAL;
-
-      strcpy(tag[nt], "Coffmean_1");
-      addr[nt] = &All.Coffmean_1;
-      id[nt++] = PARAM_REAL;
-
-      strcpy(tag[nt], "Coffmean_0");
-      addr[nt] = &All.Coffmean_0;
-      id[nt++] = PARAM_REAL;
-#endif
-
-#if defined(EVOLVING_SEEDHALOMASS_DISTRIBUTION_DOUBLE_POWERLAW_MODEL) || defined(EVOLVING_SEEDHALOMASS_DISTRIBUTION_DOUBLE_POWERLAW_MODEL2)
-      strcpy(tag[nt], "Slope_lowz");
-      addr[nt] = &All.Slope_lowz;
-      id[nt++] = PARAM_REAL;
-
-      strcpy(tag[nt], "Slope_highz");
-      addr[nt] = &All.Slope_highz;
-      id[nt++] = PARAM_REAL;
-#endif
-
-#ifdef EVOLVING_SEEDHALOMASS_DISTRIBUTION_DOUBLE_POWERLAW_MODEL
-      strcpy(tag[nt], "Intercept_lowz");
-      addr[nt] = &All.Intercept_lowz;
-      id[nt++] = PARAM_REAL;
-
-      strcpy(tag[nt], "Intercept_highz");
-      addr[nt] = &All.Intercept_highz;
-      id[nt++] = PARAM_REAL;
-#endif
-
-#ifdef EVOLVING_SEEDHALOMASS_DISTRIBUTION_DOUBLE_POWERLAW_MODEL2
-      strcpy(tag[nt], "LogMinHaloMassSeedingThresholdAverageTransition");
-      addr[nt] = &All.LogMinHaloMassSeedingThresholdAverageTransition;
-      id[nt++] = PARAM_REAL;
-
-      strcpy(tag[nt], "TransitionRedshift");
-      addr[nt] = &All.TransitionRedshift;
-      id[nt++] = PARAM_REAL;
-#endif
-
-#if defined(CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_SOURCES) || defined(CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS)
-      strcpy(tag[nt], "LymanWernerRadiusOfInclusion");
-      addr[nt] = &All.LymanWernerRadiusOfInclusion;
-      id[nt++] = PARAM_REAL;
-#endif
-
-#ifdef PREVENT_SEEDING_AROUND_BLACKHOLE_NEIGHBORS2
-      strcpy(tag[nt], "MaximumBlackholeNeighborDistance");
-      addr[nt] = &All.MaximumBlackholeNeighborDistance;
-      id[nt++] = PARAM_REAL;
-#endif
-
-#ifdef SEED_STARFORMINGGASMASS_CRITERION
-      strcpy(tag[nt], "MinStarFormingGasParamForNewSeed");
-      addr[nt] = &All.MinStarFormingGasParamForNewSeed;
-      id[nt++] = PARAM_REAL;
-#endif
-
-#ifdef SEED_STARFORMINGMETALFREEGASMASS_CRITERION
-      strcpy(tag[nt], "MinStarFormingMetalFreeGasParamForNewSeed");
-      addr[nt] = &All.MinStarFormingMetalFreeGasParamForNewSeed;
-      id[nt++] = PARAM_REAL;
-#endif
-
-//#ifdef SEED_STARFORMINGMETALFREELYMANWERNERGASMASS_CRITERION
-//      strcpy(tag[nt], "MinStarFormingMetalFreeLymanWernerGasParamForNewSeed");
-//      addr[nt] = &All.MinStarFormingMetalFreeLymanWernerGasParamForNewSeed;
-//      id[nt++] = REAL;
-//#endif
-
-#ifdef OUTPUT_LOG_FILES_FOR_SEEDING
-      strcpy(tag[nt], "MaxMetallicityForAssumingMetalFree");
-      addr[nt] = &All.MaxMetallicityForAssumingMetalFree;
-      id[nt++] = PARAM_REAL;
-#endif
-
-#ifdef SEED_STARFORMINGMETALFREELYMANWERNERGASMASS_CRITERION
-      strcpy(tag[nt], "MinSFMFLymanWernerGasParamForNewSeed");
-      addr[nt] = &All.MinStarFormingMetalFreeLymanWernerGasParamForNewSeed;
-      id[nt++] = PARAM_REAL;
-#endif
-
-#ifdef SEED_LYMANWERNERGASMASS_CRITERION
-      strcpy(tag[nt], "MinLymanWernerGasParamForNewSeed");
-      addr[nt] = &All.MinLymanWernerGasParamForNewSeed;
-      id[nt++] = PARAM_REAL;
-#endif
-
-#ifdef SEED_STARFORMINGGASMETALLICITY_CRITERION
-      strcpy(tag[nt], "MaxStarFormingGasMetallicityForNewSeed");
-      addr[nt] = &All.MaxStarFormingGasMetallicityForNewSeed;
-      id[nt++] = PARAM_REAL;
-#endif
-
-#if defined(GAS_BASED_SEED_MODEL) && defined(SEED_MASS_HALO_MASS_RATIO_CRITERION)
-#if(SEED_MASS_HALO_MASS_RATIO_CRITERION==1)
-      strcpy(tag[nt], "MinSeedMassHaloMassLymanWernerParam");
-      addr[nt] = &All.MinSeedMassHaloMassLymanWernerParam;
-      id[nt++] = PARAM_REAL;
-#endif
-      strcpy(tag[nt], "MinSeedMassHaloMassRatioForNewSeed");
-      addr[nt] = &All.MinSeedMassHaloMassRatioForNewSeed;
-      id[nt++] = PARAM_REAL;
-#endif
-
-#ifdef NO_SEEDING_IN_LOW_RESOLUTION_CONTAMINATED_HALOS
-      strcpy(tag[nt], "MaximumLowResolutionContaminationForSeeding");
-      addr[nt] = &All.MaximumLowResolutionContaminationForSeeding;
-      id[nt++] = PARAM_REAL;
-#endif
-
-#ifdef PROBABILISTIC_SEEDING
-      strcpy(tag[nt], "ConstantSeed\Probability");
-      addr[nt] = &All.ConstantSeedProbability;
-      id[nt++] = PARAM_REAL;
-#endif
-#endif
-
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-      strcpy(tag[nt], "MaximumNeighboringTracerDistance");
-      addr[nt] = &All.MaximumNeighboringTracerDistance;
-      id[nt++] = PARAM_REAL;
-#endif
-       
-
-
 
 #ifdef MASSIVE_SEEDS
       strcpy(tag[nt], "DesNumNgbSeed");
@@ -1282,12 +1085,21 @@ void read_parameter_file(const char *const fname)
       addr[nt] = &All.GrackleUVB;
       id[nt++] = PARAM_INT;
 
+      strcpy(tag[nt], "GrackleSelfShieldingMethod");
+      addr[nt] = &All.GrackleSelfShieldingMethod;
+      id[nt++] = PARAM_INT;
+
       strcpy(tag[nt], "GrackleDataFile");
       addr[nt] = &All.GrackleDataFile;
       id[nt++] = PARAM_STRING;
 #ifndef METALS
       strcpy(tag[nt], "GrackleInitialMetallicity");
       addr[nt] = &All.GrackleInitialMetallicity;
+      id[nt++] = PARAM_REAL;
+#endif
+#ifdef GRACKLE_PHOTOELECTRIC
+      strcpy(tag[nt], "GracklePhotoelectricHeatingRate");
+      addr[nt] = &All.GracklePhotoelectricHeatingRate;
       id[nt++] = PARAM_REAL;
 #endif
 #endif
@@ -1778,6 +1590,12 @@ void read_parameter_file(const char *const fname)
       strcpy(tag[nt], "MinMetalTemp");
       addr[nt] = &All.MinMetalTemp;
       id[nt++] = PARAM_REAL;
+
+#ifdef GFM_COOLING_METAL_START
+      strcpy(tag[nt], "MetalCoolStartRedshift");
+      addr[nt] = &All.MetalCoolStartRedshift;
+      id[nt++] = PARAM_REAL;
+#endif
 #endif
 
 #ifdef GFM_STELLAR_PHOTOMETRICS
@@ -2085,9 +1903,20 @@ void read_parameter_file(const char *const fname)
 #endif
 
 #ifdef SFR_MCS
+#if SFR_MCS_SELECT_CRITERIA == 1
+      strcpy(tag[nt], "SfrCritLength");
+      addr[nt] = &All.SfrCritLength;
+      id[nt++] = PARAM_REAL;
+#elif(SFR_MCS_SELECT_CRITERIA == 2) || (SFR_MCS_SELECT_CRITERIA == 3)
+      strcpy(tag[nt], "SfrCritJeansMassN");
+      addr[nt] = &All.SfrCritJeansMassN;
+      id[nt++] = PARAM_REAL;
+#endif
+#if(SFR_MCS_SELECT_CRITERIA == 0) || (SFR_MCS_SELECT_CRITERIA == 3)
       strcpy(tag[nt], "DensThreshold");
       addr[nt] = &All.DensThreshold;
       id[nt++] = PARAM_REAL;
+#endif
 
       strcpy(tag[nt], "SfrEfficiency");
       addr[nt] = &All.SfrEfficiency;
@@ -2097,19 +1926,30 @@ void read_parameter_file(const char *const fname)
       addr[nt] = &All.CritOverDensity;
       id[nt++] = PARAM_REAL;
 
-#ifdef SN_MCS
-      strcpy(tag[nt], "MaxSNEvalTimestep");
-      addr[nt] = &All.MaxSNEvalTimestep;
+#if defined(SN_MCS) || defined(HII_MCS) || defined(PE_MCS)
+#ifdef SFR_MCS_DELAY
+      strcpy(tag[nt], "TimeDelayFactor");
+      addr[nt] = &All.TimeDelayFactor;
+      id[nt++] = PARAM_REAL;
+#endif
+
+      strcpy(tag[nt], "MaxFBStarEvalTimestep");
+      addr[nt] = &All.MaxFBStarEvalTimestep;
       id[nt++] = PARAM_REAL;
 
-      strcpy(tag[nt], "MaxSNStarMassFac");
-      addr[nt] = &All.MaxSNStarMassFac;
+#ifndef IMF_SAMPLING_MCS
+      strcpy(tag[nt], "MaxFBStarEvalTimestepCut");
+      addr[nt] = &All.MaxFBStarEvalTimestepCut;
       id[nt++] = PARAM_REAL;
+#endif
 
-      strcpy(tag[nt], "HostCellFeedbackFraction");
-      addr[nt] = &All.HostCellFeedbackFraction;
+      strcpy(tag[nt], "MaxFBStarMassFac");
+      addr[nt] = &All.MaxFBStarMassFac;
       id[nt++] = PARAM_REAL;
+#endif  // defined(SN_MCS) || defined(HII_MCS) || defined(PE_MCS)
 
+#if((defined(SN_MCS) && !defined(SN_MCS_SINGLE_INJECTION)) || (defined(HII_MCS) && !defined(HII_MCS_TEST)) || defined(PE_MCS)) && \
+    !(defined(SN_MCS_INITIAL_DRIVING) || defined(IMF_SAMPLING_MCS))
       strcpy(tag[nt], "SB99TablesPath");
       addr[nt] = &All.SB99TablesPath;
       id[nt++] = PARAM_STRING;
@@ -2119,11 +1959,38 @@ void read_parameter_file(const char *const fname)
       addr[nt] = &All.SB99_metallicity_name;
       id[nt++] = PARAM_STRING;
 #endif
+#endif
+
+#ifdef SN_MCS
+#ifndef IMF_SAMPLING_MCS
+#ifndef SN_MCS_INITIAL_DRIVING
+#ifdef SN_MCS_SINGLE_INJECTION
+      strcpy(tag[nt], "SNDelay");
+      addr[nt] = &All.SNDelay;
+      id[nt++] = PARAM_REAL;
+
+      strcpy(tag[nt], "SNMassUnit");
+      addr[nt] = &All.SNMassUnit;
+      id[nt++] = PARAM_REAL;
+#endif
+#else
+      strcpy(tag[nt], "DrivingZoneRadius");
+      addr[nt] = &All.DrivingZoneRadius;
+      id[nt++] = PARAM_REAL;
+#endif
+#endif
+
+#ifndef SN_MCS_HOST_ONLY
+      strcpy(tag[nt], "HostCellFeedbackFraction");
+      addr[nt] = &All.HostCellFeedbackFraction;
+      id[nt++] = PARAM_REAL;
+#endif
 
       strcpy(tag[nt], "SNKineticRatio");
       addr[nt] = &All.SNKineticRatio;
       id[nt++] = PARAM_REAL;
 
+#if !defined(IMF_SAMPLING_MCS) && !defined(SN_MCS_VARIABLE_EJECTA)
       strcpy(tag[nt], "SNMassReturn");
       addr[nt] = &All.SNMassReturn;
       id[nt++] = PARAM_REAL;
@@ -2133,6 +2000,102 @@ void read_parameter_file(const char *const fname)
       id[nt++] = PARAM_REAL;
 #endif
 #endif
+#endif  // SN_MCS
+
+#ifdef HII_MCS
+      strcpy(tag[nt], "PhotoionizationGasTemp");
+      addr[nt] = &All.PhotoionizationGasTemp;
+      id[nt++] = PARAM_REAL;
+
+      strcpy(tag[nt], "R_Stromgren_Max");
+      addr[nt] = &All.R_Stromgren_Max;
+      id[nt++] = PARAM_REAL;
+
+      strcpy(tag[nt], "MinimumPhotoRateFactor");
+      addr[nt] = &All.MinimumPhotoRateFactor;
+      id[nt++] = PARAM_REAL;
+
+      strcpy(tag[nt], "HiiAttenFac");
+      addr[nt] = &All.HiiAttenFac;
+      id[nt++] = PARAM_REAL;
+
+#ifndef HII_MCS_EVERY_SYNCPOINT
+      strcpy(tag[nt], "TimeBetweenHiiPlace");
+      addr[nt] = &All.TimeBetweenHiiPlace;
+      id[nt++] = PARAM_REAL;
+#endif
+#ifdef HII_MCS_DENSCUT
+      strcpy(tag[nt], "HiiDensCut");
+      addr[nt] = &All.HiiDensCut;
+      id[nt++] = PARAM_REAL;
+#endif
+#ifdef HII_MCS_LR
+      strcpy(tag[nt], "UVBEnergyDensHii");
+      addr[nt] = &All.UVBEnergyDensHii;
+      id[nt++] = PARAM_REAL;
+#endif
+#endif  // HII_MCS
+
+#ifdef PE_MCS
+      strcpy(tag[nt], "G_min");
+      addr[nt] = &All.G_min;
+      id[nt++] = PARAM_REAL;
+
+#ifdef PE_MCS_FIXED_EPS
+      strcpy(tag[nt], "PhotoelectricHeatingEps");
+      addr[nt] = &All.PhotoelectricHeatingEps;
+      id[nt++] = PARAM_REAL;
+#endif
+#endif  // PE_MCS
+
+#ifdef IMF_SAMPLING_MCS
+      strcpy(tag[nt], "MinimumIMFStarMass");
+      addr[nt] = &All.MinimumIMFStarMass;
+      id[nt++] = PARAM_REAL;
+
+      strcpy(tag[nt], "MaximumIMFStarMass");
+      addr[nt] = &All.MaximumIMFStarMass;
+      id[nt++] = PARAM_REAL;
+
+      strcpy(tag[nt], "MinimumImportantStellarMass");
+      addr[nt] = &All.MinimumImportantStellarMass;
+      id[nt++] = PARAM_REAL;
+#ifdef SN_MCS
+      strcpy(tag[nt], "SNStarMinMass");
+      addr[nt] = &All.SNStarMinMass;
+      id[nt++] = PARAM_REAL;
+
+      strcpy(tag[nt], "SNStarMaxMass");
+      addr[nt] = &All.SNStarMaxMass;
+      id[nt++] = PARAM_REAL;
+
+#ifdef SN_MCS_PROMPT
+      strcpy(tag[nt], "SNLifetime");
+      addr[nt] = &All.SNLifetime;
+      id[nt++] = PARAM_REAL;
+#endif
+#endif
+#endif  // IMF_SAMPLING_MCS
+#endif  // SFR_MCS
+
+#ifdef TURB_APPROX_MCS
+      strcpy(tag[nt], "MinTurbSpecEnergy");
+      addr[nt] = &All.MinTurbSpecEnergy;
+      id[nt++] = PARAM_REAL;
+#endif
+
+#ifdef SMAUG_PRESSURE_FLOOR
+      strcpy(tag[nt], "Polytrope_Tstar");
+      addr[nt] = &All.Polytrope_Tstar;
+      id[nt++] = PARAM_REAL;
+
+      strcpy(tag[nt], "Polytrope_nstar");
+      addr[nt] = &All.Polytrope_nstar;
+      id[nt++] = PARAM_REAL;
+
+      strcpy(tag[nt], "Polytrope_gstar");
+      addr[nt] = &All.Polytrope_gstar;
+      id[nt++] = PARAM_REAL;
 #endif
 
 #ifdef DARKENERGY
@@ -3089,6 +3052,16 @@ void read_parameter_file(const char *const fname)
       id[nt++] = PARAM_REAL;
 #endif
 
+#ifdef REFINEMENT_LIMIT_STARFORMING_GAS
+      strcpy(tag[nt], "HighDensityMaxGasDerefinementFactor");
+      addr[nt] = &All.HighDensityMaxGasDerefinementFactor;
+      id[nt++] = PARAM_REAL;
+
+      strcpy(tag[nt], "HighDensityMaxGasDerefinementFactor");
+      addr[nt] = &All.HighDensityMaxGasDerefinementFactor;
+      id[nt++] = PARAM_REAL;
+#endif
+
 #ifdef REFINEMENT_BY_DENSITY
       strcpy(tag[nt], "MinimumDensityForRefinement");
       addr[nt] = &All.MinimumDensityForRefinement;
@@ -3130,13 +3103,13 @@ void read_parameter_file(const char *const fname)
       id[nt++] = PARAM_REAL;
 #endif
 
-#if defined(CONDUCTION)
+#ifdef CONDUCTION
       strcpy(tag[nt], "MaxSizeConductionStep");
       addr[nt] = &All.MaxSizeConductionStep;
       id[nt++] = PARAM_REAL;
 #endif
 
-#if defined(MONOTONE_CONDUCTION)
+#ifdef MONOTONE_CONDUCTION
       strcpy(tag[nt], "MaxConductionSubCycles");
       addr[nt] = &All.MaxConductionSubCycles;
       id[nt++] = PARAM_INT;
@@ -3633,6 +3606,29 @@ void read_parameter_file(const char *const fname)
       id[nt++] = PARAM_REAL;
 #endif
 
+/* Stellar module */
+#if defined(SOLAR_RADIATIVE_TRANSFER_DIFF) || defined(SOLAR_RADIATIVE_TRANSFER_EDD)
+      strcpy(tag[nt], "VolumetricHeatingRate");
+      addr[nt] = &All.VolumetricHeatingRate;
+      id[nt++] = PARAM_REAL;
+
+      strcpy(tag[nt], "VolumetricCoolingRate");
+      addr[nt] = &All.VolumetricCoolingRate;
+      id[nt++] = PARAM_REAL;
+
+      strcpy(tag[nt], "SurfaceRadiusInner");
+      addr[nt] = &All.SurfaceRadiusInner;
+      id[nt++] = PARAM_REAL;
+
+      strcpy(tag[nt], "SurfaceRadiusOuter");
+      addr[nt] = &All.SurfaceRadiusOuter;
+      id[nt++] = PARAM_REAL;
+
+      strcpy(tag[nt], "CoreRadius");
+      addr[nt] = &All.CoreRadius;
+      id[nt++] = PARAM_REAL;
+#endif
+
       int errorflag = 0;
       FILE *fd      = fopen(fname, "r");
       if(fd)
@@ -3766,7 +3762,8 @@ void read_parameter_file(const char *const fname)
         }
       else
         All.OutputListLength = 0;
-    }
+
+    } // if(ThisTask == 0)
 
   All.NParameters = nt;
 
@@ -4011,7 +4008,11 @@ void read_parameter_file(const char *const fname)
 #endif
 
 #if defined(BH_BASED_CGM_ZOOM) && (!defined(BLACK_HOLES) || !defined(REPOSITION_ON_POTMIN) || !defined(BH_DO_NOT_PREVENT_MERGERS))
+#ifdef BH_DF_DISCRETE
+  warn("Using non-standard configuration for BH_BASED_CGM_ZOOM!  Use with caution!");
+#else
 #error "BH_BASED_CGM_ZOOM: Expect also BLACK_HOLES, REPOSITION_ON_POTMIN, and BH_DO_NOT_PREVENT_MERGERS."
+#endif
 #endif
 
 #if defined(VORONOI_FREQUENT_IMAGES) && defined(IMAGES_FOREACHSNAPSHOT)
@@ -4052,6 +4053,18 @@ void read_parameter_file(const char *const fname)
   check_modified_eos_parameters();
 #endif
 
+#ifdef REFINEMENT
+  /* If we restarted from a snapshot, and are not adiabatic, the initialisation of ReferenceGasPartMass will change */
+  if(RestartFlag == RESTART_SNAPSHOT && All.StarformationOn && All.ReferenceGasPartMass == 0)
+    {
+      terminate(
+          "Restarting from a snapshot will recompute ReferenceGasPartMass but the result will be different if gas has been converted "
+          "to stars already."
+          "Set ReferenceGasPartMass in param.txt explicitely to the desired value. If you are sure you want to recompute "
+          "ReferenceGasPartMass comment out this terminate statement.");
+    }
+#endif
+
 #if defined(BLACK_HOLES) && (!defined(BH_RELATIVE_NGB_DEVIATION))
   if(All.DesNumNgbBlackHole == All.MaxNumNgbDeviation)
     mpi_terminate(
@@ -4081,6 +4094,21 @@ void check_parameters(void)
         "check_parameters: Your total runtime is smaller or equal than the maximum allowed timestep!\n"
         "Choose an appropriate value for MaxSizeTimestep < TimeMax - TimeBegin! (TimeBegin = %g, TimeMax = %g, MaxSizeTimestep = %g)",
         All.TimeBegin, All.TimeMax, All.MaxSizeTimestep);
+  /* check if number of snapshot files to write is larger than number of tasks */
+  if(NTask < All.NumFilesPerSnapshot)
+    {
+      warn(
+          "Number of processors (%d) must be at least as large as All.NumFilesPerSnapshot (%d)! Reducing All.NumFilesPerSnapshot "
+          "accordingly.\n",
+          NTask, All.NumFilesPerSnapshot);
+      All.NumFilesPerSnapshot = NTask;
+    }
+#ifdef SUBFIND
+  /* check that DesLinkNgb is not larger than FOF_GROUP_MIN_LEN (otherwise the SUBFIND
+   * neighbor search won’t work for small groups) */
+  if(All.DesLinkNgb > FOF_GROUP_MIN_LEN)
+    terminate("DesLinkNgb (%d) should not be larger than FOF_GROUP_MIN_LEN (%d)!", All.DesLinkNgb, FOF_GROUP_MIN_LEN);
+#endif
 }
 
 /*! \brief This function reads a table with a list of desired output times.

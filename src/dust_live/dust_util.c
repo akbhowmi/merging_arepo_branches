@@ -30,7 +30,7 @@ void start_dust(void)
 
   set_cosmo_factors_for_current_time();
 
-  DustParticle = mymalloc("DustParticle", N_dust * sizeof(struct dust_particle));
+  DustParticle = (struct dust_particle *)mymalloc("DustParticle", N_dust * sizeof(struct dust_particle));
 
   Ndust = 0;
   for(int idx = 0; idx < TimeBinsDust.NActiveParticles; idx++)
@@ -82,7 +82,7 @@ void begin_dust_search(void)
   int idx, i;
 
   NforcesDust = 0;
-  TargetList  = mymalloc("TargetList", (NumPart + Tree_NumPartImported) * sizeof(int));
+  TargetList  = (int *)mymalloc("TargetList", (NumPart + Tree_NumPartImported) * sizeof(int));
 
   for(idx = 0; idx < TimeBinsDust.NActiveParticles; idx++)
     {
@@ -158,7 +158,7 @@ void exchange_dust_search_results(void)
       if((Tree_Points[i].Type == DUST_LIVE) && (Tree_Points[i].Mass > 0.0))
         ncount++;
 
-  Tree_ShatterImported = mymalloc("Tree_ShatterImported", ncount * sizeof(struct shatterimported_data));
+  Tree_ShatterImported = (struct shatterimported_data *)mymalloc("Tree_ShatterImported", ncount * sizeof(struct shatterimported_data));
 
   memset(Tree_ShatterImported, 0, ncount * sizeof(struct shatterimported_data));
 
@@ -237,7 +237,7 @@ void exchange_dust_search_results(void)
         }
     }
 
-  tmp_results = mymalloc("tmp_results", nexport * sizeof(struct shatterimported_data));
+  tmp_results = (struct shatterimported_data *)mymalloc("tmp_results", nexport * sizeof(struct shatterimported_data));
   memset(tmp_results, -1, nexport * sizeof(struct shatterimported_data));
 
   for(ngrp = 1; ngrp < (1 << PTask); ngrp++)

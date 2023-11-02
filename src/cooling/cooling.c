@@ -1568,10 +1568,10 @@ double calc_self_shielding_factor(double nH)
     redshift = 1 / All.Time - 1;
   else
     {
-#ifndef SMUGGLE_MOLEC_COOLING
-      return 1.0;
-#else
+#if defined(SMUGGLE_MOLEC_COOLING) || defined(WINDTUNNEL_FIXVARIABLESININJECTIONREGION)
       redshift = 0.0;
+#else
+      return 1.0;
 #endif
     }
 

@@ -30,10 +30,6 @@
 #include "calculate_quantities_in_postprocess/calculate_quantities.h"
 #endif
 
-#ifdef MRT
-#include "MRT/RT_proto.h"
-#endif
-
 static void process_initial_particle_positions(void);
 
 /*! \brief Prepares the loaded initial conditions for the run.
@@ -55,15 +51,6 @@ int init(void)
   myassert(RestartFlag != RESTART_RESTART);
 
 #ifdef BLACK_HOLES
-
-#ifdef SEED_BASED_ON_PROBABLISTIC_HALO_PROPERTIES
-#ifdef PROBABILISTIC_SEED_MASS_HALO_MASS_RATIO_CRITERION
-  All.SeedFromLowerEnd = 0; 
-  All.StartFromLeft = 0;
-#endif
-#endif
-
-
 #ifdef BH_RELATIVE_NGB_DEVIATION
   All.MaxNumNgbDeviationBlackHole = All.DesNumNgbBlackHole * All.DesNumNgbBlackHoleRelDeviationFactor;
 #else
@@ -169,11 +156,6 @@ int init(void)
   All.TreeAllocFactor    = 0.7;
   All.NgbTreeAllocFactor = 0.7;
 
-#ifdef CONSTRUCT_FOF_NGBTREE
-  All.TopNodeAllocFactor_groups = 0.08;
-  All.NgbTreeAllocFactor_groups = 0.7;
-#endif
-
   if(NumPart < 1000)
     All.TreeAllocFactor = 10.0;
 
@@ -246,11 +228,6 @@ int init(void)
   All.CumAGNEnergyM_Is     = 0.0;
   All.CumAGNEnergyT_Should = 0.0;
   All.CumAGNEnergyT_Is     = 0.0;
-#endif
-
-
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-  All.Build_tree_with_only_BHs = 0;
 #endif
 
 #ifdef OTVET
@@ -392,25 +369,8 @@ int init(void)
       for(j = 0; j < 3; j++)
         P[i].GravAccel[j] = 0;
 
-#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_ALL_SOURCES
-      P[i].StellarAllLymanWernerIntensity_type2 = 0;
-      P[i].StellarAllLymanWernerIntensity_type3 = 0;
-#endif
+      P[i].OldAcc = 0;
 
-#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_ALL_STARFORMINGGAS
-      P[i].StarFormingGasAllLymanWernerIntensity_type2 = 0;
-      P[i].StarFormingGasAllLymanWernerIntensity_type3 = 0;
-#endif
-
-#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_SOURCES
-      SphP[i].StellarLymanWernerIntensity_type2 = 0;
-      SphP[i].StellarLymanWernerIntensity_type3 = 0;
-#endif
-
-#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS
-      SphP[i].StarFormingGasLymanWernerIntensity_type2 = 0;
-      SphP[i].StarFormingGasLymanWernerIntensity_type3 = 0;
-#endif
 #ifdef PMGRID
       for(j = 0; j < 3; j++)
         P[i].GravPM[j] = 0;
@@ -434,10 +394,6 @@ int init(void)
 #endif
 #endif
 
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-        P[i].no_of_BHs_ngb = 0;
-#endif
-
 #ifdef STELLARAGE
       /* For hdf5 ICs, these are read or set to zero in read_ic */
       if(RestartFlag == RESTART_IC && All.ICFormat != SNAP_FORMAT_HDF5)
@@ -454,66 +410,6 @@ int init(void)
         SphP[i].Sfr = 0;
 #endif
 
-#ifdef USE_SFR
-#ifdef SUPPRESS_STARFORMATION_ABOVE_CRITICAL_LYMANWERNERFLUX 
-      if(RestartFlag == RESTART_IC && P[i].Type == PTYPE_GAS)
-        SphP[i].GasIsDense = 6;
-#endif
-#endif
-
-      if(RestartFlag == RESTART_IC && P[i].Type == PTYPE_GAS)
-        SphP[i].CouldHaveBeenABlackHole = 0;
-
-
-#ifdef SEED_BASED_ON_PROBABLISTIC_HALO_PROPERTIES
-#ifdef PROBABILISTIC_SEED_MASS_HALO_MASS_RATIO_CRITERION
-      if(RestartFlag == RESTART_IC && P[i].Type == PTYPE_GAS)
-       {
-        MyFloat random_num1 = get_random_number();
-        MyFloat random_num2 = get_random_number();
-        SphP[i].RandomMinHaloMassForSeeding = sqrt(-2. * log(random_num1)) * cos(2. * log(random_num2) * M_PI);
-       }
-#endif
-#endif
-#ifdef EVOLVING_SEEDING_PROBABILITY
-        SphP[i].SecondRandomNumberForSeeding = get_random_number();
-        SphP[i].UseRandomNumberForSeeding = 0;
-#endif
-
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION2
-        SphP[i].ThirdRandomNumberForSeeding = get_random_number();
-#endif
-
-#ifdef UNIFORM_SEEDMASS_DISTRIBUTION
-        SphP[i].DrawnSeedBlackHoleMass = pow(10,get_random_number() * (All.LogMaxSeedBlackHoleMass - All.LogMinSeedBlackHoleMass) + All.LogMinSeedBlackHoleMass);
-#endif
-
-#ifdef PREVENT_SPURIOUS_RESEEDING
-      if(RestartFlag == RESTART_IC)
-      {
-        SphP[i].SeedMass = 0;
-        SphP[i].NumBHNGB = 0;
-        SphP[i].niterations = 0;
-        SphP[i].nfound = 0;
-        if(P[i].Type == 4)
-          StarP[P[i].AuxDataID].SeedMass = 0;
-#ifdef ACCOUNT_FOR_SWALLOWED_PAINTED_GAS
-        if(P[i].Type == 5)
-          BPP(i).SeedMass = 0;
-#endif
-      }
-#endif
-
-#ifdef PREVENT_SEEDING_AROUND_BLACKHOLE_NEIGHBORS2
-      if(RestartFlag == RESTART_IC)
-        SphP[i].BHNeighborExists = 1;
-#endif
-
-#ifdef PREVENT_SPURIOUS_RESEEDING2
-      if(RestartFlag == RESTART_IC)
-        SphP[i].NeighborOfBlackhole = 1;
-#endif
-
 #ifdef REFINEMENT_AROUND_BH
       if(P[i].Type == 0)
         {
@@ -527,6 +423,16 @@ int init(void)
 #ifdef SINKS
       if(P[i].Type == 0)
         SphP[i].InAccrRadius = 0;
+#endif
+
+#ifdef DM_WINDTUNNEL
+      if(P[i].Type == PTYPE_HALO)
+        P[i].DMWindtunnel_RecentlyUpdated = 0;
+#endif
+
+#ifdef DM_WINDTUNNEL_STARS
+      if(P[i].Type == PTYPE_STARS)
+        P[i].DMWindtunnel_RecentlyUpdated = 0;
 #endif
 
 #ifdef BLACK_HOLES
@@ -546,11 +452,6 @@ int init(void)
               BPP(i).BH_MinPotTime_Previous = -1;
               BPP(i).BH_MinPotCumAvgTime    = 0;
 #endif
-
-#ifdef PREVENT_SPURIOUS_RESEEDING
-              BPP(i).NeighborsHaveBeenPainted = 1;
-#endif
-
               if(BPP(i).BH_DtGasNeighbor == 0)
                 BPP(i).BH_DtGasNeighbor = 1.0;
 #ifdef DRAINGAS
@@ -565,16 +466,6 @@ int init(void)
 #if defined(GFM_AGN_RADIATION) || defined(MASSIVE_SEEDS_MERGER)
               BPP(i).HostHaloMass = 0.0;
 #endif
-
-#ifdef OUTPUT_HOST_PROPERTIES_FOR_BH_MERGERS
-              BPP(i).HostHaloTotalMass = 0.0;
-              BPP(i).HostHaloGasMass = 0.0;
-              BPP(i).HostHaloDMMass = 0.0;
-              BPP(i).HostHaloStellarMass = 0.0;
-              BPP(i).HostHaloSFR = 0.0;
-#endif
-
-
 #ifdef BH_THERMALFEEDBACK_ACC
               BPP(i).BH_AccEnergy = 0.0;
               BPP(i).BH_AccTime   = 0.0;
@@ -594,6 +485,12 @@ int init(void)
               BPP(i).BH_SpinOrientation[1] = SinTheta * sin(Phi);
               BPP(i).BH_SpinOrientation[2] = CosTheta;
 #endif
+
+#ifdef BH_DF_DISCRETE
+              for(int k = 0; k < 3; k++)
+                BPP(i).DFD_GravAccel[k] = 0;
+#endif // BH_DF_DISCRETE
+
             }
         }
 #endif
@@ -642,25 +539,6 @@ int init(void)
           SphP[i].TotEgyFeed = 0.0;
           SphP[i].IntEgyFeed = 0.0;
           SphP[i].KinEgyFeed = 0.0;
-        }
-#endif
-
-#ifdef SN_MCS
-      if(P[i].Type == PTYPE_GAS && RestartFlag == RESTART_IC)
-        {
-          SphP[i].N_SN_hosted      = 0;
-          SphP[i].mass_deposited   = 0;
-          SphP[i].energy_deposited = 0;
-          SphP[i].starvel[0]       = 0;
-          SphP[i].starvel[1]       = 0;
-          SphP[i].starvel[2]       = 0;
-        }
-
-      if(P[i].Type == PTYPE_STARS && RestartFlag == RESTART_IC)
-        {
-          P[i].N_SN           = 0;
-          P[i].N_SN_cum       = 0;
-          P[i].N_SN_event_cum = 0;
         }
 #endif
 
@@ -717,6 +595,65 @@ int init(void)
 
 #endif
 
+#ifdef SN_MCS
+      if(P[i].Type == PTYPE_GAS && RestartFlag == RESTART_IC)
+      {
+        SphP[i].N_SN_hosted = 0;
+        SphP[i].mass_deposited = 0;
+#ifdef IMF_SAMPLING_MCS
+        SphP[i].metal_deposited = 0;
+#endif
+        SphP[i].energy_deposited = 0;
+        SphP[i].starvel[0] = 0;
+        SphP[i].starvel[1] = 0;
+        SphP[i].starvel[2] = 0;
+      }
+
+      if(P[i].Type == PTYPE_STARS && RestartFlag == RESTART_IC)
+      {
+        StarP[P[i].AuxDataID].N_SN = 0;
+        StarP[P[i].AuxDataID].N_SN_cum = 0;
+        StarP[P[i].AuxDataID].N_SN_event_cum = 0;
+      }
+#endif
+
+#ifdef HII_MCS
+      if(P[i].Type == PTYPE_GAS && RestartFlag == RESTART_IC)
+      {
+        SphP[i].R_Stromgren = 0.0;
+        SphP[i].StromgrenSourceID = 0;
+        SphP[i].HostPhotonRate = 0.0;
+#ifdef HII_MCS_LR
+        SphP[i].L_Hii = 0.0;
+        SphP[i].EnergyDensHii = 0.0;
+#endif
+      }
+
+      if(P[i].Type == PTYPE_STARS && RestartFlag == RESTART_IC)
+      {
+        StarP[P[i].AuxDataID].S_Hii = 0.0;
+#ifdef HII_MCS_LR
+        StarP[P[i].AuxDataID].EnergyPerPhoton = 0.0;
+#endif
+#ifndef IMF_SAMPLING_MCS
+        StarP[P[i].AuxDataID].photon_it_high = 1;
+#endif
+      }
+#endif //HII_MCS
+
+#ifdef PE_MCS
+      if(P[i].Type == PTYPE_GAS && RestartFlag == RESTART_IC)
+        SphP[i].G_FUV = 0.0;
+
+      if(P[i].Type == PTYPE_STARS && RestartFlag == RESTART_IC)
+      {
+        StarP[P[i].AuxDataID].L_FUV = 0.0;
+#ifndef IMF_SAMPLING_MCS
+        StarP[P[i].AuxDataID].fuv_it_high = 1;
+#endif
+      }
+#endif
+
 #if defined(EVALPOTENTIAL) && defined(SINK_PARTICLES)
       if(P[i].Type == PTYPE_GAS && RestartFlag == RESTART_IC)
         SphP[i].PotentialPeak = 0;
@@ -758,7 +695,7 @@ int init(void)
 #endif
 
 #ifdef MONOTONE_CONDUCTION
-  All.conduction_Ti_endstep = All.conduction_Ti_begstep = 0;
+  All.Conduction_Ti_endstep = All.Conduction_Ti_begstep = 0;
 #endif
 
 #ifdef TURBULENT_METALDIFFUSION
@@ -1127,15 +1064,8 @@ int init(void)
   if(RestartFlag == RESTART_FOF_SUBFIND)
     {
 #ifdef FOF
-#ifdef CREATE_SUBFOFS
-      All.SubFOF_mode =	0;
-#endif
       fof_fof(RestartSnapNum);
-#ifdef CREATE_SUBFOFS
-      All.SubFOF_mode = 1;
-      fof_fof(RestartSnapNum);
-#endif
-      DumpFlag = 1;
+      DumpFlag = DUMP_BOTH;
       savepositions(RestartSnapNum, 0);
 #else
       mpi_terminate("RestartFlag %d requires configuration option FOF to be enabled!", RestartFlag);
@@ -1166,7 +1096,7 @@ int init(void)
      RestartFlag == RESTART_PROJECTION_AXIS || RestartFlag == RESTART_PROJECTION_CAMERA ||
      RestartFlag == RESTART_TRACER_POWER_SPECTRA || RestartFlag == RESTART_VORONOI_MESH || RestartFlag == RESTART_SHOCK_FINDER ||
      RestartFlag == RESTART_VORONOI_MESH_SLICE || RestartFlag == RESTART_GRADIENTS || RestartFlag == RESTART_CALC_ADDITIONAL ||
-     RestartFlag == RESTART_AURIGA_MOVIE || RestartFlag == RESTART_SIMPLEX)
+     RestartFlag == RESTART_AURIGA_MOVIE || RestartFlag == RESTART_SIMPLEX || RestartFlag == RESTART_CALC_VORONOI_DM_DENSITY)
     setup_smoothinglengths();
 
 #ifdef RT_ADVECT
@@ -1227,6 +1157,26 @@ int init(void)
                   StarP[P[i].AuxDataID].BirthTime += 1e-15;
 
                 StarP[P[i].AuxDataID].InitialMass = P[i].Mass;
+              }
+          }
+    }
+#endif
+
+#ifdef SFR_MCS
+  if(RestartFlag == RESTART_IC || RestartFlag == RESTART_SNAPSHOT)
+    {
+      for(i = 0; i < NumPart; i++)
+        if(P[i].Type == PTYPE_STARS)
+          {
+            if(!All.StarformationOn)
+              {
+                StarP[P[i].AuxDataID].BirthTime = All.Time;
+
+                if(All.ComovingIntegrationOn == 0)
+                  StarP[P[i].AuxDataID].BirthTime += 1e-15;
+#ifdef SN_MCS
+                StarP[P[i].AuxDataID].InitialMass = P[i].Mass;
+#endif
               }
           }
     }
@@ -1357,6 +1307,10 @@ int init(void)
       if(Argc != 10)
         mpi_terminate("10 arguments needed");
 
+#ifndef VORONOI_MESH_KEEP_DT_AND_DTC
+      mpi_terminate("set flag VORONOI_MESH_KEEP_DT_AND_DTC in Config.sh for this to work.");
+#endif
+
 #if defined(TETRA_INDEX_IN_FACE) && !defined(TWODIMS) && !defined(ONEDIMS)
 
       double center[3];
@@ -1404,7 +1358,7 @@ int init(void)
 #endif
 #endif
 
-      DumpFlag = 1;
+      DumpFlag = DUMP_BOTH;
       savepositions(RestartSnapNum, 0);
 #else
       mpi_terminate("RestartFlag %d requires configuration option TRACER_PARTICLE to be enabled!", RestartFlag);
@@ -1456,6 +1410,9 @@ int init(void)
     {
       if(RestartFlag == RESTART_IC)
         {
+#ifdef REFINEMENT_KEEP_INITIAL_VOLUME
+          SphP[i].InitialVolume = SphP[i].Volume;
+#endif
 #ifdef MESHRELAX_DENSITY_IN_INPUT
           P[i].Mass *= SphP[i].Volume;
 #endif
@@ -1493,7 +1450,8 @@ int init(void)
 
 #ifdef MHD
 #ifndef MHD_CT /* ICs for B, BConserved are already set for CT by this time in set_A_ICs() */
-      /* The initial magnetic field is assumed to be the comoving magnetic field ( B_c = B_phys * a^2 ) for cosmological simulations */
+               /* The initial magnetic field is assumed to be the comoving magnetic field ( B_c = B_phys * a^2 ) for cosmological
+                * simulations */
 #ifdef MHD_SEEDFIELD
       if(RestartFlag == RESTART_IC)
         {
@@ -1774,6 +1732,37 @@ int init(void)
     }
 #endif
 
+#ifdef GFM_STELLAR_EVOLUTION
+#ifdef REFINEMENT_HIGH_RES_GAS
+  if(RestartFlag == RESTART_SNAPSHOT)
+    {
+      mpi_printf("INIT: Initialising HighResMass of star/wind particles...\n");
+      for(i = 0; i < NumPart; i++)
+        if(P[i].Type == PTYPE_STARS)
+          {
+            if(P[i].Mass < 3. * All.TargetGasMass)
+              STP(i).HighResMass = P[i].Mass;
+            else
+              STP(i).HighResMass = 0;
+          }
+    }
+#endif
+#endif
+
+#ifdef GFM_STELLAR_EVOLUTION
+#ifdef REFINEMENT_CGM
+  if(RestartFlag == RESTART_SNAPSHOT)
+    for(i = 0; i < NumPart; i++)
+      if(P[i].Type == PTYPE_STARS)
+        {
+          if(P[i].Mass < 3. * All.TargetGasMass)
+            STP(i).HighResMassCGM = P[i].Mass;
+          else
+            STP(i).HighResMassCGM = 0;
+        }
+#endif
+#endif
+
 #if defined(GFM_STELLAR_EVOLUTION) || defined(TURBULENT_METALDIFFUSION)
   /* initialize absolute masses in metals */
   /* note: for GFM_STELLAR_EVOLUTION==1 MassMetallicity and MassMetals are inconsistent with */
@@ -1966,7 +1955,7 @@ int init(void)
       exchange_primitive_variables();
       calculate_gradients();
       exchange_primitive_variables_and_gradients();
-      DumpFlag = 1;
+      DumpFlag = DUMP_BOTH;
       savepositions(RestartSnapNum + 1, 0);
       return 0;
     }
@@ -2075,6 +2064,10 @@ int init(void)
 #ifdef TRACER_TRAJECTORY
   tracer_init();
   reconstruct_timebins();
+#endif
+
+#ifdef TURB_APPROX_MCS
+  turb_approx_init();
 #endif
 
 #if !defined(ONEDIMS) && !defined(TWODIMS)

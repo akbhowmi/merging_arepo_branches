@@ -230,7 +230,7 @@ double get_time_step(void)
 
   dt = (P[i].TimeBinHydro ? (((integertime)1) << P[i].TimeBinHydro) : 0) * All.Timebase_interval;
   //#else
-  // dt = (All.conduction_Ti_endstep - All.conduction_Ti_begstep) * All.Timebase_interval;
+  // dt = (All.Conduction_Ti_endstep - All.Conduction_Ti_begstep) * All.Timebase_interval;
   // dt *= All.cf_atime / All.cf_time_hubble_a;
   //#endif
   return dt;

@@ -19,113 +19,83 @@
 #include "../proto.h"
 
 #ifdef DG
-void io_func_dgw0(int particle, int components, void* buffer, int mode)
+void io_func_dgw0(int particle, int components, void *buffer, int mode)
 {
-  int i;
-
   if(mode == 0)
     {
-      MyOutputFloat* out_buffer = buffer;
-      for(i = 0; i < components; i++)
-        {
-          out_buffer[i] = SphP[particle].Weights[i][0];
-        }
+      MyOutputFloat *out_buffer = (MyOutputFloat *)buffer;
+      for(int i = 0; i < components; i++)
+        out_buffer[i] = SphP[particle].Weights[i][0];
     }
   else
     {
-      MyInputFloat* in_buffer = buffer;
-      for(i = 0; i < components; i++)
-        {
-          SphP[particle].Weights[i][0] = in_buffer[i];
-        }
+      MyOutputFloat *in_buffer = (MyInputFloat *)buffer;
+      for(int i = 0; i < components; i++)
+        SphP[particle].Weights[i][0] = in_buffer[i];
     }
 }
 
-void io_func_dgw1(int particle, int components, void* buffer, int mode)
+void io_func_dgw1(int particle, int components, void *buffer, int mode)
 {
-  int i;
-
   if(mode == 0)
     {
-      MyOutputFloat* out_buffer = buffer;
-      for(i = 0; i < components; i++)
-        {
-          out_buffer[i] = SphP[particle].Weights[i][1];
-        }
+      MyOutputFloat *out_buffer = (MyOutputFloat *)buffer;
+      for(int i = 0; i < components; i++)
+        out_buffer[i] = SphP[particle].Weights[i][1];
     }
   else
     {
-      MyInputFloat* in_buffer = buffer;
-      for(i = 0; i < components; i++)
-        {
-          SphP[particle].Weights[i][1] = in_buffer[i];
-        }
+      MyInputFloat *in_buffer = (MyInputFloat *)buffer;
+      for(int i = 0; i < components; i++)
+        SphP[particle].Weights[i][1] = in_buffer[i];
     }
 }
 
-void io_func_dgw2(int particle, int components, void* buffer, int mode)
+void io_func_dgw2(int particle, int components, void *buffer, int mode)
 {
-  int i;
-
   if(mode == 0)
     {
-      MyOutputFloat* out_buffer = buffer;
-      for(i = 0; i < components; i++)
-        {
-          out_buffer[i] = SphP[particle].Weights[i][2];
-        }
+      MyOutputFloat *out_buffer = (MyOutputFloat *)buffer;
+      for(int i = 0; i < components; i++)
+        out_buffer[i] = SphP[particle].Weights[i][2];
     }
   else
     {
-      MyInputFloat* in_buffer = buffer;
-      for(i = 0; i < components; i++)
-        {
-          SphP[particle].Weights[i][2] = in_buffer[i];
-        }
+      MyInputFloat *in_buffer = (MyInputFloat *)buffer;
+      for(int i = 0; i < components; i++)
+        SphP[particle].Weights[i][2] = in_buffer[i];
     }
 }
 
-void io_func_dgw3(int particle, int components, void* buffer, int mode)
+void io_func_dgw3(int particle, int components, void *buffer, int mode)
 {
-  int i;
-
   if(mode == 0)
     {
-      MyOutputFloat* out_buffer = buffer;
-      for(i = 0; i < components; i++)
-        {
-          out_buffer[i] = SphP[particle].Weights[i][3];
-        }
+      MyOutputFloat *out_buffer = (MyOutputFloat *)buffer;
+      for(int i = 0; i < components; i++)
+        out_buffer[i] = SphP[particle].Weights[i][3];
     }
   else
     {
-      MyInputFloat* in_buffer = buffer;
-      for(i = 0; i < components; i++)
-        {
-          SphP[particle].Weights[i][3] = in_buffer[i];
-        }
+      MyInputFloat *in_buffer = (MyInputFloat *)buffer;
+      for(int i = 0; i < components; i++)
+        SphP[particle].Weights[i][3] = in_buffer[i];
     }
 }
 
-void io_func_dgw4(int particle, int components, void* buffer, int mode)
+void io_func_dgw4(int particle, int components, void *buffer, int mode)
 {
-  int i;
-
   if(mode == 0)
     {
-      MyOutputFloat* out_buffer = buffer;
-      for(i = 0; i < components; i++)
-        {
-          out_buffer[i] = SphP[particle].Weights[i][4];
-        }
+      MyOutputFloat *out_buffer = (MyOutputFloat *)buffer;
+      for(int i = 0; i < components; i++)
+        out_buffer[i] = SphP[particle].Weights[i][4];
     }
   else
     {
-      MyInputFloat* in_buffer = buffer;
-      for(i = 0; i < components; i++)
-        {
-          SphP[particle].Weights[i][4] = in_buffer[i];
-        }
+      MyInputFloat *in_buffer = (MyInputFloat *)buffer;
+      for(int i = 0; i < components; i++)
+        SphP[particle].Weights[i][4] = in_buffer[i];
     }
 }
 
@@ -155,10 +125,10 @@ void load_weights_from_averages(void)
 #endif
 
 #ifdef OUTPUT_DG_ACCELERATION
-void io_func_dg_accel(int particle, int components, void* buffer, int mode)
+void io_func_dg_accel(int particle, int components, void *buffer, int mode)
 {
   double acc[3];
-  MyOutputFloat* out_buffer = buffer;
+  MyOutputFloat *out_buffer = (MyOutputFloat *)buffer;
 
   dg_acceleration(SphP[particle].Center[0], SphP[particle].Center[1], SphP[particle].Center[2], acc);
 
@@ -169,65 +139,59 @@ void io_func_dg_accel(int particle, int components, void* buffer, int mode)
 #endif
 
 #ifdef OUTPUT_DG_ANGULAR_MOMENTUM
-void io_func_dg_angular_momentum(int particle, int components, void* buffer, int mode)
+void io_func_dg_angular_momentum(int particle, int components, void *buffer, int mode)
 {
-  MyOutputFloat* out_buffer = buffer;
+  MyOutputFloat *out_buffer = (MyOutputFloat *)buffer;
   out_buffer[0]             = angular_momentum(SphP[particle].Weights, particle);
 }
 #endif
 
 #ifdef OUTPUT_DG_SPIN
-void io_func_dg_spin(int particle, int components, void* buffer, int mode)
+void io_func_dg_spin(int particle, int components, void *buffer, int mode)
 {
-  MyOutputFloat* out_buffer = buffer;
+  MyOutputFloat *out_buffer = (MyOutputFloat *)buffer;
   out_buffer[0]             = spin(SphP[particle].Weights, particle);
 }
 #endif
 
 #ifdef OUTPUT_DG_TIMESTEP
-void io_func_dg_timestep(int particle, int components, void* buffer, int mode)
+void io_func_dg_timestep(int particle, int components, void *buffer, int mode)
 {
-  MyOutputFloat* out_buffer = buffer;
+  MyOutputFloat *out_buffer = (MyOutputFloat *)buffer;
   out_buffer[0]             = dg_time_step_cell(particle);
 }
 #endif
 
 #ifdef OUTPUT_DG_TEMPERATURE
-void io_func_dgw_temperature(int particle, int components, void* buffer, int mode)
+void io_func_dgw_temperature(int particle, int components, void *buffer, int mode)
 {
-  int i;
-  MyOutputFloat* out_buffer = buffer;
+  MyOutputFloat *out_buffer = (MyOutputFloat *)buffer;
 
   double temperature_weights[NOF_BASE_FUNCTIONS];
   calc_temperature_weights(SphP[particle].Weights, temperature_weights);
 
-  for(i = 0; i < components; i++)
-    {
-      out_buffer[i] = temperature_weights[i];
-    }
+  for(int i = 0; i < components; i++)
+    out_buffer[i] = temperature_weights[i];
 }
 #endif
 
 #ifdef OUTPUT_DG_U
-void io_func_dgw_u(int particle, int components, void* buffer, int mode)
+void io_func_dgw_u(int particle, int components, void *buffer, int mode)
 {
-  int i;
-  MyOutputFloat* out_buffer = buffer;
+  MyOutputFloat *out_buffer = (MyOutputFloat *)buffer;
 
   double u_weights[NOF_BASE_FUNCTIONS];
   calc_u_weights(SphP[particle].Weights, u_weights);
 
-  for(i = 0; i < components; i++)
-    {
-      out_buffer[i] = u_weights[i];
-    }
+  for(int i = 0; i < components; i++)
+    out_buffer[i] = u_weights[i];
 }
 #endif
 
 #ifdef OUTPUT_DG_L1_NORM
-void io_func_dg_norm(int particle, int components, void* buffer, int mode)
+void io_func_dg_norm(int particle, int components, void *buffer, int mode)
 {
-  MyOutputFloat* out_buffer = buffer;
+  MyOutputFloat *out_buffer = (MyOutputFloat *)buffer;
   out_buffer[0]             = calc_L1_norm(particle);
 }
 #endif

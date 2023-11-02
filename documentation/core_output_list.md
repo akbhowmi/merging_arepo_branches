@@ -1,4 +1,3 @@
-
 Explicit Output List
 ====================
 
@@ -17,17 +16,17 @@ DumpFlag
 This short documents summarizes the functioning of the DumpFlag, i.e. of the second column input (optional) which can be specified in file given as OutputListFilename.
 The flag can assume a few values, implying a different combination of output files:
 
-* 0 - no snapshots and no halo catalogs
-* 1 - both snapshots and halo catalogs (default)
-* 2 - only snapshots 
-* 3 - mini snapshots and halo catalogs
-* 4 - only halo catalogs
+* 0 (DUMP_NONE)       - no snapshots and no halo catalogs
+* 1 (DUMP_BOTH)       - both snapshots and halo catalogs (default)
+* 2 (DUMP_ONLY_SNAP)  - only snapshots
+* 3 (DUMP_BOTH_MINI)  - mini snapshots and halo catalogs
+* 4 (DUMP_ONLY_HALOS) - only halo catalogs
 
 Note: in this implementation, the naming scheme is kept fixed, i.e. for example full and mini snapshots have the same name roots (``snap_00*/snap_00*.*.hdf5``) but simply differ in size.
 
-Note: in all cases, the counter for the dump keeps running (see example below)  
+Note: in all cases, the counter for the dump keeps running (see example below).
 
-Note: as of 2016/03/21, option ``DumpFlag == 4`` might conflict with the dump of the SUBBOXES: to be checked and fixed.
+Note: as of 2016/03/21, option ``DumpFlag == DUMP_ONLY_HALOS`` might conflict with the dump of the ``SUBBOXES``: to be checked and fixed.
 
 Example
 ^^^^^^^

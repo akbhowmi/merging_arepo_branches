@@ -162,8 +162,8 @@ void init_scalars(void)
 #endif
 
 #if defined(GRACKLE) && !defined(GRACKLE_TAB)
-  for(i = 0; i < GRACKLE_SPECIES_NUMBER; i++)
-    scalar_init(&SphP[0].GrackleSpeciesFraction[i], &SphP[0].GrackleSpeciesMass, SCALAR_TYPE_PASSIVE);
+  for(int i = 0; i < GRACKLE_SPECIES_NUMBER; i++)
+    scalar_init(&SphP[0].GrackleSpeciesFraction[i], &SphP[0].GrackleSpeciesMass[i], SCALAR_TYPE_PASSIVE);
 
   scalar_init(&SphP[0].e_frac, &SphP[0].e_mass, SCALAR_TYPE_PASSIVE);
 #endif
@@ -189,6 +189,10 @@ void init_scalars(void)
   ScalarIndex.SGS_T_Energy = scalar_init(&SphP[0].SgsTData.SpecificEnergy, &SphP[0].SgsTData.Energy, SCALAR_TYPE_PASSIVE);
   if(ScalarIndex.SGS_T_Energy == -1)
     terminate("ScalarIndex.SGS_T_Energy initialized incorrectly\n");
+#endif
+
+#ifdef TURB_APPROX_MCS
+  scalar_init(&SphP[0].TurbSpecEnergy, &SphP[0].TurbEnergy, SCALAR_TYPE_PASSIVE);
 #endif
 
   mpi_printf("INIT: %d/%d Scalars used.\n", N_Scalar, MAXSCALARS);

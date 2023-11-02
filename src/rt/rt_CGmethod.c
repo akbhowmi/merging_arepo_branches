@@ -24,6 +24,7 @@
 
 #include "../allvars.h"
 #include "../proto.h"
+#include "../voronoi.h"
 
 #if defined(RT_ADVECT) && defined(RT_CGMETHOD)
 
@@ -31,9 +32,6 @@
 #define ACCURACY 1.0e-2
 #define EPSILON 1.0e-5
 #define tiny 1e-37
-
-face *VF;
-point *DP;
 
 static double *XVec;
 static double *QVec, *DVec, *Residue, *Zvec;
@@ -236,13 +234,12 @@ void radtransfer_matrix_multiply(tessellation *T, double dt, double *in, double 
   int ri, li, target, other;
   double densphot;
   double velPhot[3];
-  int point;
   double dist;
   double ainv, c_light;
   double volume_inv, area;
 
-  VF = T->VF;
-  DP = T->DP;
+  const face *VF  = T->VF;
+  const point *DP = T->DP;
 
   c_light = CLIGHT / All.UnitVelocity_in_cm_per_s;
 
@@ -253,10 +250,10 @@ void radtransfer_matrix_multiply(tessellation *T, double dt, double *in, double 
 
   for(i = 0; i < T->Nvf; i++)
     {
-      if(rt_face_get_normals(i))
+      if(rt_face_get_normals(T, i))
         continue;
 
-      if(rt_check_responsibility_of_this_task(VF[i].p1, VF[i].p2))
+      if(rt_check_responsibility_of_this_task(DP, VF[i].p1, VF[i].p2))
         continue;
 
       li = DP[VF[i].p1].index;
@@ -334,6 +331,7 @@ void radtransfer_matrix_multiply(tessellation *T, double dt, double *in, double 
 
       for(iside = 0; iside < 2; iside++)
         {
+          int point;
           if(iside == 0)
             {
               target = ri;

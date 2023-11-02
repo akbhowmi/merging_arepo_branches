@@ -165,11 +165,13 @@ void mesh_setup_exchange(void)
 
   for(i = 0, j = 0; i < count; i++)
     {
-      if(SortPrimExch2[i].task != SortPrimExch[j].task || SortPrimExch2[i].index != SortPrimExch[j].index)
-        j++;
+      while(SortPrimExch2[i].task != SortPrimExch[j].task || SortPrimExch2[i].index != SortPrimExch[j].index)
+        {
+          j++;
 
-      if(j >= Mesh_nimport)
-        terminate("j >= Mesh_nimport");
+          if(j >= Mesh_nimport)
+            terminate("j >= Mesh_nimport");
+        }
 
       Mesh.DP[SortPrimExch2[i].rank].index =
           SortPrimExch[j].rank; /* note: this change is now permanent and available for next exchange */

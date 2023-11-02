@@ -43,15 +43,15 @@ def verify_result(path):
     # validate
     error_msgs = []
 
-    if df.max() > 1.1e-5:
+    if not df.max() <= 1.1e-5:
         error_msgs.append('Force error too large, maximum of %g.' % df.max())
-    if df_rel.max() > 0.0004:
+    if not df_rel.max() <= 0.0004:
         error_msgs.append('Relative force error too large, maximum of %g.' %
                           df_rel.max())
-    if dp.max() > 1.3:
+    if not dp.max() <= 1.3:
         error_msgs.append('Potential error too large, maximum of %g.' %
                           dp.max())
-    if dp_rel.max() > 0.2:
+    if not dp_rel.max() <= 0.2:
         error_msgs.append(
             'Relative potential error too large, maximum of %g.' %
             dp_rel.max())
@@ -66,7 +66,7 @@ def verify_result(path):
         error_msgs.append(
             'Error is absolutely zero! Not likely, needs to be checked.')
 
-    if len(error_msgs):
+    if error_msgs:
         return False, info + error_msgs
 
     # return success

@@ -39,9 +39,6 @@ static struct flux_list_data
 
 static int Nflux, MaxNflux;
 
-struct primexch *PrimExch;
-struct grad_data *GradExch;
-
 struct rt_primexch *RTPrimExch;
 struct rt_grad_data *RTGradExch;
 
@@ -64,7 +61,7 @@ void compute_interface_fluxes_RT(tessellation *T)
 
   MaxNflux = T->Indi.AllocFacNflux;
   Nflux    = 0;
-  FluxList = mymalloc_movable(&FluxList, "FluxList", MaxNflux * sizeof(struct flux_list_data));
+  FluxList = (struct flux_list_data *)mymalloc_movable(&FluxList, "FluxList", MaxNflux * sizeof(struct flux_list_data));
 
   face *VF  = T->VF;
   point *DP = T->DP;
@@ -454,7 +451,7 @@ BOUNDARY_INFLOWOUTFLOW_MINID && idR < BOUNDARY_INFLOWOUTFLOW_MAXID)
                       T->Indi.AllocFacNflux *= ALLOC_INCREASE_FACTOR;
                       MaxNflux = T->Indi.AllocFacNflux;
 
-                      FluxList = myrealloc_movable(FluxList, MaxNflux * sizeof(struct flux_list_data));
+                      FluxList = (struct flux_list_data *)myrealloc_movable(FluxList, MaxNflux * sizeof(struct flux_list_data));
 
                       if(Nflux >= MaxNflux)
                         terminate("Nflux >= MaxNflux");

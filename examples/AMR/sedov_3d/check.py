@@ -1,6 +1,6 @@
-#! /usr/bin/env python
+#!/usr/bin/env python3
 """ Idealized test, AMR sedov in 3D. """
-import os
+import os.path
 import h5py
 import numpy as np
 import sys
@@ -34,7 +34,6 @@ def verify_result(path):
 
 
 if __name__ == '__main__':
-
     status_ok, info = verify_result(path=sys.argv[1])
 
     if status_ok:
@@ -89,4 +88,4 @@ def visualize_result(path, Lx, Ly, Lz=1.0):
 
     plt.legend(loc='best')
     plt.tight_layout()
-    plt.savefig(path + "vis/sedov_profile_3d.pdf")
+    plt.savefig(os.path.join(path, "vis/sedov_profile_3d.pdf"))

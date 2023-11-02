@@ -1,1 +1,1 @@
-static const char *compiler_flags = "mpicc -std=c11 -O3 -g -Wall -parallel -ipo -funroll-loops -xcore-avx2 -diag-disable 3180 -DH5_USE_16_API  -I/apps/intel/2020.0.166/gsl/2.6/include  -I/apps/intel/2020.0.166/openmpi/4.1.5/fftw/3.3.10/include        -I./build     ";
+static const char *compiler_flags = "mpicc -std=c11 -O3 -g -Wall -parallel -ipo -funroll-loops -xcore-avx2 -diag-disable 3180 -DH5_USE_16_API  -I/apps/gsl/2.6/include  -I/apps/intel/2019.1.144/openmpi/4.0.1/fftw/3.3.8/include        -I./build     ";

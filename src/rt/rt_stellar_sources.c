@@ -36,7 +36,7 @@ void rt_create_source_list(void)
 {
   int i, j, nsrc, nimport, ngrp;
 
-  SourceList = mymalloc("SourceList", N_SOURCES * sizeof(struct source_list));
+  SourceList = (struct source_list *)mymalloc("SourceList", N_SOURCES * sizeof(struct source_list));
 
   for(i = 0, nsrc = 0; i < NumPart; i++)
     {
@@ -66,7 +66,7 @@ void rt_create_source_list(void)
         }
     }
 
-  SourceListGet = mymalloc("SourceListGet", nimport * sizeof(struct source_list));
+  SourceListGet = (struct source_list *)mymalloc("SourceListGet", nimport * sizeof(struct source_list));
 
   /* exchange particle data */
   for(ngrp = 0; ngrp < (1 << PTask); ngrp++)

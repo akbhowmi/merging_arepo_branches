@@ -33,6 +33,11 @@
 #include "voronoi.h"
 
 #define CPU_STRING_LEN 120
+#define BUFFER_SIZE 256     // unused?
+
+#ifdef BH_NEW_LOGS
+#define BIG_BUFFER_SIZE 512
+#endif
 
 /*! \brief Contains informations about the used CPU timers, like their names, symbols, ...
  */
@@ -75,11 +80,17 @@ void open_logfiles(void)
 #endif
 
 #ifdef BLACK_HOLES
+  /* Create the 'blackhole_details' output directory */
   if(ThisTask == 0)
-    {
-      file_path_sprintf(buf, "%s/blackhole_details", All.OutputDir);
-      mkdir(buf, MKDIR_MODE);
-    }
+  {
+    file_path_sprintf(buf, "%s/blackhole_details", All.OutputDir);
+    mkdir(buf, MKDIR_MODE);
+#ifdef BH_NEW_LOGS
+    file_path_sprintf(buf, "%s/blackholes", All.OutputDir);
+    mkdir(buf, MKDIR_MODE);
+#endif
+  }
+
   MPI_Barrier(MPI_COMM_WORLD);
   /* Note: This is done by everyone */
   file_path_sprintf(buf, "%s/blackhole_details/blackhole_details_%d.txt", All.OutputDir, ThisTask);
@@ -95,6 +106,12 @@ void open_logfiles(void)
   if(!(FdBlackHolesRepos = fopen(buf, mode)))
     terminate("error in opening file '%s'", buf);
 #endif
+#ifdef BH_FAST_WIND_STOCHASTIC
+  file_path_sprintf(buf, "%s/blackhole_details/blackhole_FWstochastic_%d.txt", All.OutputDir, ThisTask);
+  if(!(FdBlackHolesFWstoch = fopen(buf, mode)))
+    terminate("error in opening file '%s'\n", buf);
+#endif
+  /* Create the 'blackhole_mergers' output directory */
   if(ThisTask == 0)
     {
       file_path_sprintf(buf, "%s/blackhole_mergers", All.OutputDir);
@@ -105,63 +122,6 @@ void open_logfiles(void)
   file_path_sprintf(buf, "%s/blackhole_mergers/blackhole_mergers_%d.txt", All.OutputDir, ThisTask);
   if(!(FdBlackHolesMergers = fopen(buf, mode)))
     terminate("error in opening file '%s'", buf);
-
-#ifdef OUTPUT_HOST_PROPERTIES_FOR_BH_MERGERS
-  if(ThisTask == 0)
-    {
-      file_path_sprintf(buf, "%s/blackhole_mergerhosts", All.OutputDir);
-      mkdir(buf, MKDIR_MODE);
-    }
-  MPI_Barrier(MPI_COMM_WORLD);
-  /* Note: This is done by everyone */
-  file_path_sprintf(buf, "%s/blackhole_mergerhosts/blackhole_mergerhosts_%d.txt", All.OutputDir, ThisTask);
-  if(!(FdBlackHolesMergerHosts = fopen(buf, mode)))
-    terminate("error in opening file '%s'\n", buf);
-#endif
-
-
-#ifdef OUTPUT_HOST_PROPERTIES_FOR_BH_MERGERS
-#ifdef SEED_BASED_ON_PROBABLISTIC_HALO_PROPERTIES
-#ifdef PROBABILISTIC_SEED_MASS_HALO_MASS_RATIO_CRITERION
-  if(ThisTask == 0)
-    {
-      file_path_sprintf(buf, "%s/blackhole_seedingtests", All.OutputDir);
-      mkdir(buf, MKDIR_MODE);
-    }
-  MPI_Barrier(MPI_COMM_WORLD);
-  /* Note: This is done by everyone */
-  file_path_sprintf(buf, "%s/blackhole_seedingtests/blackhole_seedingtests_%d.txt", All.OutputDir, ThisTask);
-  if(!(FdBlackHolesSeedingTests = fopen(buf, mode)))
-    terminate("error in opening file '%s'\n", buf);
-#endif
-#endif
-#endif
-
-
-#ifdef OUTPUT_LOG_FILES_FOR_SEEDING
-  if(ThisTask == 0)
-    {
-      file_path_sprintf(buf, "%s/blackhole_seeding", All.OutputDir);
-      mkdir(buf, MKDIR_MODE);
-    }
-  MPI_Barrier(MPI_COMM_WORLD);
-  /* Note: This is done by everyone */
-  file_path_sprintf(buf, "%s/blackhole_seeding/blackhole_seeding_%d.txt", All.OutputDir, ThisTask);
-  if(!(FdBlackHolesSeeding = fopen(buf, mode)))
-    terminate("error in opening file '%s'\n", buf);
-
-  if(ThisTask == 0)
-    {
-      file_path_sprintf(buf, "%s/blackhole_seeding2", All.OutputDir);
-      mkdir(buf, MKDIR_MODE);
-    }
-  MPI_Barrier(MPI_COMM_WORLD);
-  /* Note: This is done by everyone */
-  file_path_sprintf(buf, "%s/blackhole_seeding2/blackhole_seeding2_%d.txt", All.OutputDir, ThisTask);
-  if(!(FdBlackHolesSeeding2 = fopen(buf, mode)))
-    terminate("error in opening file '%s'\n", buf);
-#endif
-
 
 #ifdef BH_BIPOLAR_FEEDBACK
   if(ThisTask == 0)
@@ -175,7 +135,7 @@ void open_logfiles(void)
     terminate("error in opening file '%s'", buf);
 #endif
 
-#endif
+#endif // BLACK_HOLES
 
 #ifdef SINKS
 #ifdef SINKS_MERGERS
@@ -190,6 +150,32 @@ void open_logfiles(void)
   if(!(FdSinksMergers = fopen(buf, mode)))
     terminate("error in opening file '%s'", buf);
 #endif
+#endif
+
+#ifdef SFR_MCS_LOG_DETAILS
+  if(ThisTask == 0)
+    {
+      file_path_sprintf(buf, "%s/sf_details", All.OutputDir);
+      mkdir(buf, MKDIR_MODE);
+    }
+  MPI_Barrier(MPI_COMM_WORLD);
+  /* Note: This is done by everyone */
+  file_path_sprintf(buf, "%s/sf_details/sf_details_%d.txt", All.OutputDir, ThisTask);
+  if(!(FdSFDetails = fopen(buf, mode)))
+    terminate("error in opening file '%s'", buf);
+#endif
+
+#ifdef SN_MCS_LOG_DETAILS
+  if(ThisTask == 0)
+    {
+      file_path_sprintf(buf, "%s/sn_details", All.OutputDir);
+      mkdir(buf, MKDIR_MODE);
+    }
+  MPI_Barrier(MPI_COMM_WORLD);
+  /* Note: This is done by everyone */
+  file_path_sprintf(buf, "%s/sn_details/sn_details_%d.txt", All.OutputDir, ThisTask);
+  if(!(FdSNDetails = fopen(buf, mode)))
+    terminate("error in opening file '%s'", buf);
 #endif
 
   if(ThisTask != 0) /* only the root processors writes to the log files */
@@ -319,6 +305,18 @@ void open_logfiles(void)
     terminate("error in opening file '%s'", buf);
 #endif
 
+#ifdef SFR_MCS_LOG
+  file_path_sprintf(buf, "%s/sfdens.txt", All.OutputDir);
+  if(!(FdSFdens = fopen(buf, mode)))
+    terminate("error in opening file '%s'", buf);
+#endif
+
+#ifdef HII_MCS_LOG
+  file_path_sprintf(buf, "%s/hii.txt", All.OutputDir);
+  if(!(FdHii = fopen(buf, mode)))
+    terminate("error in opening file '%s'", buf);
+#endif
+
 #ifdef SN_MCS
   file_path_sprintf(buf, "%s/snr.txt", All.OutputDir);
   if(!(FdSnr = fopen(buf, mode)))
@@ -331,12 +329,6 @@ void open_logfiles(void)
     terminate("error in opening file '%s'", buf);
 #endif
 
-#ifdef SFR_MCS_LOG
-  file_path_sprintf(buf, "%s/sfdens.txt", All.OutputDir);
-  if(!(FdSFdens = fopen(buf, mode)))
-    terminate("error in opening file '%s'", buf);
-#endif
-
 #ifdef BLACKHOLE_POTMIN_DIAGNOSTIC
   file_path_sprintf(buf, "%s/potmin_diag.txt", All.OutputDir);
   if(!(FdBHDiag = fopen(buf, mode)))
@@ -345,6 +337,9 @@ void open_logfiles(void)
 
 #ifdef BLACK_HOLES
   file_path_sprintf(buf, "%s/blackholes.txt", All.OutputDir);
+#ifdef BH_NEW_LOGS
+  file_path_sprintf(buf, "%s/blackholes/blackholes.txt", All.OutputDir);
+#endif
   if(!(FdBlackHoles = fopen(buf, mode)))
     terminate("error in opening file '%s'", buf);
 #endif
@@ -469,18 +464,13 @@ void open_logfiles(void)
     terminate("error in opening file '%s'", buf);
 #endif
 
-#ifdef SFR_MCS_LOG
-  file_path_sprintf(buf, "%s/sfdens.txt", All.OutputDir);
-  if(!(FdSFdens = fopen(buf, mode)))
-    terminate("error in opening file '%s'", buf);
-#endif
-
 #ifdef GW_SIGNAL
   file_path_sprintf(buf, "%s/gwsignal.txt", All.OutputDir);
   if(!(FdGW = fopen(buf, mode)))
     terminate("error in opening file '%s'", buf);
 #endif
-}
+
+} // open_logfiles
 
 /*! \brief Closes the global log files.
  *
@@ -578,6 +568,14 @@ void close_logfiles(void)
 
 #ifdef SFR_MCS_LOG
   fclose(FdSFdens);
+#endif
+
+#ifdef SN_MCS_LOG
+  fclose(FdSNdens);
+#endif
+
+#ifdef HII_MCS_LOG
+  fclose(FdHii);
 #endif
 
 #ifdef GW_SIGNAL
@@ -1088,3 +1086,133 @@ void put_symbol(char *string, double t0, double t1, char c)
 
   string[CPU_STRING_LEN] = 0;
 }
+
+#ifdef BH_NEW_LOGS
+/*! \brief Open snapshot-by-snapshot files for logging.
+ *
+ *   This must be called *after* `open_logfiles()`.
+ *
+ */
+void open_bh_logfiles(void)
+{
+  char *mode;
+  char buf[MAXLEN_PATH];
+  char temp[MAXLEN_PATH];
+
+  if(RestartFlag == RESTART_IC || RestartFlag == RESTART_SNAPSHOT)
+    mode = "w";
+  else
+    mode = "a";
+
+  mpi_printf("BH_NEW_LOGS: open_bh_logfiles() snap: %d\n", All.SnapshotFileCount);
+
+  /* Create the necessary output directories */
+  if(ThisTask == 0)
+  {
+    file_path_sprintf(buf, "%s/blackholes/details_%03d", All.OutputDir, All.SnapshotFileCount);
+    mkdir(buf, MKDIR_MODE);
+    file_path_sprintf(buf, "%s/blackholes/mergers_%03d", All.OutputDir, All.SnapshotFileCount);
+    mkdir(buf, MKDIR_MODE);
+  }
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  // Open log files on each processor
+  // -- Details
+  file_path_sprintf(buf, "%s/blackholes/details_%03d/blackhole_details_%d.txt", All.OutputDir, All.SnapshotFileCount, ThisTask);
+  //    Erase entries written later than the restart time
+  if(RestartFlag == RESTART_RESTART)
+  {
+    file_path_sprintf(temp, "%s/blackholes/details_%03d/_blackhole_details_%d.txt", All.OutputDir, All.SnapshotFileCount, ThisTask);
+    copy_log_until_now(buf, temp);
+  }
+  if(!(FdBHDetails = fopen(buf, mode)))
+    terminate("error in opening file '%s'\n", buf);
+
+  // -- Mergers
+  file_path_sprintf(buf, "%s/blackholes/mergers_%03d/blackhole_mergers_%d.txt", All.OutputDir, All.SnapshotFileCount, ThisTask);
+  //    Erase entries written later than the restart time
+  if(RestartFlag == RESTART_RESTART)
+  {
+    file_path_sprintf(temp, "%s/blackholes/details_%03d/_blackhole_mergers_%d.txt", All.OutputDir, All.SnapshotFileCount, ThisTask);
+    copy_log_until_now(buf, temp);
+  }
+  if(!(FdBHMergers = fopen(buf, mode)))
+    terminate("error in opening file '%s'\n", buf);
+
+}
+
+/*! \brief Closes the bh snapshot-by-snapshot log-files.
+ *
+ *  \return void
+ */
+void copy_log_until_now(char *fname, char *temp)
+{
+  mpi_printf("BH_NEW_LOGS: copy_log_until_now(%s) : Time=%.8f\n", fname, All.Time);
+  char buffer[BIG_BUFFER_SIZE];
+  int count = 0, skip = 0;
+  double t0 = second(), t1;
+
+  FILE *src;
+  FILE *dst;
+  float time;
+
+  if(!(dst = fopen(temp, "w")))
+    terminate("LOGS: error in opening new bh log file '%s'\n", temp);
+
+  if(!(src = fopen(fname, "r")))
+  {
+    warn("LOGS: error in opening old bh log file for copying '%s'\n"
+         "      something may be wrong\n", fname);
+    return;
+  }
+
+  /* Copy contents until passing the current (restarted) time */
+  while(fgets(buffer, BIG_BUFFER_SIZE, src) != NULL)
+  {
+    sscanf(buffer, "%g", &time);
+    if(time >= All.Time)
+    {
+      skip++;
+    }
+    else
+    {
+      fputs(buffer, dst);
+      count++;
+    }
+  }
+
+  fclose(src);
+  fclose(dst);
+  /* Delete old file, rename new file */
+  remove(fname);
+  rename(temp, fname);
+  t1 = second();
+
+  if(!(src = fopen(fname, "r")))
+    terminate("LOGS: error in opening new bh log file '%s'\n", temp);
+
+  // Check completed file to make sure it's correct
+  while(fgets(buffer, BIG_BUFFER_SIZE, src) != NULL)
+  {
+    sscanf(buffer, "%g", &time);
+    if(time >= All.Time)
+      terminate("BH_NEW_LOGS: copy_log_until_now() FAILED: time=%.8f >= All.Time=%.8f", time, All.Time);
+  }
+  fclose(src);
+
+  mpi_printf("BH_NEW_LOGS: copied %d lines, skipped %d - after %g sec\n",
+             count, skip, timediff(t0, t1));
+} // copy_log_until_now()
+
+
+
+/*! \brief Closes the bh snapshot-by-snapshot log-files.
+ *
+ *  \return void
+ */
+void close_bh_logfiles(void)
+{
+  fclose(FdBHDetails);
+  fclose(FdBHMergers);
+}
+#endif /*BH_NEW_LOGS*/

@@ -85,7 +85,7 @@ def CheckL1Error(Pos, W, gamma, i_snap, simulation_directory):
         xx, rho, v, pres = np.loadtxt(
             os.path.join(simulation_directory,
                          'reference_%03d.txt' % i_snap)).T
-    except:
+    except (OSError, IOError):
         return 1, [
             'CheckL1Error: could not find: ' +
             os.path.join(simulation_directory, 'reference_%03d.txt' % i_snap)
@@ -112,17 +112,17 @@ def CheckL1Error(Pos, W, gamma, i_snap, simulation_directory):
     val_max = 0.05 * 400.0 / np.float(Pos.shape[0])
     L1MaxAllowed = np.array([val_max, 4.0 * val_max, val_max])
 
-    if np.any(L1 > L1MaxAllowed):
-        return 1, [
-            'CheckL1Error: ERROR: L1 error too large: %g %g %g; tolerance  %g %g %g'
-            % (L1[0], L1[1], L1[2], L1MaxAllowed[0], L1MaxAllowed[1],
-               L1MaxAllowed[2])
-        ]
-    else:
+    if np.all(L1 <= L1MaxAllowed):
         return 0, [
             'CheckL1Error: L1 error fine: %g %g %g; tolerance  %g %g %g' %
             (L1[0], L1[1], L1[2], L1MaxAllowed[0], L1MaxAllowed[1],
              L1MaxAllowed[2])
+        ]
+    else:
+        return 1, [
+            'CheckL1Error: ERROR: L1 error too large: %g %g %g; tolerance  %g %g %g'
+            % (L1[0], L1[1], L1[2], L1MaxAllowed[0], L1MaxAllowed[1],
+               L1MaxAllowed[2])
         ]
 
 
@@ -157,7 +157,7 @@ def PlotSimulationData(Pos, W, gamma, i_snap, simulation_directory):
         xx, rho, v, pres = np.loadtxt(
             os.path.join(simulation_directory,
                          'reference_%03d.txt' % i_snap)).T
-    except:
+    except (OSError, IOError):
         print('PlotSimulationData: could not find: ' +
               os.path.join(simulation_directory, 'reference_%03d.txt' %
                            i_snap))

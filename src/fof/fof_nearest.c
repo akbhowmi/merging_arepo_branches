@@ -330,7 +330,6 @@ double fof_find_nearest_dmparticle(MyIDType *vMinID, int *vHead, int *vLen, int 
 
 static int fof_find_nearest_dmparticle_evaluate(int target, int mode, int threadid)
 {
-  int Link_Types;
   int k, no, index, numnodes, *firstnode;
   double h, r2max, dist;
   double dx, dy, dz, r2;
@@ -380,15 +379,7 @@ static int fof_find_nearest_dmparticle_evaluate(int target, int mode, int thread
               int p = no;
               no    = Nextnode[no];
 
-#if defined(CREATE_SUBFOFS) && defined(BFOFS_AS_GASCLUMPS) && defined(GAS_CLUMP_PRIMARY_LINK_TYPES)
-              if(All.SubFOF_mode == 1)
-                  Link_Types = GAS_CLUMP_PRIMARY_LINK_TYPES;
-              else if(All.SubFOF_mode == 0)
-                  Link_Types = FOF_SECONDARY_LINK_TARGET_TYPES;
-              if(!((1 << P[p].Type) & (Link_Types)))
-#else
               if(!((1 << P[p].Type) & (FOF_SECONDARY_LINK_TARGET_TYPES)))
-#endif
                 continue;
 
               dist = h;

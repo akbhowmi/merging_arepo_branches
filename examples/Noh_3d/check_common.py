@@ -36,7 +36,7 @@ IntType = np.int32
 ## open initial conditiions to get parameters
 try:
     data = h5py.File(os.path.join(simulation_directory, 'IC.hdf5'), 'r')
-except:
+except (OSError, IOError):
     print('Could not open initial conditions!')
     sys.exit(1)
 Boxsize = FloatType(data['Header'].attrs['BoxSize'])
@@ -60,7 +60,11 @@ while True:
     filename = 'snap_%03d.hdf5' % i_file
     try:
         data = h5py.File(os.path.join(directory, filename), 'r')
-    except:
+    except (OSError, IOError):
+        # should have at least 5 snapshots
+        if i_file <= 4:
+            print('Could not find snapshot ' + filename + '!')
+            sys.exit(1)
         break
     # get simulation data
 
@@ -205,7 +209,7 @@ while True:
     print(__file__ + ' snapshot %d: L1_dens = %g, DeltaMaxAllowed = %g!' %
           (i_file, L1_dens, L1_max))
 
-    if L1_dens > L1_max:
+    if not L1_dens <= L1_max:
         sys.exit(1)
 
     i_file += 1

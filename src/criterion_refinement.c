@@ -99,6 +99,15 @@ int should_this_cell_be_split(int i)
     return 0;
 #endif
 
+#if defined(REFINEMENT_KEEP_INITIAL_VOLUME)
+  if(SphP[i].Volume > 2.0 * SphP[i].InitialVolume)
+    if(can_this_cell_be_split(i))
+      return 1;
+
+  if(SphP[i].Volume < 2.0 * SphP[i].InitialVolume)
+    return 0;
+#endif
+
 #if defined(REFINEMENT_VOLUME_LIMIT) && !defined(WINDTUNNEL_REFINEMENT_VOLUME_LIMIT)
   double maxvolume = All.MaxVolume;
   double minvolume = All.MinVolume;
@@ -332,9 +341,26 @@ int refine_criterion_default(int i)
 #endif
 #endif
       {
+        double TargetGasMass = All.TargetGasMass;
+
+#ifdef REFINEMENT_LIMIT_STARFORMING_GAS
+        double eos_dens_threshold = All.PhysDensThresh;
+#ifdef MODIFIED_EOS
+        eos_dens_threshold *= All.FactorDensThresh;
+#endif
+
+        double dens = SphP[i].Density * All.cf_a3inv;
+        if(dens >= 4. * eos_dens_threshold)
+          {
+            TargetGasMass = All.TargetGasMass * dens / (4. * eos_dens_threshold);
+            if(TargetGasMass > All.HighDensityMaxGasDerefinementFactor * All.TargetGasMass)
+              TargetGasMass = All.HighDensityMaxGasDerefinementFactor * All.TargetGasMass;
+          }
+#endif
+
         if(can_this_cell_be_split(i))
           {
-            if(P[i].Mass > 2.0 * All.TargetGasMass)
+            if(P[i].Mass > 2.0 * TargetGasMass)
               return 1;
 #ifdef GRADIENTREFINEMENT
             double deltaBx_totsquare =

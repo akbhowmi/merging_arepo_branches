@@ -45,7 +45,7 @@ double LinkL = 0;
 
 int fof_OldMaxPart;
 int fof_OldMaxPartSph;
-#ifdef GFM
+#if defined(GFM) || defined(SFR_MCS)
 int fof_OldMaxPartStar;
 #endif
 #ifdef BLACK_HOLES
@@ -57,11 +57,7 @@ int fof_OldMaxPartDust;
 
 unsigned char *flag_node_inside_linkinglength;
 
-struct group_properties *Group
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-, *Group2
-#endif
-;
+struct group_properties *Group;
 
 #ifdef ADD_GROUP_PROPERTIES
 int Ngroups_eff;

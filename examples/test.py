@@ -5,8 +5,10 @@
 """
 import argparse
 import ast
+import collections
 import enum
 import importlib
+import multiprocessing
 import os
 import os.path
 import shutil
@@ -15,8 +17,8 @@ import sys
 import traceback
 from pathlib import Path
 import numpy as np
-
 import utils
+
 # do not make .pyc files
 sys.dont_write_bytecode = True
 # do not make __pycache__ folders
@@ -41,11 +43,7 @@ BLACKLIST = [
     'ForceLawTests/TreePMWithHighResRegion',
 ]
 
-parser = argparse.ArgumentParser(description="""
-  Execute some (or all) simulation tests, creating ICs if necessary.
-  After completion, verify results (vs. analytical or previous numerical
-  solutions), optional visualization.
-  """)
+parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--withvis',
                     action='store_true',
                     help='create visualization for the test(s) as well')
@@ -92,6 +90,10 @@ class TestResult(enum.Enum):
     SKIP = 0
     SUCCESS = 1
 
+CreateAttributes = collections.namedtuple(
+    'CreateAttributes', 'compile_only, numTasksMPI, vis_Lx, vis_Ly'
+)
+
 
 def path_in_blacklist(path):
     path_str = str(path)
@@ -99,6 +101,78 @@ def path_in_blacklist(path):
         if entry in path_str:
             return True
     return False
+
+
+def import_test_module(package_name):
+    module = None
+    try:
+        module = importlib.import_module(package_name)
+    except:
+        utils.fail('FAILED: Error on importing test modules.')
+        utils.fail(' ' + traceback.format_exc())
+    return module
+
+
+def run_create_script(name, run_path, conn):
+    pkg_str = '.'.join(name.parts)
+    create = import_test_module(pkg_str + '.' + CREATE_FILE_NAME[:-len('.py')])
+    if create is None:
+        conn.send((TestResult.FAIL, None))
+        return
+    try:
+        getattr(create, CREATE_FUNCTION_NAME)(path=str(run_path),
+                                              filename=IC_FILE_NAME)
+    except:
+        utils.fail('FAILED: Could not generate ICs.')
+        utils.fail(' ' + traceback.format_exc())
+        conn.send((TestResult.FAIL, None))
+        return
+    conn.send((TestResult.SUCCESS, CreateAttributes(
+        # some tests (optionally) specify that the code should only be compiled
+        compile_only=getattr(create, 'COMPILE_ONLY', False),
+        # allow test to (optionally) specify the number of MPI tasks
+        numTasksMPI=getattr(create, 'numTasksMPI', None),
+        # allow test to (optionally) specify visualization options
+        vis_Lx=getattr(create, 'Lx', None),
+        vis_Ly=getattr(create, 'Ly', None),
+    )))
+
+
+def run_check_script(name, run_path, vis, vis_Lx, vis_Ly, conn):
+    pkg_str = '.'.join(name.parts)
+    check = import_test_module(pkg_str + '.' + CHECK_FILE_NAME[:-len('.py')])
+    if check is None:
+        conn.send(TestResult.FAIL)
+        return
+    try:
+        status_ok, info = check.verify_result(str(run_path))
+        if not status_ok:
+            utils.fail('FAILED.')
+            for msg in info:
+                utils.fail(' ' + msg)
+            conn.send(TestResult.FAIL)
+            return
+    except:
+        utils.fail('FAILED.')
+        utils.fail(' ' + traceback.format_exc())
+        conn.send(TestResult.FAIL)
+        return
+    else:
+        utils.success('SUCCESS.')
+        for msg in info:
+            utils.success(' ' + msg)
+    # visualization requested? call visualize_result() of the test, leave
+    # output
+    if vis:
+        print(' - Creating visualization(s)...')
+        if not (run_path / 'vis').is_dir():
+            (run_path / 'vis').mkdir()
+        try:
+            check.visualize_result(str(run_path), vis_Lx, vis_Ly)
+        except:
+            print(' - An error occured during creation of visualization:')
+            traceback.print_exc()
+    conn.send(TestResult.SUCCESS)
 
 
 def run_test(name, numTasksMPI=args.number_of_tasks, vis=False):
@@ -165,36 +239,29 @@ def run_test(name, numTasksMPI=args.number_of_tasks, vis=False):
 
     if has_func:
         # new test format: execute create_ics() in {test}/create.py
-        pkg_str = '.'.join(name.parts)
-        try:
-            create = importlib.import_module(pkg_str + '.' +
-                                             CREATE_FILE_NAME[:-len('.py')])
-            check = importlib.import_module(pkg_str + '.' +
-                                            CHECK_FILE_NAME[:-len('.py')])
-        except:
-            utils.fail('FAILED: Error on importing test modules.')
-            utils.fail(' ' + traceback.format_exc())
-            return TestResult.FAIL
+        # run in a separate process to avoid side effects from code in test
+        # scripts
+        spawn = multiprocessing.get_context('spawn')
+        conn_recv, conn_send = spawn.Pipe(duplex=False)
+        process = spawn.Process(
+            target=run_create_script, args=(name, rel_path, conn_send)
+        )
+        process.start()
+        status, create_attrs = conn_recv.recv()
+        process.join()
 
-        try:
-            getattr(create, CREATE_FUNCTION_NAME)(path=str(rel_path),
-                                                  filename=IC_FILE_NAME)
-        except:
-            utils.fail('FAILED: Could not generate ICs.')
-            utils.fail(' ' + traceback.format_exc())
+        if status == TestResult.FAIL:
             return TestResult.FAIL
-
-        # some tests (optionally) specify that the code should only be compiled
-        compile_only = getattr(create, 'COMPILE_ONLY', False)
-        # allow test to (optionally) specify the number of MPI tasks
-        numTasksMPI = getattr(create, 'numTasksMPI', numTasksMPI_default)
-        # allow test to (optionally) specify visualization options
-        vis_Lx = getattr(create, 'Lx', None)
-        vis_Ly = getattr(create, 'Ly', None)
+        compile_only = create_attrs.compile_only
+        if create_attrs.numTasksMPI is not None:
+            numTasksMPI = create_attrs.numTasksMPI
+        vis_Lx = create_attrs.vis_Lx
+        vis_Ly = create_attrs.vis_Ly
 
         # vis? update Config.sh and parameter files (except for AMR runs)
-        if vis and 'AMR/' not in str(
-                name) and vis_Lx is not None and vis_Ly is not None:
+        if vis and 'AMR/' not in str(name) and (
+            vis_Lx is not None and vis_Ly is not None
+        ):
             with open(rel_path / CONFIG_FILE_NAME, 'a') as f:
                 f.write('\nVORONOI_FREQUENT_IMAGES\n')
             with open(rel_path / PARAM_FILE_NAME, 'a') as f:
@@ -312,32 +379,19 @@ def run_test(name, numTasksMPI=args.number_of_tasks, vis=False):
 
     if has_func:
         # new test format: execute verify_result() function in {test}/check.py
-        try:
-            status_ok, info = check.verify_result(str(rel_path))
-            if not status_ok:
-                utils.fail('FAILED.')
-                for msg in info:
-                    utils.fail(' ' + msg)
-                return TestResult.FAIL
-        except:
-            utils.fail('FAILED.')
-            utils.fail(' ' + traceback.format_exc())
+        # run in a separate process to avoid side effects from code in test
+        # scripts (see above)
+        spawn = multiprocessing.get_context('spawn')
+        conn_recv, conn_send = spawn.Pipe(duplex=False)
+        process = spawn.Process(
+            target=run_check_script,
+            args=(name, rel_path, vis, vis_Lx, vis_Ly, conn_send)
+        )
+        process.start()
+        status = conn_recv.recv()
+        process.join()
+        if status == TestResult.FAIL:
             return TestResult.FAIL
-        else:
-            utils.success('SUCCESS.')
-            for msg in info:
-                utils.success(' ' + msg)
-        # visualization requested? call visualize_result() of the test, leave
-        # output
-        if vis:
-            print(' - Creating visualization(s)...')
-            if not (rel_path / 'vis').is_dir():
-                (rel_path / 'vis').mkdir()
-            try:
-                check.visualize_result(str(rel_path), vis_Lx, vis_Ly)
-            except:
-                print(' - An error occured during creation of visualization:')
-                traceback.print_exc()
     else:
         # old test format: execute Python file directly
         try:

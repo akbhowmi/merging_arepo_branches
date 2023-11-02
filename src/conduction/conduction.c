@@ -6,8 +6,11 @@
  * \file        src/conduction.c
  * \date        MM/YYYY
  * \author
- * \brief
- * \details
+ * \brief       main driver for an anisotropic diffusion solver
+ * \details     This file contains the code for a monotonicity preserving anisotrpic
+ *              diffusion solver. This implementation is based on the method outlined
+ *              in Gao & Wu (2013) - Journal of Computational Physics 10/2013;
+ *              250:308-331. DOI: 10.1016/j.jcp.2013.05.013.
  *
  *
  * \par Major modifications and contributions:
@@ -26,13 +29,6 @@
 #include "../domain.h"
 #include "../proto.h"
 #include "../voronoi.h"
-
-/*! \file conduction.c
- *  \brief main driver for an anisotropic diffusion solver
- *
- *  This file contains the code for a monotonicity preserving anisotrpic diffusion solver. This implementation is based on the method
- * outlined in Gao & Wu (2013) - Journal of Computational Physics 10/2013; 250:308-331. DOI: 10.1016/j.jcp.2013.05.013 .
- */
 
 #ifdef MONOTONE_CONDUCTION
 
@@ -716,7 +712,7 @@ void calculate_unidirectional_fluxes_3D(void)
                 break;
             }
 
-          tetra *this, *next;
+          tetra *tthis, *tnext;
           int i2, j2, k2, l2, m2, ii2, jj2, kk2, ll2, nn2;
 
           i2 = edge_start[nr];
@@ -724,12 +720,12 @@ void calculate_unidirectional_fluxes_3D(void)
           k2 = edge_opposite[nr];
           l2 = edge_nexttetra[nr];
 
-          this = t;
+          tthis = t;
 
           do
             {
-              nn2 = this->t[l2];
-              next = &DT[nn2];
+              nn2 = tthis->t[l2];
+              tnext = &DT[nn2];
 
               int breakindex = 1;
               for(i1 = 0; i1 < tottetra; i1++)
@@ -754,8 +750,8 @@ void calculate_unidirectional_fluxes_3D(void)
                   idp1 = particle_id[Noc];
                   datatetra[tottetra].p1Noc = idp1;
 
-                  idp2 = DP[this->p[l2]].index;
-                  taskp2 = DP[this->p[l2]].task;
+                  idp2 = DP[tthis->p[l2]].index;
+                  taskp2 = DP[tthis->p[l2]].task;
                   datatetra[tottetra].p2Noc = idp2;
 
                   if(taskp2 == ThisTask)
@@ -807,9 +803,9 @@ void calculate_unidirectional_fluxes_3D(void)
 
                   datatetra[tottetra].u2 = omega_K * u_K + omega_L * u_L;
 
-                  px = omega_L * (DP[this->p[l2]].x - P[i].Pos[0]);
-                  py = omega_L * (DP[this->p[l2]].y - P[i].Pos[1]);
-                  pz = omega_L * (DP[this->p[l2]].z - P[i].Pos[2]);
+                  px = omega_L * (DP[tthis->p[l2]].x - P[i].Pos[0]);
+                  py = omega_L * (DP[tthis->p[l2]].y - P[i].Pos[1]);
+                  pz = omega_L * (DP[tthis->p[l2]].z - P[i].Pos[2]);
 
                   datatetra[tottetra].mdls_ysigma_p2 = sqrt(px * px + py * py + pz * pz);
                   if(datatetra[tottetra].mdls_ysigma_p2 == 0.0)
@@ -819,8 +815,8 @@ void calculate_unidirectional_fluxes_3D(void)
                   datatetra[tottetra].y_sigma_p2[1] = py / datatetra[tottetra].mdls_ysigma_p2;
                   datatetra[tottetra].y_sigma_p2[2] = pz / datatetra[tottetra].mdls_ysigma_p2;
 
-                  idp3 = DP[this->p[k2]].index;
-                  taskp3 = DP[this->p[k2]].task;
+                  idp3 = DP[tthis->p[k2]].index;
+                  taskp3 = DP[tthis->p[k2]].task;
                   datatetra[tottetra].p3Noc = idp3;
 
                   if(taskp3 == ThisTask)
@@ -872,9 +868,9 @@ void calculate_unidirectional_fluxes_3D(void)
 
                   datatetra[tottetra].u3 = omega_K * u_K + omega_L * u_L;
 
-                  px = omega_L * (DP[this->p[k2]].x - P[i].Pos[0]);
-                  py = omega_L * (DP[this->p[k2]].y - P[i].Pos[1]);
-                  pz = omega_L * (DP[this->p[k2]].z - P[i].Pos[2]);
+                  px = omega_L * (DP[tthis->p[k2]].x - P[i].Pos[0]);
+                  py = omega_L * (DP[tthis->p[k2]].y - P[i].Pos[1]);
+                  pz = omega_L * (DP[tthis->p[k2]].z - P[i].Pos[2]);
 
                   datatetra[tottetra].mdls_ysigma_p3 = sqrt(px * px + py * py + pz * pz);
                   if(datatetra[tottetra].mdls_ysigma_p3 == 0.0)
@@ -889,11 +885,11 @@ void calculate_unidirectional_fluxes_3D(void)
 
               for(m2 = 0, ll2 = ii2 = jj2 = -1; m2 < 4; m2++)
                 {
-                  if(next->p[m2] == this->p[k2])
+                  if(tnext->p[m2] == tthis->p[k2])
                     ll2 = m2;
-                  if(next->p[m2] == this->p[i2])
+                  if(tnext->p[m2] == tthis->p[i2])
                     ii2 = m2;
-                  if(next->p[m2] == this->p[j2])
+                  if(tnext->p[m2] == tthis->p[j2])
                     jj2 = m2;
                 }
 
@@ -902,7 +898,7 @@ void calculate_unidirectional_fluxes_3D(void)
 
               kk2 = 6 - (ll2 + ii2 + jj2);
 
-              this = next;
+              tthis = tnext;
               tt = nn2;
 
               i2 = ii2;
@@ -910,7 +906,7 @@ void calculate_unidirectional_fluxes_3D(void)
               j2 = jj2;
               k2 = kk2;
             }
-          while(next != t);
+          while(tnext != t);
 
           if(q == SphP[i].last_connection)
             break;

@@ -57,7 +57,11 @@ while True:
     filename = 'snap_%03d.hdf5' % i_file
     try:
         data = h5py.File(os.path.join(directory, filename), 'r')
-    except:
+    except (OSError, IOError):
+        # should have at least 9 snapshots
+        if i_file <= 8:
+            print('Could not find snapshot ' + filename + '!')
+            sys.exit(1)
         break
     # get simulation data
 
@@ -86,7 +90,7 @@ if makeplots:
         filename = 'snap_%03d.hdf5' % i_file
         try:
             data = h5py.File(os.path.join(directory, filename), 'r')
-        except:
+        except (OSError, IOError):
             break
 
         VoronoiPos = np.array(data['PartType0']['Coordinates'],
@@ -139,5 +143,5 @@ if makeplots:
         plt.close(fig)
 
 ## if everything is ok
-if np.min(MagneticEnergy / MagneticEnergy[0]) <= 0.92:
+if not (np.min(MagneticEnergy / MagneticEnergy[0]) > 0.92):
     sys.exit(1)

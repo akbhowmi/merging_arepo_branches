@@ -33,10 +33,6 @@
 #include "allvars.h"
 #include "proto.h"
 
-#ifdef STORE_MERGERS_IN_SNAPSHOT
-#include "./blackhole/store_mergers_in_snapshot/mergers_io.h"
-#endif
-
 /*! \brief Allocates memory for global arrays.
  *
  *  This routine allocates memory for
@@ -90,7 +86,7 @@ void allocate_memory(void)
 
 #ifdef CHIMES
   ChimesAbundances    = (double *)mymalloc_movable(&ChimesAbundances, "ChimesAbundances",
-                                                All.MaxPartSph * ChimesGlobalVars.totalNumberOfSpecies * sizeof(double));
+                                                   All.MaxPartSph * ChimesGlobalVars.totalNumberOfSpecies * sizeof(double));
   ChimesPhotonDensity = (double *)mymalloc_movable(&ChimesPhotonDensity, "ChimesPhotonDensity",
                                                    All.MaxPartSph * ChimesGlobalVars.N_spectra * sizeof(double));
   ChimesDustG = (double *)mymalloc_movable(&ChimesDustG, "ChimesDustG", All.MaxPartSph * ChimesGlobalVars.N_spectra * sizeof(double));
@@ -106,13 +102,13 @@ void allocate_memory(void)
 #ifdef TRACER_MC
   mpi_printf("ALLOCATE: initial allocation for MaxPartTracer = %d\n", All.MaxPartTracer);
   TracerLinkedList     = (struct tracer_linked_list *)mymalloc_movable(&TracerLinkedList, "TracerLinkedList",
-                                                                   All.MaxPartTracer * sizeof(struct tracer_linked_list));
+                                                                       All.MaxPartTracer * sizeof(struct tracer_linked_list));
   TracerLinkedListHeap = (int *)mymalloc_movable(&TracerLinkedListHeap, "TracerLinkedListHeap", All.MaxPartTracer * sizeof(int));
   for(int i = 0; i < All.MaxPartTracer; i++)
     TracerLinkedListHeap[i] = i;
 #endif
 
-#ifdef GFM
+#if defined(GFM) || defined(SFR_MCS)
   mpi_printf("ALLOCATE: initial allocation for MaxPartStar = %d\n", All.MaxPartStar);
   StarP = (struct star_particle_data *)mymalloc_movable(&StarP, "StarP", All.MaxPartStar * sizeof(struct star_particle_data));
 #endif
@@ -126,13 +122,6 @@ void allocate_memory(void)
   mpi_printf("ALLOCATE: initial allocation for MaxPartSinks = %d\n", All.MaxPartSinks);
   SinkP = (struct sink_particle_data *)mymalloc_movable(&SinkP, "SinkP", All.MaxPartSinks * sizeof(struct sink_particle_data));
 #endif
-
-#ifdef STORE_MERGERS_IN_SNAPSHOT
-  mpi_printf("ALLOCATE: initial allocation for Mergers = %d\n", All.MaxMergers);
-  MergerEvents = (struct merger_properties *)mymalloc_movable(&MergerEvents, "MergerEvents", All.MaxMergers * sizeof(struct merger_properties));
-#endif
-
-
 
 #ifdef SINK_PARTICLES
   mpi_printf("ALLOCATE: initial allocation for NSinkBufferSize = %d\n", NSinkBufferSize);
@@ -148,18 +137,6 @@ void allocate_memory(void)
 #ifdef EXACT_GRAVITY_FOR_PARTICLE_TYPE
   PartSpecialListGlobal = (struct special_particle_data *)mymalloc_movable(&PartSpecialListGlobal, "PartSpecialListGlobal",
                                                                            All.MaxPartSpecial * sizeof(struct special_particle_data));
-#endif
-
-#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_ALL_SOURCES
-  MPI_Allreduce(&All.MaxPartStar, &All.TotPartStar, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-  PartLymanWernerListGlobal = (struct lyman_werner_particle_data *)mymalloc_movable(&PartLymanWernerListGlobal, "PartLymanWernerListGlobal",
-                                                                           All.TotPartStar * sizeof(struct lyman_werner_particle_data));
-#endif
-
-#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_ALL_STARFORMINGGAS
-  MPI_Allreduce(&All.MaxPartSph, &All.TotPartStarFormingGas, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-  PartLymanWernerStarFormingGasListGlobal = (struct lyman_werner_starforminggas_data *)mymalloc_movable(&PartLymanWernerStarFormingGasListGlobal, "PartLymanWernerStarFormingGasListGlobal",
-                                                                           All.TotPartStarFormingGas * sizeof(struct lyman_werner_starforminggas_data));
 #endif
 
 #ifdef REFINEMENT_AROUND_DM
@@ -209,19 +186,13 @@ void allocate_memory(void)
   memset(TracerLinkedList, 0, All.MaxPartTracer * sizeof(struct tracer_linked_list));
 #endif
 
-#ifdef GFM
+#if defined(GFM) || defined(SFR_MCS)
   memset(StarP, 0, All.MaxPartStar * sizeof(struct star_particle_data));
 #endif
 
 #ifdef BLACK_HOLES
   memset(BHP, 0, All.MaxPartBHs * sizeof(struct bh_particle_data));
 #endif
-
-#ifdef STORE_MERGERS_IN_SNAPSHOT
-  memset(MergerEvents, 0, All.MaxMergers * sizeof(struct merger_properties));
-#endif
-
-
 
 #ifdef SINKS
   memset(SinkP, 0, All.MaxPartSinks * sizeof(struct sink_particle_data));
@@ -350,7 +321,7 @@ void reallocate_memory_maxpartsph_ignore_timebins(void)
 #endif
 }
 
-#ifdef GFM
+#if defined(GFM) || defined(SFR_MCS)
 void reallocate_memory_maxpartstar(void)
 {
   mpi_printf("ALLOCATE: Changing to MaxPartStar = %d\n", All.MaxPartStar);
@@ -358,17 +329,6 @@ void reallocate_memory_maxpartstar(void)
   StarP = (struct star_particle_data *)myrealloc_movable(StarP, All.MaxPartStar * sizeof(struct star_particle_data));
 }
 #endif
-
-#ifdef STORE_MERGERS_IN_SNAPSHOT
-void reallocate_memory_maxmergers(void)
-{
-  mpi_printf("ALLOCATE: Changing to MaxMergers = %d\n", All.MaxMergers);
-
-  MergerEvents = (struct merger_properties *)myrealloc_movable(MergerEvents, All.MaxMergers * sizeof(struct merger_properties));
-}
-#endif
-
-
 
 #ifdef BLACK_HOLES
 void reallocate_memory_maxpartBHs(void)

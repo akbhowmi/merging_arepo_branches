@@ -282,7 +282,7 @@ void ReadPhotoIonTables(struct globalVariables *myGlobalVars, char *photoIonTabl
       myNonEqIon->H2CO_shielding_N   = (double *)mymalloc("ChimesH2CO_N", myNonEqIon->shielding_dimensions[1] * sizeof(double));
       myNonEqIon->CO_shielding_S     = (double **)mymalloc("ChimesCO_S_dim0", myNonEqIon->shielding_dimensions[0] * sizeof(double *));
       myNonEqIon->CO_shielding_S[0]  = (double *)mymalloc(
-          "ChimesCO_S_dim1", myNonEqIon->shielding_dimensions[0] * myNonEqIon->shielding_dimensions[1] * sizeof(double));
+           "ChimesCO_S_dim1", myNonEqIon->shielding_dimensions[0] * myNonEqIon->shielding_dimensions[1] * sizeof(double));
       for(i = 0; i < myNonEqIon->shielding_dimensions[0]; i++)
         myNonEqIon->CO_shielding_S[i] = &(myNonEqIon->CO_shielding_S[0][i * myNonEqIon->shielding_dimensions[1]]);
 

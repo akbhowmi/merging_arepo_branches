@@ -246,24 +246,14 @@ void subfind(int num)
           if(Group[i].GrNr >= Ncollective || Group[i].GrNr < 0)
             terminate("odd");
           Group[i].TargetTask = ProcAssign[Group[i].GrNr].FirstTask;
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-          Group2[i].TargetTask = ProcAssign[Group2[i].GrNr].FirstTask;
-#endif
         }
       else
         Group[i].TargetTask = ((Group[i].GrNr - Ncollective) % (NTask - NprocsCollective)) + NprocsCollective;
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-        Group2[i].TargetTask = ((Group2[i].GrNr - Ncollective) % (NTask - NprocsCollective)) + NprocsCollective;
-#endif
     }
+
   /* distribute the groups */
   subfind_distribute_groups();
   qsort(Group, Ngroups, sizeof(struct group_properties), fof_compare_Group_GrNr);
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-  qsort(Group2, Ngroups, sizeof(struct group_properties), fof_compare_Group_GrNr);
-#endif
-
-
 
   /* assign target CPUs for the particles in groups */
   /* the particles not in groups will be distributed such that a uniform particle load results */
@@ -469,7 +459,7 @@ void subfind(int num)
 
   /* make common allocation on all tasks */
   int max_load, max_loadsph, load;
-#ifdef GFM
+#if defined(GFM) || defined(SFR_MCS)
   int max_loadstar;
 #endif
 #ifdef BLACK_HOLES
@@ -486,7 +476,7 @@ void subfind(int num)
   load = All.MaxPartSph;
   MPI_Allreduce(&load, &max_loadsph, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 
-#ifdef GFM
+#if defined(GFM) || defined(SFR_MCS)
   load = All.MaxPartStar;
   MPI_Allreduce(&load, &max_loadstar, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 #endif
@@ -509,7 +499,7 @@ void subfind(int num)
   All.MaxPartSph = max_loadsph;
   reallocate_memory_maxpartsph_ignore_timebins();
 
-#ifdef GFM
+#if defined(GFM) || defined(SFR_MCS)
   All.MaxPartStar = max_loadstar;
   reallocate_memory_maxpartstar();
 #endif
@@ -569,9 +559,6 @@ void subfind(int num)
   /* sort the groups according to group/subgroup-number */
   t0 = second();
   parallel_sort(Group, Ngroups, sizeof(struct group_properties), fof_compare_Group_GrNr);
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION 
-  parallel_sort(Group2, Ngroups, sizeof(struct group_properties), fof_compare_Group_GrNr);
-#endif
   parallel_sort(SubGroup, Nsubgroups, sizeof(struct subgroup_properties), subfind_compare_SubGroup_GrNr_SubNr);
   t1 = second();
   mpi_printf("SUBFIND: assembled and ordered groups and subgroups (took %g sec)\n", timediff(t0, t1));
@@ -608,10 +595,7 @@ void subfind(int num)
   TIMER_START(CPU_SNAPSHOT);
 
   /* now final output of catalogue */
-#ifdef SEED_BLACKHOLES_IN_SUBHALOS
-  if(num >= 0)
-#endif
-     subfind_save_final(num);
+  subfind_save_final(num);
 
   TIMER_STOP(CPU_SNAPSHOT);
   TIMER_START(CPU_SUBFIND);
@@ -674,7 +658,7 @@ void subfind_reorder_according_to_submp(void)
               PS[dest] = PSsource;
               Id[dest] = idsource;
 
-#ifdef GFM
+#if defined(GFM) || defined(SFR_MCS)
               if(P[dest].Type == 4)
                 StarP[P[dest].AuxDataID].PID = dest;
 #endif

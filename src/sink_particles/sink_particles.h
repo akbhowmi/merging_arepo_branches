@@ -84,6 +84,9 @@ extern struct global_sink_particle_data
   double SFeff;
 #endif
 #endif
+#ifdef STORE_SINK_PARTICLE_SPIN
+  double AngularMomentum[3];
+#endif
 } * SinkP, *export_SinkP;
 
 /*The following keeps track of which Task just formed a sink

@@ -11,7 +11,9 @@ import utils
 Lx = Ly = Lz = 100.0
 N = 100
 
-numTasksMPI = 8  # also ok: 1, 2, 4 (?)
+# Result seems to depend on compiler/MPI library and number of MPI tasks;
+# seems to work with ICC/Intel MPI and 1, 2, 4, or 8 tasks (?)
+numTasksMPI = 8
 
 
 def create_ics(path, filename='ics.hdf5'):

@@ -86,6 +86,9 @@ void calculate_gradients(void)
       SphP[i].DivVel = 0;
 #endif /* #if defined (OUTPUT_DIVVEL) || defined(TGCHEM) || defined(SGCHEM) */
 
+      for(int j = 0; j < 3; j++)
+        SphP[i].Grad.Center[j] = SphP[i].Center[j]; /* center of mass of cell at time of computation of gradient */
+
 #ifdef DEREFINE_GENTLY
       SphP[i].DoNotDerefFlag = 0;
 #endif /* #ifdef DEREFINE_GENTLY */
@@ -820,6 +823,32 @@ void calculate_gradients(void)
       SphP[i].CurlB[2] = SphP[i].Grad.dB[1][0] - SphP[i].Grad.dB[0][1];
     }
 #endif /* #ifdef MHD */
+
+#ifdef TURB_APPROX_MCS
+#ifdef TURB_APPROX_MCS_GRAD_UNLIM
+  /* Save velocity gradients before slope limiting */
+  for(int idx = 0; idx < TimeBinsHydro.NActiveParticles; idx++)
+    {
+      int i = TimeBinsHydro.ActiveParticleList[idx];
+      if(i < 0)
+        continue;
+      memcpy(SphP[i].dvel_unlim, SphP[i].Grad.dvel, 9 * sizeof(MySingle));
+    }
+#endif  // TURB_APPROX_MCS_GRAD_UNLIM
+#elif SFR_MCS_RATE_CRITERIA > 0
+  for(int idx = 0; idx < TimeBinsHydro.NActiveParticles; idx++)
+    {
+      int i = TimeBinsHydro.ActiveParticleList[idx];
+      if(i < 0)
+        continue;
+      SphP[i].gradv_sq = 0;
+      for(int j = 0; j < 3; j++)
+        {
+          for(int k = 0; k < 3; k++)
+            SphP[i].gradv_sq += SphP[i].Grad.dvel[j][k] * SphP[i].Grad.dvel[j][k];
+        }
+    }
+#endif
 
 #ifndef UNLIMITED_GRADIENTS
 #if defined(SHOCK_FINDER_BEFORE_OUTPUT) || defined(SHOCK_FINDER_ON_THE_FLY)

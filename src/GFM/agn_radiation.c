@@ -253,7 +253,7 @@ void assign_agn_radiation(void)
       agnlum = get_agn_luminosity(BPP(i).BH_Mdot, BPP(i).BH_Mass);
 
       r200c                      = pow(BPP(i).HostHaloMass / (4 * M_PI / 3.0 * 200 * rhocrit),
-                  1.0 / 3.0); /* physical r_200,crit value, assuming FoF mass = M_200,crit */
+                                       1.0 / 3.0); /* physical r_200,crit value, assuming FoF mass = M_200,crit */
       radius_by_ionization_param = sqrt(agnlum / (ionization_param_min * nH_mean)) / All.UnitLength_in_cm;
       Radius[i] =
           fmin(radius_by_ionization_param, BPP(i).HostHaloMass == 0 ? radius_by_ionization_param : GFM_AGN_RAD_RVIR_FAC * r200c);

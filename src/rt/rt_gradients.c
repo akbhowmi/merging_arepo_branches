@@ -96,8 +96,8 @@ void rt_calculate_green_gauss_gradients(void)
 
   for(k = 0; k < RT_N_Grad; k++)
     {
-      rt_grad_elements[k].min_value = mymalloc("rt_gradmin", NumGas * sizeof(double));
-      rt_grad_elements[k].max_value = mymalloc("rt_gradmax", NumGas * sizeof(double));
+      rt_grad_elements[k].min_value = (double *)mymalloc("rt_gradmin", NumGas * sizeof(double));
+      rt_grad_elements[k].max_value = (double *)mymalloc("rt_gradmax", NumGas * sizeof(double));
     }
 
   for(idx = 0; idx < TimeBinsHydro.NActiveParticles; idx++)

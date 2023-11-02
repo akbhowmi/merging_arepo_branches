@@ -30,7 +30,7 @@ def verify_result(path):
     # open initial conditions to get parameters
     try:
         data = h5py.File(os.path.join(path, IC_FILENAME), 'r')
-    except:
+    except (OSError, IOError):
         return False, ['Could not open initial conditions!']
     Boxsize = FloatType(data['Header'].attrs['BoxSize'])
     NumberOfCells = np.int32(data['Header'].attrs['NumPart_Total'][0])
@@ -47,8 +47,12 @@ def verify_result(path):
         try:
             # get simulation data
             Pos, Density, Mass, Velocity, Uthermal = read_data(
-                os.path.join(path, filename))
+                os.path.join(directory, filename))
         except (OSError, IOError):
+            # should have at least two snapshots
+            if i_file <= 1:
+                info.append('Could not find snapshot ' + filename + '!')
+                return False, info
             break
         Volume = Mass / Density
         # calculate analytic solution at new cell positions
@@ -80,7 +84,12 @@ def verify_result(path):
         info.append('\t tolerance: %g for %d cells' %
                     (DeltaMaxAllowed, NumberOfCells))
         # criteria for failing the test
-        if L1_dens > DeltaMaxAllowed or L1_vel > DeltaMaxAllowed or L1_utherm > DeltaMaxAllowed:
+        success = (
+            L1_dens <= DeltaMaxAllowed and
+            L1_vel <= DeltaMaxAllowed and
+            L1_utherm <= DeltaMaxAllowed
+        )
+        if not success:
             return False, info
 
         i_file += 1
@@ -95,7 +104,7 @@ def visualize_result(path, Lx, Ly):
     matplotlib.rc_file_defaults()
     try:
         data = h5py.File(os.path.join(path, IC_FILENAME), 'r')
-    except:
+    except (OSError, IOError):
         return
     Boxsize = FloatType(data['Header'].attrs['BoxSize'])
     NumberOfCells = np.int32(data['Header'].attrs['NumPart_Total'][0])
@@ -110,6 +119,23 @@ def visualize_result(path, Lx, Ly):
                 os.path.join(directory, filename))
         except (OSError, IOError):
             break
+        
+        Volume = Mass / Density
+        # calculate analytic solution at new cell positions
+        Density_ref = np.full(Pos.shape[0], density_0, dtype=FloatType)
+        Velocity_ref = np.zeros(Pos.shape, dtype=FloatType)
+        ## perturbations
+        Density_ref *= FloatType(1.0) + delta * np.sin(
+            FloatType(2.0) * FloatType(np.pi) * Pos[:, 0] / Boxsize)
+        Velocity_ref[:, 0] = velocity_0
+        # compare data
+        ## density
+        abs_delta_dens = np.abs(Density - Density_ref) / Density_ref
+        L1_dens = np.average(abs_delta_dens, weights=Volume)
+
+        ## velocity, here, use absolute error (velocity should be zero! check only x-vel, taking all components dilutes the norm!)
+        abs_delta_vel = np.abs(Velocity - Velocity_ref)[:, 0]
+        L1_vel = np.average(abs_delta_vel, weights=Volume)
 
         if not os.path.exists(os.path.join(path, 'plots')):
             os.mkdir(os.path.join(path, 'plots'))

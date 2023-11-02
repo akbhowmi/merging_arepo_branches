@@ -33,6 +33,10 @@
 #define DIFFUSION_ACCURACY 1.0e-8
 #define DIFFUSION_MAX_COLS 1000
 
+#ifdef COSMIC_RAYS_DIFFUSION_RELATIVE_CR_ENERGY_THRESHOLD
+#define DIFFUSION_RELATIVE_CR_ENERGY_THRESHOLD 1e-20
+#endif
+
 /* structs first ... */
 static struct diff_face_data *diff_face_data;
 
@@ -105,6 +109,7 @@ struct matrix_data
   int *imported_particle_indizes;
 
   struct column_data *column_data;
+  int column_data_maxcount;
   int cd_count;
 
   int *external_index; /* stores global index of external particles imported to PrimExch */
@@ -191,6 +196,31 @@ void do_cr_diffusion(void)
     }
   else
     mpi_printf("COSMIC_RAYS DIFFUSION: Doing diffusion for %d active cells.\n", CountAll);
+
+#ifdef COSMIC_RAYS_DIFFUSION_RELATIVE_CR_ENERGY_THRESHOLD
+  int HaveCellWithRelevantCREnergy = 0;
+  for(int i = 0; i < TimeBinsHydro.NActiveParticles; i++)
+    {
+      int idx = TimeBinsHydro.ActiveParticleList[i];
+      if(idx < 0)
+        continue;
+
+      if(SphP[idx].CR_Energy >= DIFFUSION_RELATIVE_CR_ENERGY_THRESHOLD * SphP[idx].Utherm * P[idx].Mass)
+        {
+          HaveCellWithRelevantCREnergy = 1;
+          break;
+        }
+    }
+
+  int HaveCellWithRelevantCREnergyAll;
+  MPI_Allreduce(&HaveCellWithRelevantCREnergy, &HaveCellWithRelevantCREnergyAll, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+
+  if(!HaveCellWithRelevantCREnergyAll)
+    {
+      mpi_printf("COSMIC_RAYS DIFFUSION: All active cells have ECR/ETherm < %g, skipping.\n", DIFFUSION_RELATIVE_CR_ENERGY_THRESHOLD);
+      return;
+    }
+#endif
 
   TIMER_START(CPU_CR_DIFFUSION_PREPARE);
 
@@ -451,7 +481,7 @@ void prepare_stuff(void)
     and save their center positions */
 
   diff_face_data = (struct diff_face_data *)mymalloc("diff_face_data", Mesh.Nvf * sizeof(struct diff_face_data));
-  corner_list    = (struct corner_list *)mymalloc("corner_list", Mesh.Nvf * 20 * sizeof(struct corner_list));
+  corner_list    = (struct corner_list *)mymalloc("corner_list", Mesh.Nvf * 30 * sizeof(struct corner_list));
   corner_data    = (struct corner_data *)mymalloc("corner_data", Mesh.Ndt * sizeof(struct corner_data));
 
   /* compute matrices and magnetic fields at corners */
@@ -700,7 +730,7 @@ double get_surface_area_of_cell(int point)
 
 void add_corner(int tt, int iface)
 {
-  if(cornerCount >= Mesh.Nvf * 20)
+  if(cornerCount >= Mesh.Nvf * 30)
     terminate("urg");
 
   corner_list[cornerCount].index = tt;
@@ -1197,7 +1227,7 @@ void diffusion_explicit(void)
 
   int iface;
 
-  double *pCREnergy = mymalloc("pCREnergy", Mesh.Ndp * sizeof(double));
+  double *pCREnergy = (double *)mymalloc("pCREnergy", Mesh.Ndp * sizeof(double));
   int p;
   for(p = 0; p < Mesh.Ndp; p++)
     {
@@ -1223,7 +1253,7 @@ void diffusion_explicit(void)
   int NCRflux, MaxNCRflux;
   MaxNCRflux = Mesh.Indi.AllocFacNflux;
   NCRflux    = 0;
-  CRFluxList = mymalloc_movable(&CRFluxList, "FluxList", MaxNCRflux * sizeof(struct crflux_list_data));
+  CRFluxList = (struct crflux_list_data *)mymalloc_movable(&CRFluxList, "FluxList", MaxNCRflux * sizeof(struct crflux_list_data));
 
   for(iface = 0; iface < Mesh.Nvf; iface++)
     {
@@ -1436,7 +1466,8 @@ void diffusion_explicit(void)
                     {
                       Mesh.Indi.AllocFacNflux *= ALLOC_INCREASE_FACTOR;
                       MaxNCRflux = Mesh.Indi.AllocFacNflux;
-                      CRFluxList = myrealloc_movable(CRFluxList, MaxNCRflux * sizeof(struct crflux_list_data));
+                      CRFluxList =
+                          (struct crflux_list_data *)myrealloc_movable(CRFluxList, MaxNCRflux * sizeof(struct crflux_list_data));
 
                       if(NCRflux >= MaxNCRflux)
                         terminate("NCRflux >= MaxNCRflux");
@@ -2114,14 +2145,17 @@ void allocate_rows_offsets_and_indizes(struct matrix_data *md)
   md->first_column     = (int *)mymalloc("first_column", sizeof(int) * NumGas);
   md->last_column      = (int *)mymalloc("last_column", sizeof(int) * NumGas);
 
-  md->column_data = (struct column_data *)mymalloc("column_data", sizeof(struct column_data) * NumGas * 20 * NUMDIMS);
-  md->cd_count    = 0;
+  md->column_data_maxcount = NumGas * 30 * NUMDIMS;
+  md->column_data =
+      (struct column_data *)mymalloc_movable(&md->column_data, "column_data", sizeof(struct column_data) * md->column_data_maxcount);
+  md->cd_count = 0;
 
-  md->imported_particle_indizes = (int *)mymalloc("imported_particle_indizes", sizeof(int) * Mesh_nimport);
+  md->imported_particle_indizes =
+      (int *)mymalloc_movable(&md->imported_particle_indizes, "imported_particle_indizes", sizeof(int) * Mesh_nimport);
   for(icell = 0; icell < Mesh_nimport; icell++)
     md->imported_particle_indizes[icell] = -1;
 
-  md->offsets = (int *)mymalloc("offsets", sizeof(int) * (NTask + 1));
+  md->offsets = (int *)mymalloc_movable(&md->offsets, "offsets", sizeof(int) * (NTask + 1));
 
   md->local_row_count = 0;
 }
@@ -2186,7 +2220,8 @@ void compute_rows_offsets_and_indizes(struct matrix_data *md, int fullNormalGrad
               if(N_external_cells >= Nmax_external_cells)
                 {
                   Nmax_external_cells *= ALLOC_INCREASE_FACTOR;
-                  external_cells = myrealloc_movable(external_cells, Nmax_external_cells * sizeof(struct external_cells));
+                  external_cells =
+                      (struct external_cells *)myrealloc_movable(external_cells, Nmax_external_cells * sizeof(struct external_cells));
                 }
 
               external_cells[N_external_cells].task  = Mesh.DP[p].task;
@@ -2230,7 +2265,8 @@ void compute_rows_offsets_and_indizes(struct matrix_data *md, int fullNormalGrad
                       if(N_external_cells >= Nmax_external_cells)
                         {
                           Nmax_external_cells *= ALLOC_INCREASE_FACTOR;
-                          external_cells = myrealloc_movable(external_cells, Nmax_external_cells * sizeof(struct external_cells));
+                          external_cells = (struct external_cells *)myrealloc_movable(
+                              external_cells, Nmax_external_cells * sizeof(struct external_cells));
                         }
 
                       external_cells[N_external_cells].task  = Mesh.DP[p].task;
@@ -2426,7 +2462,7 @@ void set_matrix_coefficients(struct matrix_data *md, struct hypre_data *hd, int 
 {
   if(md->local_row_count > 0)
     {
-      hd->bval = (double *)mymalloc("bval", md->local_row_count * sizeof(double));
+      hd->bval = (double *)mymalloc_movable(&hd->bval, "bval", md->local_row_count * sizeof(double));
 
       for(int row = 0; row < md->local_row_count; row++)
         {
@@ -2440,7 +2476,7 @@ void set_matrix_coefficients(struct matrix_data *md, struct hypre_data *hd, int 
   ee.N_external_elements    = 0;
   ee.Nmax_external_elements = Mesh.Indi.AllocFacNflux;
   ee.elements               = (struct external_element *)mymalloc_movable(&ee.elements, "external_elements",
-                                                            sizeof(struct external_element) * ee.Nmax_external_elements);
+                                                                          sizeof(struct external_element) * ee.Nmax_external_elements);
 
   int row;
   for(row = 0; row < md->local_row_count; row++)
@@ -2452,7 +2488,7 @@ void set_matrix_coefficients(struct matrix_data *md, struct hypre_data *hd, int 
       md->last_column[particle]  = md->cd_count;
       md->cd_count++;
 
-      if(md->cd_count >= NumGas * 20 * NUMDIMS)
+      if(md->cd_count >= md->column_data_maxcount)
         terminate("baaad");
 
       cd->next_column = -1;
@@ -2618,8 +2654,8 @@ void set_matrix_coefficients(struct matrix_data *md, struct hypre_data *hd, int 
         }
     }
 
-  struct external_element *external_elements_get =
-      (struct external_element *)mymalloc("external_elements_get", nimport * sizeof(struct external_element));
+  struct external_element *external_elements_get = (struct external_element *)mymalloc_movable(
+      &external_elements_get, "external_elements_get", nimport * sizeof(struct external_element));
 
   for(ngrp = 0; ngrp < (1 << PTask); ngrp++)
     {
@@ -2659,8 +2695,12 @@ void set_matrix_coefficients(struct matrix_data *md, struct hypre_data *hd, int 
 
       if(!cd || cd->index != column)
         {
-          if(md->cd_count >= NumGas * 20 * NUMDIMS)
-            terminate("list too long");
+          if(md->cd_count >= md->column_data_maxcount)
+            {
+              md->column_data_maxcount += md->column_data_maxcount / 10;
+              md->column_data =
+                  (struct column_data *)myrealloc_movable(md->column_data, sizeof(struct column_data) * md->column_data_maxcount);
+            }
 
           cd = &md->column_data[md->cd_count];
           if(md->first_column[particle] == -1)
@@ -2938,8 +2978,12 @@ void add_matrix_element(int point_row, int point_column, double val, struct matr
       if(entry == -1)
         {
           /* need new entry */
-          if(md->cd_count >= NumGas * 20 * NUMDIMS)
-            terminate("list too long");
+          if(md->cd_count >= md->column_data_maxcount)
+            {
+              md->column_data_maxcount += md->column_data_maxcount / 10;
+              md->column_data =
+                  (struct column_data *)myrealloc_movable(md->column_data, sizeof(struct column_data) * md->column_data_maxcount);
+            }
 
           struct column_data *cd = &md->column_data[md->cd_count];
           if(md->first_column[particle] == -1)
@@ -2970,7 +3014,8 @@ void add_matrix_element(int point_row, int point_column, double val, struct matr
       if(ee->N_external_elements >= ee->Nmax_external_elements)
         {
           ee->Nmax_external_elements *= ALLOC_INCREASE_FACTOR;
-          ee->elements = myrealloc_movable(ee->elements, sizeof(struct external_element) * ee->Nmax_external_elements);
+          ee->elements =
+              (struct external_element *)myrealloc_movable(ee->elements, sizeof(struct external_element) * ee->Nmax_external_elements);
         }
 
       struct external_element *el = &ee->elements[ee->N_external_elements];

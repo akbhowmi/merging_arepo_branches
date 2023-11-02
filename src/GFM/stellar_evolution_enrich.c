@@ -572,8 +572,13 @@ static int enrich_evaluate(int target, int mode, int threadid)
       if(P[j].Mass > 0 && P[j].ID != 0) /* skip cells that have been swallowed or dissolved */
         {
 #ifdef SMUGGLE_STAR_FEEDBACK
+#ifdef BH_BASED_CGM_ZOOM
+          if(P[j].Mass < 0.3 * All.TargetGasMass / All.CGM_RefinementFactor)
+            continue;
+#else
           if(P[j].Mass < 0.3 * All.TargetGasMass)
             continue;
+#endif
 #endif
 
 #ifdef SMUGGLE_OMEGA_WEIGHT_SN
@@ -710,10 +715,12 @@ static int enrich_evaluate(int target, int mode, int threadid)
 
 #ifdef REFINEMENT_HIGH_RES_GAS
           /* mass scale factor to new total mass */
-          SphP[j].HighResMass *= mass_fac;
+          if(dm_total > 0)
+            SphP[j].HighResMass *= mass_fac;
 #endif
 #ifdef REFINEMENT_CGM
-          SphP[j].HighResMassCGM *= mass_fac;
+          if(dm_total > 0)
+            SphP[j].HighResMassCGM *= mass_fac;
 #endif
 
 #ifdef GFM_INJECT_B_FROM_SN

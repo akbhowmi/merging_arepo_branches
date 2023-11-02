@@ -28,11 +28,7 @@
 
 #ifdef SUBFIND
 
-static struct group_properties *send_Group
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-,*send_Group2
-#endif
-;
+static struct group_properties *send_Group;
 
 /*! \brief Distributes groups equally on MPI tasks.
  *
@@ -73,13 +69,8 @@ void subfind_distribute_groups(void)
 
   send_Group = (struct group_properties *)mymalloc_movable(&send_Group, "send_Group", nexport * sizeof(struct group_properties));
 
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-  send_Group2 = (struct group_properties *)mymalloc_movable(&send_Group2, "send_Group2", nexport * sizeof(struct group_properties));
-#endif
-
   for(i = 0; i < NTask; i++)
     Send_count[i] = 0;
-
 
   for(i = 0; i < Ngroups; i++)
     {
@@ -88,12 +79,9 @@ void subfind_distribute_groups(void)
       if(target != ThisTask)
         {
           send_Group[Send_offset[target] + Send_count[target]] = Group[i];
-          Group[i] = Group[Ngroups - 1];
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-          send_Group2[Send_offset[target] + Send_count[target]] = Group2[i];
-          Group2[i] = Group2[Ngroups - 1];
-#endif
           Send_count[target]++;
+
+          Group[i] = Group[Ngroups - 1];
           Ngroups--;
           i--;
         }
@@ -107,9 +95,6 @@ void subfind_distribute_groups(void)
 #endif
       MaxNgroups = Ngroups + nimport;
       Group      = (struct group_properties *)myrealloc_movable(Group, sizeof(struct group_properties) * MaxNgroups);
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-      Group2	 = (struct group_properties *)myrealloc_movable(Group2, sizeof(struct group_properties) * MaxNgroups);
-#endif
     }
 
   for(ngrp = 1; ngrp < (1 << PTask); ngrp++)
@@ -125,24 +110,13 @@ void subfind_distribute_groups(void)
                            recvTask, TAG_DENS_A, &Group[Ngroups + Recv_offset[recvTask]],
                            Recv_count[recvTask] * sizeof(struct group_properties), MPI_BYTE, recvTask, TAG_DENS_A, MPI_COMM_WORLD,
                            MPI_STATUS_IGNORE);
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-              MPI_Sendrecv(&send_Group2[Send_offset[recvTask]], Send_count[recvTask] * sizeof(struct group_properties), MPI_BYTE,
-                           recvTask, TAG_DENS_A2, &Group2[Ngroups + Recv_offset[recvTask]],
-                           Recv_count[recvTask] * sizeof(struct group_properties), MPI_BYTE, recvTask, TAG_DENS_A2, MPI_COMM_WORLD,
-                           MPI_STATUS_IGNORE);
-#endif
-
             }
         }
     }
 
   Ngroups += nimport;
-#ifdef SEED_HALO_ENVIRONMENT_CRITERION
-  myfree_movable(send_Group2);
-#endif
+
   myfree_movable(send_Group);
-
-
 }
 
 static struct particle_data *partBuf;
@@ -368,7 +342,7 @@ void subfind_reorder_P(int *Id, int Nstart, int N)
               P[dest]  = Psource;
               Id[dest] = idsource;
 
-#ifdef GFM
+#if defined(GFM) || defined(SFR_MCS)
               if(P[dest].Type == 4)
                 StarP[P[dest].AuxDataID].PID = dest;
 #endif

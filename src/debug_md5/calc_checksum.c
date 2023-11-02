@@ -72,7 +72,7 @@ void log_restart_debug(void)
   int i;
 
   MD5Init(&sum);
-  MD5UpdateLong(&sum, (void *)P, NumPart * sizeof(struct particle_data));
+  MD5UpdateLong(&sum, (unsigned char *)P, NumPart * sizeof(struct particle_data));
   MD5Final(&sum);
 
   for(i = 0; i < 16; i++)
@@ -81,7 +81,7 @@ void log_restart_debug(void)
   MPI_Allreduce(u.val, uglob_P.val, 4, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
   MD5Init(&sum);
-  MD5UpdateLong(&sum, (void *)SphP, NumGas * sizeof(struct sph_particle_data));
+  MD5UpdateLong(&sum, (unsigned char *)SphP, NumGas * sizeof(struct sph_particle_data));
   MD5Final(&sum);
 
   for(i = 0; i < 16; i++)
@@ -89,9 +89,9 @@ void log_restart_debug(void)
 
   MPI_Allreduce(u.val, uglob_SphP.val, 4, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
-#ifdef GFM
+#if defined(GFM) || defined(SFR_MCS)
   MD5Init(&sum);
-  MD5UpdateLong(&sum, (void *)StarP, N_star * sizeof(struct star_particle_data));
+  MD5UpdateLong(&sum, (unsigned char *)StarP, N_star * sizeof(struct star_particle_data));
   MD5Final(&sum);
 
   for(i = 0; i < 16; i++)
@@ -102,7 +102,7 @@ void log_restart_debug(void)
 
 #ifdef BLACK_HOLES
   MD5Init(&sum);
-  MD5UpdateLong(&sum, (void *)BHP, NumBHs * sizeof(struct bh_particle_data));
+  MD5UpdateLong(&sum, (unsigned char *)BHP, NumBHs * sizeof(struct bh_particle_data));
   MD5Final(&sum);
 
   for(i = 0; i < 16; i++)
@@ -122,7 +122,7 @@ void log_restart_debug(void)
       for(i = 0; i < 16; i++)
         fprintf(FdRestartTest, "%02x", uglob_SphP.digest[i]);
       fprintf(FdRestartTest, "\n");
-#ifdef GFM
+#if defined(GFM) || defined(SFR_MCS)
       fprintf(FdRestartTest, "               StarP[]    ");
       for(i = 0; i < 16; i++)
         fprintf(FdRestartTest, "%02x", uglob_StarP.digest[i]);

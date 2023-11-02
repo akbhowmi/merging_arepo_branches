@@ -72,11 +72,10 @@ double find_stromgren_radius_around_sink(int isink, int *local_n, int *total_n, 
 
   } * storeLocalData, *storeGlobalData;
 
-  storeGlobalData = mymalloc("storeGlobalData", *total_n * sizeof(struct collect_data));
-  storeLocalData  = mymalloc("storeLocalData", *local_n * sizeof(struct collect_data));
+  storeGlobalData = (struct collect_data *)mymalloc("storeGlobalData", *total_n * sizeof(struct collect_data));
+  storeLocalData  = (struct collect_data *)mymalloc("storeLocalData", *local_n * sizeof(struct collect_data));
 
-  int *nfoundEachTask;
-  nfoundEachTask = mymalloc("nfoundEachTask", NTask * sizeof(int));
+  int *nfoundEachTask = (int *)mymalloc("nfoundEachTask", NTask * sizeof(int));
   MPI_Allgather(local_n, 1, MPI_INT, nfoundEachTask, 1, MPI_INT, MPI_COMM_WORLD);
 
   double sinkx = SinkP[isink].Pos[0];

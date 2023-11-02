@@ -39,7 +39,7 @@ if ic_creation == 'copy':
 elif ic_creation == 'music':
     ## create new initial conditions with the MUSIC code
     status = call([
-        'hg', 'clone', 'https://bitbucket.org/ohahn/music',
+        'git', 'clone', 'https://bitbucket.org/ohahn/music',
         os.path.join(simulation_directory, 'music')
     ])
     if status != 0:
@@ -88,7 +88,7 @@ else:
     sys.exit(1)
 # set output times
 outputTimes = np.array(create_parameters.outputTimes, dtype=np.float64)
-ones = np.ones(outputTimes.shape, dtype=np.int)
+ones = np.ones(outputTimes.shape, dtype=int)
 
 # copy treecool file to run directory
 if len(sys.argv) > 2:

@@ -24,7 +24,7 @@ def verify_result(path):
     ## open initial conditions to get parameters
     try:
         data = h5py.File(os.path.join(path, IC_FILENAME), 'r')
-    except:
+    except (OSError, IOError):
         return False, ['Could not open initial conditions!']
     Boxsize = FloatType(data['Header'].attrs['BoxSize'])
     NumberOfCells = np.int32(data['Header'].attrs['NumPart_Total'][0])
@@ -42,6 +42,10 @@ def verify_result(path):
             x, vel, rho, u, B = read_sim_data(os.path.join(
                 directory, filename))
         except (OSError, IOError):
+            # should have at least three snapshots
+            if i_file <= 2:
+                info.append('Could not find snapshot ' + filename + '!')
+                return False, info
             break
 
         absB = np.sqrt(B[:, 0]**2 + B[:, 1]**2 + B[:, 2]**2)
@@ -67,14 +71,13 @@ def verify_result(path):
             tolerance_u = 0.09 * res_scaling
             tolerance_B = 0.05 * res_scaling
 
-            if np.std(delta_rho) > tolerance_rho:
-                status = False
-            if np.std(delta_vel) > tolerance_vel:
-                status = False
-            if np.std(delta_u) > tolerance_u:
-                status = False
-            if np.std(delta_B) > tolerance_B:
-                status = False
+            success = (
+                np.std(delta_rho) <= tolerance_rho and
+                np.std(delta_vel) <= tolerance_vel and
+                np.std(delta_u) <= tolerance_u and
+                np.std(delta_B) <= tolerance_B
+            )
+            status = status and success
 
             info.append(
                 'standard deviations of absolute error and tolerance (density, velocity, int. energy, magnetic field:'
