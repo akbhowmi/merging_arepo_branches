@@ -17,7 +17,7 @@ def git_version():
     from subprocess import Popen, PIPE
 
     pipe = Popen('git log -n 1', stdout=PIPE, shell=True)
-    info = pipe.stdout.read().decode('ascii').split("\n")
+    info = pipe.stdout.read().split("\n")
 
     dateLine = 3 if 'Merge:' in info[1] else 2
 

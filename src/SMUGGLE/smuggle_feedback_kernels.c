@@ -148,13 +148,8 @@ void cooling_radius_momentum_feedback(int target, int mode, int thread_id, int n
               weight_fac = SphP[j].Volume / normsph;
 #endif
 
-#ifdef BH_BASED_CGM_ZOOM
-              if(P[j].Mass < 0.3 * All.TargetGasMass / All.CGM_RefinementFactor)
-                continue;
-#else
               if(P[j].Mass < 0.3 * All.TargetGasMass)
                 continue;
-#endif
 
               double coolfac = 1.0;
 

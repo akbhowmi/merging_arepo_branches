@@ -185,7 +185,7 @@ void move_collisionless_particle(int new_i, int old_i)
 
   P[new_i] = P[old_i];
 
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
   if(P[new_i].Type == 4)
     StarP[P[new_i].AuxDataID].PID = new_i;
 #endif

@@ -71,7 +71,7 @@ void domain_resize_storage(int count_get, int count_get_sph, int option_flag)
     }
 }
 
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
 void domain_resize_storage_stars(int count_get_star)
 {
   int max_starload, starload = N_star + count_get_star;
@@ -175,7 +175,7 @@ void domain_exchange(void)
   int *count_recv_tracer, *offset_recv_tracer;
   struct tracer_linked_list *tracerBuf, *tracerRecvBuf;
 #endif
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
   int count_togo_star = 0, count_get_star = 0;
   int *count_star, *offset_star;
   int *count_recv_star, *offset_recv_star;
@@ -236,7 +236,7 @@ void domain_exchange(void)
   count_recv_tracer  = (int *)mymalloc_movable(&count_recv_tracer, "count_recv_tracer", NTask * sizeof(int));
   offset_recv_tracer = (int *)mymalloc_movable(&offset_recv_tracer, "offset_recv_tracer", NTask * sizeof(int));
 #endif
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
   count_star          = (int *)mymalloc_movable(&count_star, "count_star", NTask * sizeof(int));
   offset_star         = (int *)mymalloc_movable(&offset_star, "offset_star", NTask * sizeof(int));
   count_recv_star     = (int *)mymalloc_movable(&count_recv_star, "count_recv_star", NTask * sizeof(int));
@@ -288,7 +288,7 @@ void domain_exchange(void)
     offset_tracer[i] = offset_tracer[i - 1] + toGoTracer[i - 1];
 #endif
 
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
   offset_star[0] = prec_offset;
   for(i = 1; i < NTask; i++)
     {
@@ -344,7 +344,7 @@ void domain_exchange(void)
       count_togo_tracer += toGoTracer[i];
       count_get_tracer += toGetTracer[i];
 #endif
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
       count_togo_star += toGoStar[i];
       count_get_star += toGetStar[i];
 #endif
@@ -370,7 +370,7 @@ void domain_exchange(void)
   tracerRecvBuf = (struct tracer_linked_list *)mymalloc_movable(&tracerRecvBuf, "tracerRecvBuf",
                                                                 count_get_tracer * sizeof(struct tracer_linked_list));
 #endif
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
   starBuf = (struct star_particle_data *)mymalloc_movable(&starBuf, "starBuf", count_togo_star * sizeof(struct star_particle_data));
 #endif
 #ifdef BLACK_HOLES
@@ -385,7 +385,7 @@ void domain_exchange(void)
 #endif
 #ifdef CHIMES
   sphAbundancesBuf     = (double *)mymalloc_movable(&sphAbundancesBuf, "abunBuf",
-                                                    count_togo_sph * ChimesGlobalVars.totalNumberOfSpecies * sizeof(double));
+                                                count_togo_sph * ChimesGlobalVars.totalNumberOfSpecies * sizeof(double));
   sphAbundancesRecvBuf = (double *)mymalloc_movable(&sphAbundancesRecvBuf, "xRecBuf",
                                                     count_get_sph * ChimesGlobalVars.totalNumberOfSpecies * sizeof(double));
 #endif
@@ -398,7 +398,7 @@ void domain_exchange(void)
 #ifdef TRACER_MC
       count_tracer[i] = 0;
 #endif
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
       count_star[i] = 0;
 #endif
 #ifdef BLACK_HOLES
@@ -455,7 +455,7 @@ void domain_exchange(void)
 
               count_sph[target]++;
             }
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
           else if(P[n].Type == 4)
             {
               partBuf[offset_star[target] + count_star[target]] = P[n];
@@ -533,7 +533,7 @@ void domain_exchange(void)
             {
               P[n]          = P[NumGas - 1];
               P[NumGas - 1] = P[NumPart - 1];
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
               if(P[NumGas - 1].Type == 4)
                 StarP[P[NumGas - 1].AuxDataID].PID = NumGas - 1;
 #endif
@@ -566,7 +566,7 @@ void domain_exchange(void)
 
               NumGas--;
             }
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
           else if(P[n].Type == 4)
             {
               StarP[P[n].AuxDataID]              = StarP[N_star - 1];
@@ -576,7 +576,7 @@ void domain_exchange(void)
                 {
                   P[n]   = P[NumPart - 1];
                   Key[n] = Key[NumPart - 1];
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
                   if(P[n].Type == 4)
                     StarP[P[n].AuxDataID].PID = n;
 #endif
@@ -607,7 +607,7 @@ void domain_exchange(void)
                 {
                   P[n]   = P[NumPart - 1];
                   Key[n] = Key[NumPart - 1];
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
                   if(P[n].Type == 4)
                     StarP[P[n].AuxDataID].PID = n;
 #endif
@@ -638,7 +638,7 @@ void domain_exchange(void)
                 {
                   P[n]   = P[NumPart - 1];
                   Key[n] = Key[NumPart - 1];
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
                   if(P[n].Type == 4)
                     StarP[P[n].AuxDataID].PID = n;
 #endif
@@ -669,7 +669,7 @@ void domain_exchange(void)
                 {
                   P[n]   = P[NumPart - 1];
                   Key[n] = Key[NumPart - 1];
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
                   if(P[n].Type == 4)
                     StarP[P[n].AuxDataID].PID = n;
 #endif
@@ -694,7 +694,7 @@ void domain_exchange(void)
             {
               P[n]   = P[NumPart - 1];
               Key[n] = Key[NumPart - 1];
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
               if(P[n].Type == 4)
                 StarP[P[n].AuxDataID].PID = n;
 #endif
@@ -722,7 +722,7 @@ void domain_exchange(void)
   mpi_printf("DOMAIN: Resizing P and Sph storage\n");
   domain_resize_storage(count_get, count_get_sph, 1);
 
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
   domain_resize_storage_stars(count_get_star);
 #endif
 
@@ -746,7 +746,7 @@ void domain_exchange(void)
   /*****  space has been created, now can do the actual exchange *****/
 
   int count_totget = count_get_sph;
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
   count_totget += count_get_star;
 #endif
 #ifdef BLACK_HOLES
@@ -763,7 +763,7 @@ void domain_exchange(void)
     {
       memmove(P + NumGas + count_totget, P + NumGas, (NumPart - NumGas) * sizeof(struct particle_data));
       memmove(Key + NumGas + count_totget, Key + NumGas, (NumPart - NumGas) * sizeof(peanokey));
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
       for(i = 0; i < N_star; i++)
         {
           StarP[i].PID += count_totget;
@@ -793,7 +793,7 @@ void domain_exchange(void)
     {
       count_recv_sph[i] = toGetSph[i];
       count_recv[i]     = toGet[i] - toGetSph[i];
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
       count_recv_star[i] = toGetStar[i];
       count_recv[i] -= toGetStar[i];
 #endif
@@ -826,7 +826,7 @@ void domain_exchange(void)
     offset_recv_tracer[i] = offset_recv_tracer[i - 1] + count_recv_tracer[i - 1];
 #endif
 
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
   offset_recv_star[0] = prec_count;
   for(i = 1; i < NTask; i++)
     offset_recv_star[i] = offset_recv_star[i - 1] + count_recv_star[i - 1];
@@ -847,7 +847,7 @@ void domain_exchange(void)
 
   for(target = 0; target < NTask; target++)
     {
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
       bhbuf_offset[target]      = offset_BHs[target] - offset_star[NTask - 1] - count_star[NTask - 1];
       bhbuf_recv_offset[target] = NumBHs + offset_recv_BHs[target] - offset_recv_star[NTask - 1] - count_recv_star[NTask - 1];
 #else
@@ -882,7 +882,7 @@ void domain_exchange(void)
 #ifdef BLACK_HOLES
       dustbuf_offset[target]      = offset_dust[target] - offset_BHs[NTask - 1] - count_BHs[NTask - 1];
       dustbuf_recv_offset[target] = N_dust + offset_recv_dust[target] - offset_recv_BHs[NTask - 1] - count_recv_BHs[NTask - 1];
-#elif defined(GFM) || defined(SFR_MCS)
+#elif defined(GFM)
       dustbuf_offset[target]      = offset_dust[target] - offset_star[NTask - 1] - count_star[NTask - 1];
       dustbuf_recv_offset[target] = N_dust + offset_recv_dust[target] - offset_recv_star[NTask - 1] - count_recv_star[NTask - 1];
 #else
@@ -940,7 +940,7 @@ void domain_exchange(void)
                            MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             }
 #endif
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
           if(count_star[target] > 0 || count_recv_star[target] > 0)
             {
               MPI_Sendrecv(partBuf + offset_star[target], count_star[target] * sizeof(struct particle_data), MPI_BYTE, target,
@@ -965,7 +965,7 @@ void domain_exchange(void)
                            TAG_PDATA_BH, P + offset_recv_BHs[target], count_recv_BHs[target] * sizeof(struct particle_data), MPI_BYTE,
                            target, TAG_PDATA_BH, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
               MPI_Sendrecv(BHsBuf + offset_BHs[target] - offset_star[NTask - 1] - count_star[NTask - 1],
                            count_BHs[target] * sizeof(struct bh_particle_data), MPI_BYTE, target, TAG_BHDATA,
                            BHP + NumBHs + offset_recv_BHs[target] - offset_recv_star[NTask - 1] - count_recv_star[NTask - 1],
@@ -1015,7 +1015,7 @@ void domain_exchange(void)
                            DustP + N_dust + offset_recv_dust[target] - offset_recv_BHs[NTask - 1] - count_recv_BHs[NTask - 1],
                            count_recv_dust[target] * sizeof(struct dust_particle_data), MPI_BYTE, target, TAG_DUSTDATA, MPI_COMM_WORLD,
                            MPI_STATUS_IGNORE);
-#elif defined(GFM) || defined(SFR_MCS)
+#elif defined(GFM)
               MPI_Sendrecv(dustBuf + offset_dust[target] - offset_star[NTask - 1] - count_star[NTask - 1],
                            count_dust[target] * sizeof(struct dust_particle_data), MPI_BYTE, target, TAG_DUSTDATA,
                            DustP + N_dust + offset_recv_dust[target] - offset_recv_star[NTask - 1] - count_recv_star[NTask - 1],
@@ -1086,7 +1086,7 @@ void domain_exchange(void)
                         MPI_BYTE, target, TAG_TRACERDATA, MPI_COMM_WORLD, &requests[n_requests++]);
             }
 #endif
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
           if(count_recv_star[target] > 0)
             {
               MPI_Irecv(P + offset_recv_star[target], count_recv_star[target] * sizeof(struct particle_data), MPI_BYTE, target,
@@ -1109,7 +1109,7 @@ void domain_exchange(void)
               MPI_Irecv(Key + offset_recv_BHs[target], count_recv_BHs[target] * sizeof(peanokey), MPI_BYTE, target, TAG_KEY_BH,
                         MPI_COMM_WORLD, &requests[n_requests++]);
 
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
               MPI_Irecv(BHP + NumBHs + offset_recv_BHs[target] - offset_recv_star[NTask - 1] - count_recv_star[NTask - 1],
                         count_recv_BHs[target] * sizeof(struct bh_particle_data), MPI_BYTE, target, TAG_BHDATA, MPI_COMM_WORLD,
                         &requests[n_requests++]);
@@ -1147,7 +1147,7 @@ void domain_exchange(void)
               MPI_Irecv(DustP + N_dust + offset_recv_dust[target] - offset_recv_BHs[NTask - 1] - count_recv_BHs[NTask - 1],
                         count_recv_dust[target] * sizeof(struct dust_particle_data), MPI_BYTE, target, TAG_DUSTDATA, MPI_COMM_WORLD,
                         &requests[n_requests++]);
-#elif defined(GFM) || defined(SFR_MCS)
+#elif defined(GFM)
               MPI_Irecv(DustP + N_dust + offset_recv_dust[target] - offset_recv_star[NTask - 1] - count_recv_star[NTask - 1],
                         count_recv_dust[target] * sizeof(struct dust_particle_data), MPI_BYTE, target, TAG_DUSTDATA, MPI_COMM_WORLD,
                         &requests[n_requests++]);
@@ -1204,7 +1204,7 @@ void domain_exchange(void)
                         TAG_TRACERDATA, MPI_COMM_WORLD, &requests[n_requests++]);
             }
 #endif
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
           if(count_star[target] > 0)
             {
               MPI_Isend(partBuf + offset_star[target], count_star[target] * sizeof(struct particle_data), MPI_BYTE, target,
@@ -1224,7 +1224,7 @@ void domain_exchange(void)
               MPI_Isend(partBuf + offset_BHs[target], count_BHs[target] * sizeof(struct particle_data), MPI_BYTE, target, TAG_PDATA_BH,
                         MPI_COMM_WORLD, &requests[n_requests++]);
 
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
               MPI_Isend(BHsBuf + offset_BHs[target] - offset_star[NTask - 1] - count_star[NTask - 1],
                         count_BHs[target] * sizeof(struct bh_particle_data), MPI_BYTE, target, TAG_BHDATA, MPI_COMM_WORLD,
                         &requests[n_requests++]);
@@ -1261,7 +1261,7 @@ void domain_exchange(void)
               MPI_Isend(dustBuf + offset_dust[target] - offset_BHs[NTask - 1] - count_BHs[NTask - 1],
                         count_dust[target] * sizeof(struct dust_particle_data), MPI_BYTE, target, TAG_DUSTDATA, MPI_COMM_WORLD,
                         &requests[n_requests++]);
-#elif defined(GFM) || defined(SFR_MCS)
+#elif defined(GFM)
               MPI_Isend(dustBuf + offset_dust[target] - offset_star[NTask - 1] - count_star[NTask - 1],
                         count_dust[target] * sizeof(struct dust_particle_data), MPI_BYTE, target, TAG_DUSTDATA, MPI_COMM_WORLD,
                         &requests[n_requests++]);
@@ -1313,7 +1313,7 @@ void domain_exchange(void)
                   sizeof(struct tracer_linked_list), 0, MPI_COMM_WORLD);
 #endif
 
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
   myMPI_Alltoallv(partBuf, count_star, offset_star, P, count_recv_star, offset_recv_star, sizeof(struct particle_data), 0,
                   MPI_COMM_WORLD);
 
@@ -1374,7 +1374,7 @@ void domain_exchange(void)
     }
 #endif  // CHIMES
 
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
   for(i = 0; i < count_get_star; i++)
     {
       StarP[N_star + i].PID                = offset_recv_star[0] + i;
@@ -1406,7 +1406,7 @@ void domain_exchange(void)
   NumPart += count_get;
   NumGas += count_get_sph;
 
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
   N_star += count_get_star;
 #endif
 #ifdef BLACK_HOLES
@@ -1464,7 +1464,7 @@ void domain_exchange(void)
 #ifdef SINKS
   myfree_movable(SinksBuf);
 #endif
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
   myfree_movable(starBuf);
 #endif
 #ifdef TRACER_MC
@@ -1497,7 +1497,7 @@ void domain_exchange(void)
   myfree_movable(offset_BHs);
   myfree_movable(count_BHs);
 #endif
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
   myfree_movable(starbuf_recv_offset);
   myfree_movable(starbuf_offset);
   myfree_movable(offset_recv_star);

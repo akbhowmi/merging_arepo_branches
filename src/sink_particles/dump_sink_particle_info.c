@@ -203,7 +203,7 @@ int open_old_sink_file_and_read_sink_data(void)
           /* open the file */
           mpi_printf("SINK_PARTICLES: File present. scanning file...\n");
           if(!(FdSinkPart = fopen(filename, "r")))
-              terminate("error in opening file '%s'\n", filename);
+            terminate("error in opening file '%s'\n", filename);
           /* Scan the file entries... */
           while(1)
             {

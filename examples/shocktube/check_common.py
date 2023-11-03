@@ -54,10 +54,6 @@ def verify_result(path):
         try:
             W, time, position = read_data(os.path.join(directory, filename))
         except (OSError, IOError):
-            # should have at least 6 snapshots
-            if i_file <= 5:
-                info.append('Could not find snapshot ' + filename + '!')
-                return False, info
             break
         info.append('Analyzing ' + filename)
 
@@ -184,17 +180,17 @@ def CheckL1Error(Pos, W, W_L, W_R, gamma, position_0, time):
     delta = np.abs(W_exact - W) / norm
     L1 = np.average(delta, axis=0)
 
-    ## tolerance value; found empirically, fist order convergence!
+    ## tolarance value; found empirically, fist order convergence!
     L1MaxAllowed = 2.0 / np.float(Pos.shape[0])
 
-    if np.all(L1 <= L1MaxAllowed):
-        return 0, [
-            'CheckL1Error: L1 error fine: %g %g %g; tolerance %g' %
+    if np.any(L1 > L1MaxAllowed):
+        return 1, [
+            'CheckL1Error: ERROR: L1 error too large: %g %g %g; tolerance %g' %
             (L1[0], L1[1], L1[2], L1MaxAllowed)
         ]
     else:
-        return 1, [
-            'CheckL1Error: ERROR: L1 error too large: %g %g %g; tolerance %g' %
+        return 0, [
+            'CheckL1Error: L1 error fine: %g %g %g; tolerance %g' %
             (L1[0], L1[1], L1[2], L1MaxAllowed)
         ]
 
@@ -219,7 +215,6 @@ def CheckTotalVariation(Pos, W, W_L, W_R, gamma, position_0, time):
 
     TotalVariationSim = np.zeros(3)
     TotalVariationExact = np.zeros(3)
-    ratio = np.ones(3)
 
     i_sorted = np.argsort(Pos)  ## sorted by position
     dW = W[i_sorted[1:], :] - W[
@@ -233,26 +228,21 @@ def CheckTotalVariation(Pos, W, W_L, W_R, gamma, position_0, time):
             dW[i1_neg, i])
         TotalVariationExact[i] = np.sum(dW_exact[i1_pos, i], axis=0) - np.sum(
             dW_exact[i1_neg, i])
-        # handle case where TotalVariationExact is zero, only allowing it when
-        # TotalVariationSim is also zero
-        if TotalVariationExact[i] == 0:
-            if TotalVariationSim[i] == TotalVariationExact[i]:
-                ratio[i] = 1
-            else:
-                ratio[i] = np.inf
-        else:
-            ratio[i] = TotalVariationSim[i] / TotalVariationExact[i]
 
     MaxRatioAllowed = check_parameters.MaxRatioAllowed
-    if np.all(ratio <= MaxRatioAllowed):
-        return 0, [
-            'CheckTotalVariation: TotalVariation Sim/Exact fine: %g %g %g, tolerance: %g'
-            % (ratio[0], ratio[1], ratio[2], MaxRatioAllowed)
-        ]
-    else:
+    if np.any(TotalVariationSim / TotalVariationExact > MaxRatioAllowed):
         return 1, [
             'CheckTotalVariation: ERROR: TotalVariation Sim/Exact: %g %g %g, tolerance: %g'
-            % (ratio[0], ratio[1], ratio[2], MaxRatioAllowed)
+            % (TotalVariationSim[0] / TotalVariationExact[0],
+               TotalVariationSim[1] / TotalVariationExact[1],
+               TotalVariationSim[2] / TotalVariationExact[2], MaxRatioAllowed)
+        ]
+    else:
+        return 0, [
+            'CheckTotalVariation: TotalVariation Sim/Exact fine: %g %g %g, tolerance: %g'
+            % (TotalVariationSim[0] / TotalVariationExact[0],
+               TotalVariationSim[1] / TotalVariationExact[1],
+               TotalVariationSim[2] / TotalVariationExact[2], MaxRatioAllowed)
         ]
 
 

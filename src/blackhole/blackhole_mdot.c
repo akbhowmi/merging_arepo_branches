@@ -34,7 +34,7 @@ void blackhole_calculate_mdot(void)
 {
   int idx, n, flag;
   double mdot, meddington, dt, accreted_mass, mdot_adios = 0;
-  double fraction_kinetic, fraction_thermal, fraction_quasar_wind;
+  double fraction_kinetic, fraction_thermal;
 
   for(idx = 0; idx < TimeBinsBHAccretion.NActiveParticles; idx++)
     {
@@ -50,11 +50,7 @@ void blackhole_calculate_mdot(void)
       accreted_mass = 0.0;
 
 #ifdef BH_BONDI_DEFAULT
-#ifdef BH_CONSTANT_EDDINGTON_RATIO
-      BPP(n).BH_MdotBondi = mdot = All.ConstantEddingtonRatio * meddington;
-#else
       BPP(n).BH_MdotBondi = mdot = blackhole_bondi_rate(n, 0);
-#endif
       flag++;
 #endif
 
@@ -91,7 +87,6 @@ void blackhole_calculate_mdot(void)
         {
           fraction_kinetic    = 0.0;
           fraction_thermal    = 1.0;
-          fraction_quasar_wind = 1.0;
 
 #ifdef BH_SPIN_EVOLUTION
 #if BH_SPIN_MODEL == 2
@@ -101,7 +96,6 @@ void blackhole_calculate_mdot(void)
         }
       else
         {
-          fraction_quasar_wind = 0.0;
           fraction_kinetic    = 1.0;
           fraction_thermal    = 0.0;
 #ifdef BH_SPIN_EVOLUTION
@@ -110,7 +104,7 @@ void blackhole_calculate_mdot(void)
 #endif
 #endif
         }
-#endif // BH_CONTINOUS_MODE_SWITCH
+#endif
 
 #ifdef BH_ADIOS_WIND
       if(agn_mode == BH_RADIO_MODE)
@@ -131,7 +125,7 @@ void blackhole_calculate_mdot(void)
           if(tot_physical_press < press_thresh)
             mdot *= pow(tot_physical_press / press_thresh, 2);
         }
-#endif // BH_PRESSURE_CRITERION
+#endif
 
 #ifdef BH_EXACT_INTEGRATION
       double lambda = 0.0, eta = 0.0, bonditime = 0.0;
@@ -184,12 +178,7 @@ void blackhole_calculate_mdot(void)
       if(!gsl_finite(mdot))
         terminate("mdot=%g", mdot);
 
-#ifdef BH_FAST_WIND
       double deltaM = (1. - All.BlackHoleRadiativeEfficiency) * accreted_mass;
-      deltaM /= (1.0 + All.WindMassLoading);
-#else
-      double deltaM = (1. - All.BlackHoleRadiativeEfficiency) * accreted_mass;
-#endif
 
 #ifdef BH_BIPOLAR_FEEDBACK
       deltaM *= (1. - All.BHBipolarEfficiency);
@@ -211,11 +200,11 @@ void blackhole_calculate_mdot(void)
           AGNEnergyT_Should += egy;
         }
 
-      if(fraction_kinetic > 0.0 || fraction_quasar_wind > 0.0)
+      if(fraction_kinetic > 0.0)
         {
           BPP(n).BH_CumMass_RM += deltaM;
 
-#if defined(BH_ADIOS_WIND) || defined(BH_FAST_WIND)
+#ifdef BH_ADIOS_WIND
 
 #ifdef BH_ADIOS_DENS_DEP_EFFICIANCY
           double rad_efficiency = All.BlackHoleRadiativeEfficiency *
@@ -237,20 +226,8 @@ void blackhole_calculate_mdot(void)
               }
 #endif
 
-#ifdef BH_FAST_WIND
-          double wind_vel = All.FastWindVelocity * CLIGHT / All.UnitVelocity_in_cm_per_s;
-          double egy = 0;
-          egy = 0.5 * All.WindMassLoading * deltaM * wind_vel * wind_vel * fraction_quasar_wind;
-#else
           double egy = fraction_kinetic * All.RadioFeedbackFactor * rad_efficiency * accreted_mass *
                        pow(CLIGHT / All.UnitVelocity_in_cm_per_s, 2);
-#endif
-
-          if(egy > 0)
-          {
-            printf("FWBHWindEnergyUpdate: Time = %.10g, Task = %d, egy = %g, fraction_quasar_wind = %g, agn_mode = %d, mdot = %g, meddington = %g, wind_vel = %g  \n", All.Time, ThisTask, egy, fraction_quasar_wind, agn_mode, mdot, meddington, wind_vel);
-            myflush(stdout);
-          }
 
           BPP(n).BH_WindEnergy += egy;
           BPP(n).BH_CumEgy_RM += egy;
@@ -262,11 +239,6 @@ void blackhole_calculate_mdot(void)
           BPP(n).BH_Mass_bubbles += fraction_kinetic * (1. - All.BlackHoleRadiativeEfficiency) * accreted_mass;
 #endif
         }
-
-        /* Write to BH Details Files */
-#ifdef BH_NEW_LOGS
-        blackhole_write_log_details(FdBHDetails, n);
-#endif // BH_NEW_LOGS
     }
 }
 
@@ -391,7 +363,7 @@ double blackhole_bondi_rate(int n, int type)
 #endif
 
   if(BPP(n).BH_Mass > 0)
-    fprintf(FdBlackHolesDetails, "BH=%llu %.10g %g %g %g %g %g %g %g %g %g %g %g %g %g\n", (long long)P[n].ID, All.Time, BPP(n).BH_Mass, mdot, rho, soundspeed, P[n].Pos[0], P[n].Pos[1], P[n].Pos[2], P[n].Vel[0], P[n].Vel[1], P[n].Vel[2], BPP(n).DFD_GravAccel[0], BPP(n).DFD_GravAccel[1], BPP(n).DFD_GravAccel[2]);
+    fprintf(FdBlackHolesDetails, "BH=%llu %g %g %g %g %g\n", (long long)P[n].ID, All.Time, BPP(n).BH_Mass, mdot, rho, soundspeed);
 
 #ifdef BH_BIPOLAR_FEEDBACK
   if(BPP(n).BH_Mass > 0)
@@ -444,11 +416,6 @@ static int blackhole_get_mode(double bh_mass, double mdot, double mdot_adios, do
   if(All.RadioFeedbackFactor * mdot_adios > All.BlackHoleFeedbackFactor * mdot)
     return BH_RADIO_MODE;
 #endif
-#endif
-
-#if !defined(BH_ADIOS_WIND) && defined(BH_FAST_WIND)
-  if(mdot < All.FastWindQuasarThreshold * meddington)
-    return BH_RADIO_MODE;
 #endif
 
   return BH_QUASAR_MODE;
@@ -509,55 +476,6 @@ void blackhole_calculate_mdot_radiomode(void)
     }
 }
 
-#endif // BH_NF_RADIO
-
-#ifdef BH_NEW_LOGS
-/*! \brief Logs detailed information of particular BH particle
- *
- * Generally `stream` should be `FdBHDetails`
- *
-*/
-void blackhole_write_log_details(FILE *stream, int n)
-{
-    double pot = 0.0;
-    double xyz[3];
-    double xtmp, ytmp, ztmp;   // required for the `WRAP_X`, `WRAP_Y`, `WRAP_Z` macros
-#ifdef EVALPOTENTIAL
-    pot = P[n].Potential;
 #endif
-    /*
-    for(int kk = 0; kk < 3; kk++)
-        xyz[kk] = wrap_position(P[n].Pos[kk] - All.GlobalDisplacementVector[kk], kk);
-    */
-    xyz[0] = WRAP_X(P[n].Pos[0] - All.GlobalDisplacementVector[0]);
-    xyz[1] = WRAP_Y(P[n].Pos[1] - All.GlobalDisplacementVector[1]);
-    xyz[2] = WRAP_Z(P[n].Pos[2] - All.GlobalDisplacementVector[2]);
 
-    //               1     2     3    4     5    6    7    8     9    10   11    12   13   14
-    fprintf(stream, "%.10f %llu  %.8e %.8e  %.8e %.8e %.8e %.8e  %.8e %.8e %.8e  %.8e %.8e %.8e\n",
-            All.Time, (long long) P[n].ID, P[n].Mass, BPP(n).BH_Mass,
-            BPP(n).BH_MdotBondi, BPP(n).BH_Mdot, pot, BPP(n).BH_Density,
-            xyz[0], xyz[1], xyz[2], P[n].Vel[0], P[n].Vel[1], P[n].Vel[2]);
-    myflush(stream);
-} // blackhole_write_log_details()
-
-void blackhole_dump(char *name)
-{
-    double xyz[3];
-    double xtmp, ytmp, ztmp;   // required for the `WRAP_X`, `WRAP_Y`, `WRAP_Z` macros
-    unsigned int nn;
-    for(int ii = 0; ii < NumBHs; ii++)
-    {
-        nn = BHP[ii].PID;
-        xyz[0] = WRAP_X(P[nn].Pos[0] - All.GlobalDisplacementVector[0]);
-        xyz[1] = WRAP_Y(P[nn].Pos[1] - All.GlobalDisplacementVector[1]);
-        xyz[2] = WRAP_Z(P[nn].Pos[2] - All.GlobalDisplacementVector[2]);
-
-        fprintf(FdBHDetails, "%40s: %03d %.10f ID = %llu  %.8e %.8e %.8e\n",
-                name, ThisTask, All.Time, (long long) P[nn].ID, xyz[0], xyz[1], xyz[2]);
-    }
-} // blackhole_dump()
-
-#endif // BH_NEW_LOGS
-
-#endif // BLACK_HOLES
+#endif

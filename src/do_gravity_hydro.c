@@ -313,13 +313,6 @@ void find_gravity_timesteps_and_do_gravity_step_first_half(void)
               if(i < 0)
                 continue;
               kick_particle(i, dt_gravkick, P[i].GravAccel);
-
-#ifdef BH_DF_DISCRETE
-              // Add additional 'Discrete Dynamical Friction' acceleration to BH particles
-              if(P[i].Type == 5)
-                kick_particle(i, dt_gravkick, BPP(i).DFD_GravAccel);
-#endif // BH_DF_DISCRETE
-
             }
           Previous_GlobalNActiveGravity = TimeBinsGravity.GlobalNActiveParticles;
         }
@@ -337,7 +330,7 @@ void find_gravity_timesteps_and_do_gravity_step_first_half(void)
     timebin_make_list_of_active_particles_up_to_timebin(&TimeBinsGravity, TIMEBINS - 1);
   else
 #endif
-    timebin_make_list_of_active_particles_up_to_timebin(&TimeBinsGravity, All.HighestSynchronizedTimeBin);
+    timebin_make_list_of_active_particles_up_to_timebin(&TimeBinsGravity, All.HighestActiveTimeBin);
   sumup_large_ints(1, &TimeBinsGravity.NActiveParticles, &TimeBinsGravity.GlobalNActiveParticles);
 
   mpi_printf("KICKS: 1st gravity for highest active timebin=%d:  particles %lld\n", All.HighestActiveTimeBin,
@@ -408,12 +401,6 @@ void find_gravity_timesteps_and_do_gravity_step_first_half(void)
         dt_gravkick = (tend - tstart) * All.Timebase_interval;
 
       kick_particle(i, dt_gravkick, P[i].GravAccel);
-#ifdef BH_DF_DISCRETE
-      // Add additional 'Discrete Dynamical Friction' acceleration to BH particles
-      if(P[i].Type == 5)
-        kick_particle(i, dt_gravkick, BPP(i).DFD_GravAccel);
-#endif // BH_DF_DISCRETE
-
     }
 #endif
 
@@ -511,12 +498,6 @@ void do_gravity_step_second_half(void)
                     continue;
 
                   kick_particle(i, dt_gravkick, P[i].GravAccel);
-#ifdef BH_DF_DISCRETE
-                  // Add additional 'Discrete Dynamical Friction' acceleration to BH particles
-                  if(P[i].Type == 5)
-                    kick_particle(i, dt_gravkick, BPP(i).DFD_GravAccel);
-#endif // BH_DF_DISCRETE
-
 
                   if(P[i].Type == PTYPE_GAS)
                     {
@@ -565,11 +546,6 @@ void do_gravity_step_second_half(void)
             dt_gravkick = (tend - tstart) * All.Timebase_interval;
 
           kick_particle(i, dt_gravkick, P[i].GravAccel);
-#ifdef BH_DF_DISCRETE
-          // Add additional 'Discrete Dynamical Friction' acceleration to BH particles
-          if(P[i].Type == 5)
-            kick_particle(i, dt_gravkick, BPP(i).DFD_GravAccel);
-#endif // BH_DF_DISCRETE
 
 #if defined(CIRCUMSTELLAR) && defined(CIRCUMSTELLAR_WBOUNDARIES)
           if(P[i].Type == 0)

@@ -2,11 +2,6 @@
 #define SGCHEM_PROTO_H
 #include "f2c.h"
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
 void CALC_DUST_TEMP(double *yn, double *chi_mean, double *temp, double *abHI, double *RH2, double *Rdust, int *nocalc);
 void CALC_SHIELDING(double *yn, double *dl, double *temp, double *abh2, double *abco, double column_density_projection[NPIX],
                     double column_density_projection_H2[NPIX], double column_density_projection_co[NPIX], double *fshield_H2,
@@ -64,10 +59,6 @@ void find_and_set_local_CRION(int index);
 #ifdef MCMA
 void CMA_INIT(void);
 void CMA_CORRECT(double species_flux[NSPEC_CMA], double element_flux[NELEM_CMA], long *sgflux_count);
-#endif
-
-#ifdef __cplusplus
-}
 #endif
 
 #endif

@@ -32,7 +32,7 @@ gamma = FloatType(5.0 / 3.0)
 gamma_minus_one = FloatType(gamma - 1.0)
 b0 = FloatType(1.0)
 # set up grid
-NumberOfCells = CellsPerDimension**2
+NumberOfCells = CellsPerDimension * CellsPerDimension
 dx = Boxsize / FloatType(CellsPerDimension)
 pos_first, pos_last = 0.5 * dx, Boxsize - 0.5 * dx
 Grid1d = np.linspace(pos_first, pos_last, CellsPerDimension, dtype=FloatType)

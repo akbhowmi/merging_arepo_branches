@@ -62,10 +62,8 @@ void init_sink_particles(int mode)
       else if(RestartFlag == 5)
         success = load_sink_particle_snapshot(RestartSnapNum);
       else if(RestartFlag == 0)
-        {
-          mpi_printf("Starting from IC\n");
-          return;
-        }
+        mpi_printf("Starting from IC\n");
+      return;
 
       if(!success)
         {
@@ -106,5 +104,3 @@ void set_sink_particle_parameters(void)
 
   mpi_printf("SINK_PARTICLES: Creation density %g  and radius %g \n", SinkCreationDensityCurrent, SinkFormationRadiusCurrent);
 }
-
-

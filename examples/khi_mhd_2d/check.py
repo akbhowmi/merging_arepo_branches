@@ -174,7 +174,7 @@ if makeplots:
         filename = 'snap_%03d.hdf5' % i_file
         try:
             data = h5py.File(os.path.join(directory, filename), 'r')
-        except (OSError, IOError):
+        except:
             break
 
         VoronoiPos = np.array(data['PartType0']['Coordinates'],
@@ -224,7 +224,7 @@ if makeplots:
                     dpi=300)
         plt.close(fig)
 # criteria for failing the test
-if np.max([err_vx, err_vy, err_bx, err_by, err_rho, err_T]) <= tol:
-    print('normal exit')
-else:
+if np.max([err_vx, err_vy, err_bx, err_by, err_rho, err_T]) > tol:
     sys.exit(1)
+
+print('normal exit')

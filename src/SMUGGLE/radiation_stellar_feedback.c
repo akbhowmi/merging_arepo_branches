@@ -25,7 +25,7 @@
 #include "../allvars.h"
 #include "../proto.h"
 
-#ifdef SMUGGLE_RADIATION_FEEDBACK
+#if defined(SMUGGLE_RADIATION_FEEDBACK)
 
 typedef struct
 {
@@ -50,7 +50,7 @@ typedef struct
   int Firstnode;
 } data_in;
 
-static data_in *DataGet;
+static data_in *DataIn, *DataGet;
 
 typedef struct
 {
@@ -58,7 +58,7 @@ typedef struct
   int PhotoionizationEvents;
 } data_out;
 
-static data_out *DataResult;
+static data_out *DataResult, *DataOut;
 
 static void particle2in(data_in *in, int i, int firstnode)
 {
@@ -321,13 +321,8 @@ int radiation_feedback_evaluate(int target, int mode, int thread_id)
               de_feedback = 0.;
 
 #ifdef SMUGGLE_STAR_FEEDBACK
-#ifdef BH_BASED_CGM_ZOOM
-              if(P[j].Mass < 0.3 * All.TargetGasMass / All.CGM_RefinementFactor)
-                continue;
-#else
               if(P[j].Mass < 0.3 * All.TargetGasMass)
                 continue;
-#endif
 #endif
 
 #ifdef SMUGGLE_OMEGA_WEIGHT_SN

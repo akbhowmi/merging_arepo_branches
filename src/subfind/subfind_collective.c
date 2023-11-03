@@ -250,7 +250,7 @@ void subfind_process_group_collectively(int nsubgroups_cat)
   /* allocate a list to store subhalo coll_candidates */
   max_coll_candidates = imax((NumPartGroup / 50), 200);
   coll_candidates     = (struct coll_cand_dat *)mymalloc_movable(&coll_candidates, "coll_candidates",
-                                                                 max_coll_candidates * sizeof(struct coll_cand_dat));
+                                                             max_coll_candidates * sizeof(struct coll_cand_dat));
   count_cand          = 0;
 
   subfind_col_find_coll_candidates(totgrouplen1);

@@ -130,6 +130,10 @@ static void kernel_local(void)
 #ifdef GENERIC_ASYNC
   int flag = 0;
 #endif
+#if defined(CREATE_SUBFOFS) && defined(BFOFS_AS_GASCLUMPS)
+  int Link_Types;
+#endif
+
   /* do local particles */
 #pragma omp parallel private(i) reduction(+ : nprocessed)
   {
@@ -166,7 +170,15 @@ static void kernel_local(void)
         if(i >= NumPart)
           break;
 
+#if defined(CREATE_SUBFOFS) && defined(BFOFS_AS_GASCLUMPS) && defined(GAS_CLUMP_PRIMARY_LINK_TYPES)
+        if(All.SubFOF_mode == 1) 
+            Link_Types = GAS_CLUMP_PRIMARY_LINK_TYPES;
+        else if(All.SubFOF_mode == 0)
+            Link_Types = FOF_PRIMARY_LINK_TYPES;
+        if(((1 << P[i].Type) & (Link_Types)))
+#else
         if(((1 << P[i].Type) & (FOF_PRIMARY_LINK_TYPES)))
+#endif
           {
             if(Flags[i].Nonlocal && Flags[i].Changed)
               {
@@ -265,10 +277,23 @@ double fof_find_groups(MyIDType *vMinID, int *vHead, int *vLen, int *vNext, int 
 
   t0 = second();
 
+#if defined(CREATE_SUBFOFS) && defined(BFOFS_AS_GASCLUMPS)                                         
+  int Link_Types;
+#endif
+
+
   /* first, link only among local particles */
   for(i = 0, marked = 0, npart = 0; i < NumPart; i++)
     {
+#if defined(CREATE_SUBFOFS) && defined(BFOFS_AS_GASCLUMPS)
+      if(All.SubFOF_mode == 1)
+          Link_Types = GAS_CLUMP_PRIMARY_LINK_TYPES;
+      else if(All.SubFOF_mode == 0)
+          Link_Types = FOF_PRIMARY_LINK_TYPES;
+      if(((1 << P[i].Type) & (Link_Types)))
+#else
       if(((1 << P[i].Type) & (FOF_PRIMARY_LINK_TYPES)))
+#endif
         {
           fof_find_dmparticles_evaluate(i, MODE_LOCAL_NO_EXPORT, 0);
 
@@ -449,6 +474,10 @@ static int fof_treefind_fof_primary(MyDouble searchcenter[3], MyFloat hsml, int 
   int nexport_flag = 0;
   int numngb       = 0;
 
+#if defined(CREATE_SUBFOFS) && defined(BFOFS_AS_GASCLUMPS)                                         
+  int Link_Types;
+#endif
+
   for(int k = 0; k < numnodes; k++)
     {
       if(mode == MODE_LOCAL_PARTICLES || mode == MODE_LOCAL_NO_EXPORT)
@@ -468,7 +497,15 @@ static int fof_treefind_fof_primary(MyDouble searchcenter[3], MyFloat hsml, int 
               int p = no;
               no    = Nextnode[no];
 
+#if defined(CREATE_SUBFOFS) && defined(BFOFS_AS_GASCLUMPS)
+              if(All.SubFOF_mode == 1)
+                  Link_Types = GAS_CLUMP_PRIMARY_LINK_TYPES;
+              else if(All.SubFOF_mode == 0)
+                  Link_Types = FOF_PRIMARY_LINK_TYPES;
+              if(!((1 << P[p].Type) & (Link_Types)))
+#else
               if(!((1 << P[p].Type) & (FOF_PRIMARY_LINK_TYPES)))
+#endif	
                 continue;
 
               if(mode == MODE_LOCAL_PARTICLES)
@@ -632,6 +669,9 @@ static int fof_treefind_fof_primary(MyDouble searchcenter[3], MyFloat hsml, int 
  */
 void fof_check_for_full_nodes_recursive(int no)
 {
+#if defined(CREATE_SUBFOFS) && defined(BFOFS_AS_GASCLUMPS)                                         
+  int Link_Types;
+#endif
   if(no >= Tree_MaxPart && no < Tree_MaxPart + Tree_MaxNodes) /* internal node */
     {
       int head = -1; /* no particle yet */
@@ -642,7 +682,15 @@ void fof_check_for_full_nodes_recursive(int no)
         {
           if(p < Tree_MaxPart) /* a particle */
             {
+#if defined(CREATE_SUBFOFS) && defined(BFOFS_AS_GASCLUMPS)
+              if(All.SubFOF_mode == 1)
+                  Link_Types = GAS_CLUMP_PRIMARY_LINK_TYPES;
+              else if(All.SubFOF_mode == 0)
+                  Link_Types = FOF_PRIMARY_LINK_TYPES;
+              if((1 << P[p].Type) & (Link_Types))
+#else
               if((1 << P[p].Type) & (FOF_PRIMARY_LINK_TYPES))
+#endif
                 {
                   if(head == -1)
                     head = Head[p];
@@ -685,6 +733,10 @@ void fof_check_for_full_nodes_recursive(int no)
  */
 int fof_return_a_particle_in_cell_recursive(int no)
 {
+#if defined(CREATE_SUBFOFS) && defined(BFOFS_AS_GASCLUMPS)                                         
+  int Link_Types;
+#endif
+
   if(no >= Tree_MaxPart && no < Tree_MaxPart + Tree_MaxNodes) /* internal node */
     {
       int p = Nodes[no].u.d.nextnode;
@@ -693,7 +745,15 @@ int fof_return_a_particle_in_cell_recursive(int no)
         {
           if(p < Tree_MaxPart) /* a particle */
             {
+#if defined(CREATE_SUBFOFS) && defined(BFOFS_AS_GASCLUMPS)
+              if(All.SubFOF_mode == 1)
+                 Link_Types = GAS_CLUMP_PRIMARY_LINK_TYPES;
+              else if(All.SubFOF_mode == 0)
+                 Link_Types = FOF_PRIMARY_LINK_TYPES;
+              if((1 << P[p].Type) & (Link_Types))
+#else
               if((1 << P[p].Type) & (FOF_PRIMARY_LINK_TYPES))
+#endif
                 {
                   return p;
                 }

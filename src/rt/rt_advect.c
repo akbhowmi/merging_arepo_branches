@@ -43,13 +43,23 @@ static struct radinflux_list_data
   double dPhotons;
 } * RadinFluxList;
 
-struct diff_list *diff;
+struct diff_list
+{
+  int sourceid;
+  double dPhotons;
+  MyFloat sourcepos[3];
+} * diff;
 
 int Nradinflux, MaxNradinflux;
 #endif
 
+face *VF;
+point *DP;
+
 void rt_apply_radiation_flux(void);
+int rt_check_responsibility_of_this_task(int p1, int p2);
 void pix2vec_ring(long nside, long ipix, double *vec);
+int rt_face_get_normals(int i);
 
 void rt_advect_radiation(tessellation *T, double dt)
 {
@@ -65,6 +75,7 @@ void rt_advect_radiation(tessellation *T, double dt)
   double dt_half, prefac = 1.0;
   double flux_phot;
   double sum, phot_before, phot_after;
+  int point;
   double dist;
 #ifndef RT_HEALPIX_NSIDE
   MyFloat *sourcepos;
@@ -73,8 +84,8 @@ void rt_advect_radiation(tessellation *T, double dt)
 
   set_cosmo_factors_for_current_time();
 
-  const face *VF  = T->VF;
-  const point *DP = T->DP;
+  VF = T->VF;
+  DP = T->DP;
 
   for(i = 0, sum = 0; i < NumGas; i++)
     for(j = 0; j < RT_N_DIR; j++)
@@ -87,22 +98,21 @@ void rt_advect_radiation(tessellation *T, double dt)
 #ifndef RT_HEALPIX_NSIDE
   MaxNradinflux = T->Indi.AllocFacNradinflux;
   Nradinflux    = 0;
-  RadinFluxList = (struct radinflux_list_data *)mymalloc_movable(&RadinFluxList, "RadinFluxList",
-                                                                 MaxNradinflux * sizeof(struct radinflux_list_data));
+  RadinFluxList = mymalloc_movable(&RadinFluxList, "RadinFluxList", MaxNradinflux * sizeof(struct radinflux_list_data));
 #endif
 
   MaxNflux = T->Indi.AllocFacNflux;
   Nflux    = 0;
-  FluxList = (struct flux_list_data *)mymalloc_movable(&FluxList, "FluxList", MaxNflux * sizeof(struct flux_list_data));
+  FluxList = mymalloc_movable(&FluxList, "FluxList", MaxNflux * sizeof(struct flux_list_data));
 
   for(i = 0; i < T->Nvf; i++)
     {
       face_dt = 0; /* the default is that this face is not active */
 
-      if(rt_face_get_normals(T, i))
+      if(rt_face_get_normals(i))
         continue;
 
-      if(rt_check_responsibility_of_this_task(DP, VF[i].p1, VF[i].p2))
+      if(rt_check_responsibility_of_this_task(VF[i].p1, VF[i].p2))
         continue;
 
       li = DP[VF[i].p1].index;
@@ -154,7 +164,6 @@ void rt_advect_radiation(tessellation *T, double dt)
         {
           for(iside = 0; iside < 2; iside++) /* consider both sides of the face in turn */
             {
-              int point;
               if(iside == 0)
                 {
                   give  = li;
@@ -405,9 +414,9 @@ void rt_advect_radiation(tessellation *T, double dt)
                           processflag = 1;
 #else
                           if(dir * flux_phot < 0 || j == 0)
-                            processflag = 1; /* outgoing */
+                            processflag = 1;  // outgoing
                           else
-                            processflag = 0; /* incoming */
+                            processflag = 0;  // incoming
 #endif
 
                           if(processflag == 1)
@@ -420,8 +429,7 @@ void rt_advect_radiation(tessellation *T, double dt)
                                 {
                                   T->Indi.AllocFacNradinflux *= ALLOC_INCREASE_FACTOR;
                                   MaxNradinflux = T->Indi.AllocFacNradinflux;
-                                  RadinFluxList = (struct radinflux_list_data *)myrealloc_movable(
-                                      RadinFluxList, MaxNradinflux * sizeof(struct radinflux_list_data));
+                                  RadinFluxList = myrealloc_movable(RadinFluxList, MaxNradinflux * sizeof(struct radinflux_list_data));
                                   if(Nradinflux >= MaxNradinflux)
                                     terminate("Nradinflux >= MaxNradinflux");
                                 }
@@ -455,8 +463,7 @@ void rt_advect_radiation(tessellation *T, double dt)
                                 {
                                   T->Indi.AllocFacNflux *= ALLOC_INCREASE_FACTOR;
                                   MaxNflux = T->Indi.AllocFacNflux;
-                                  FluxList =
-                                      (struct flux_list_data *)myrealloc_movable(FluxList, MaxNflux * sizeof(struct flux_list_data));
+                                  FluxList = myrealloc_movable(FluxList, MaxNflux * sizeof(struct flux_list_data));
                                   if(Nflux >= MaxNflux)
                                     terminate("Nflux >= MaxNflux");
                                 }
@@ -474,8 +481,7 @@ void rt_advect_radiation(tessellation *T, double dt)
                                 {
                                   T->Indi.AllocFacNradinflux *= ALLOC_INCREASE_FACTOR;
                                   MaxNradinflux = T->Indi.AllocFacNradinflux;
-                                  RadinFluxList = (struct radinflux_list_data *)myrealloc_movable(
-                                      RadinFluxList, MaxNradinflux * sizeof(struct radinflux_list_data));
+                                  RadinFluxList = myrealloc_movable(RadinFluxList, MaxNradinflux * sizeof(struct radinflux_list_data));
                                   if(Nradinflux >= MaxNradinflux)
                                     terminate("Nradinflux >= MaxNradinflux");
                                 }
@@ -599,7 +605,7 @@ void rt_select_new_brightest_sources(void)
 
   /* we should now go over each of the particle indices, and first construct the cumulative flux into the cell */
   /* among the different ones we can then select the brightest ones */
-  diff = (struct diff_list *)mymalloc("diff", MAX_COUNT_DIFF * sizeof(struct diff_list));
+  diff = mymalloc("diff", MAX_COUNT_DIFF * sizeof(struct diff_list));
 
   for(i = 0; i < nimport;)
     {
@@ -815,7 +821,7 @@ void rt_apply_radiation_flux(void)
   myfree(FluxListGet);
 }
 
-int rt_check_responsibility_of_this_task(const point *DP, int p1, int p2)
+int rt_check_responsibility_of_this_task(int p1, int p2)
 {
   int low_p, high_p;
 
@@ -837,16 +843,14 @@ int rt_check_responsibility_of_this_task(const point *DP, int p1, int p2)
   return -1; /* we can skip this face on the local task */
 }
 
-int rt_face_get_normals(tessellation *T, int i)
+int rt_face_get_normals(int i)
 {
+  int li, ri;
   double surface, surface_l, surface_r;
   int present_left, present_right;
 
-  face *VF        = T->VF;
-  const point *DP = T->DP;
-
-  int li = DP[VF[i].p1].index;
-  int ri = DP[VF[i].p2].index;
+  li = DP[VF[i].p1].index;
+  ri = DP[VF[i].p2].index;
 
   if(li < 0 || ri < 0)
     return -1;
@@ -915,7 +919,7 @@ int rt_get_cell(tessellation *T, double x, double y, double z)
       printf("Task=%d: increase memory allocation, MaxNdp=%d Indi.AllocFacNdp=%g\n", ThisTask, MaxNdp, T->Indi.AllocFacNdp);
 #endif
       DP -= 5;
-      DP = (point *)myrealloc_movable(DP, (MaxNdp + 5) * sizeof(point));
+      DP = myrealloc_movable(DP, (MaxNdp + 5) * sizeof(point));
       DP += 5;
 
       if(Ndp >= (MaxNdp - 5) && NumGas == 0)
@@ -1071,4 +1075,4 @@ void rt_get_vectors(void)
 }
 #endif
 
-#endif /* RT_ADVECT */
+#endif  // RT_ADVECT

@@ -14,7 +14,6 @@
  *
  * - DD.MM.YYYY Description
  */
-
 #include <gsl/gsl_math.h>
 #include <inttypes.h>
 #include <math.h>
@@ -29,8 +28,13 @@
 #include "../domain.h"
 #include "../proto.h"
 #include "../subfind/subfind.h"
-
+#include "../blackhole/store_mergers_in_snapshot/mergers_io.h"
 #include "fof.h"
+
+#ifdef PROBABILISTIC_SEEDING
+#include <time.h>
+#endif
+
 
 #ifdef FOF
 
@@ -63,7 +67,10 @@ void fof_fof(int num)
     {
       /* let's discard an existing mesh - we do this here to reduce the peak memory usage, even at the price of
        * having to recreate it later */
-      free_mesh();
+#ifdef CREATE_SUBFOFS
+      if(All.SubFOF_mode == 0)
+#endif
+         free_mesh();
     }
 
   if(RestartFlag != RESTART_SNAP_CONVERSION)
@@ -80,6 +87,14 @@ void fof_fof(int num)
 #endif
 
   domain_Decomposition();
+
+#ifdef BUILD_NGBTREE_FOR_ALL_PARTICLES
+  printf("\n Building NGBTREE with all particles");
+  ngb_treeallocate();
+  ngb_treebuild(NumPart);
+  ngb_treefree();
+  printf("\n Successfully Built NGBTREE with all particles");
+#endif
 
   ngb_treeallocate();
   ngb_treebuild(NumGas);
@@ -107,7 +122,7 @@ void fof_fof(int num)
 
   fof_OldMaxPart    = All.MaxPart;
   fof_OldMaxPartSph = All.MaxPartSph;
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
   fof_OldMaxPartStar = All.MaxPartStar;
 #endif
 #ifdef BLACK_HOLES
@@ -118,7 +133,10 @@ void fof_fof(int num)
 #endif
 
   LinkL = fof_get_comoving_linking_length();
-
+#ifdef CREATE_SUBFOFS
+  if(All.SubFOF_mode == 1)
+     LinkL /= All.LinkingLengthReductionFactor;
+#endif
   mpi_printf("FOF: Comoving linking length: %g    (presently allocated=%g MB)\n", LinkL, AllocatedBytes / (1024.0 * 1024.0));
 
   MinID     = (MyIDType *)mymalloc("MinID", NumPart * sizeof(MyIDType));
@@ -133,11 +151,36 @@ void fof_fof(int num)
   timebin_make_list_of_active_particles_up_to_timebin(&TimeBinsGravity, All.HighestOccupiedTimeBin);
 #endif
 
-  construct_forcetree(0, 0, 1, All.HighestOccupiedTimeBin); /* build tree for all particles */
-
-#if defined(SUBFIND) || (defined(GFM_WINDS_VARIABLE) && (GFM_WINDS_VARIABLE == 1)) || defined(GFM_WINDS_LOCAL)
-  subfind_density_hsml_guess();
+#ifdef PREVENT_SPURIOUS_RESEEDING2
+  GasNeighbor();  
 #endif
+
+#ifdef PREVENT_SEEDING_AROUND_BLACKHOLE_NEIGHBORS2
+  construct_forcetree(0, 0, 0, All.HighestOccupiedTimeBin);
+  BH_Neighbor();
+  myfree(Father);
+  myfree(Nextnode);
+#ifdef BLACK_HOLES
+  myfree(Tree_AuxBH_Points);
+#endif
+#ifdef SINKS
+  myfree(Tree_AuxSinks_Points);
+#endif
+  myfree(Tree_Points);
+  force_treefree();
+#endif
+
+  construct_forcetree(0, 0, 1, All.HighestOccupiedTimeBin); /* build tree for all particles */ 
+
+
+#if defined(CREATE_SUBFOFS) && defined(BFOFS_AS_GASCLUMPS)
+ if(All.SubFOF_mode == 0) 
+#endif
+#if defined(SUBFIND) || (defined(GFM_WINDS_VARIABLE) && (GFM_WINDS_VARIABLE == 1)) || defined(GFM_WINDS_LOCAL)
+   subfind_density_hsml_guess();
+#endif
+
+
 
   /* initialize link-lists */
   for(i = 0; i < NumPart; i++)
@@ -186,6 +229,11 @@ void fof_fof(int num)
 #endif
 
   /* calculate velocity dispersion etc. */
+
+#if defined(CREATE_SUBFOFS) && defined(BFOFS_AS_GASCLUMPS)
+ if(All.SubFOF_mode == 0)
+  {
+#endif
 #if(defined(GFM_WINDS_VARIABLE) && (GFM_WINDS_VARIABLE == 1)) || defined(GFM_WINDS_LOCAL) || \
     (defined(GFM_VARIABLE_IMF) && (GFM_VARIABLE_IMF == 0))
   if(num == -2)
@@ -212,6 +260,11 @@ void fof_fof(int num)
     }
 #endif  // #if(defined(GFM_WINDS_VARIABLE) && (GFM_WINDS_VARIABLE == 1)) || defined(GFM_WINDS_LOCAL) || (defined(GFM_VARIABLE_IMF) &&
         // (GFM_VARIABLE_IMF == 0))
+
+#if defined(CREATE_SUBFOFS) && defined(BFOFS_AS_GASCLUMPS)
+   }
+#endif
+
 
   myfree(Father);
   myfree(Nextnode);
@@ -283,6 +336,11 @@ void fof_fof(int num)
 
   mpi_printf("FOF: group properties are now allocated.. (presently allocated=%g MB)\n", AllocatedBytes / (1024.0 * 1024.0));
 
+#ifdef PROBABILISTIC_SEEDING
+  srand(time(0));
+#endif
+
+  printf("\n Value of P[0].ID and FOF_GList[0].MinID before  %d %d at task %d \n",P[0].ID,FOF_GList[0].MinIDTask,ThisTask);
   for(i = 0, start = 0; i < NgroupsExt; i++)
     {
       while(FOF_PList[start].MinID < FOF_GList[i].MinID)
@@ -305,30 +363,110 @@ void fof_fof(int num)
       Group[i].MinIDTask = FOF_GList[i].MinIDTask;
 
       fof_compute_group_properties(i, start, lenloc);
-
       start += lenloc;
     }
-
   fof_exchange_group_data();
 
   fof_finish_group_properties();
-
   t1 = second();
   mpi_printf("FOF: computation of group properties took = %g sec\n", timediff(t0, t1));
 
-#if defined(GFM_BIPOLAR_WINDS) && (GFM_BIPOLAR_WINDS == 3)
+#if defined(CALCULATE_SPIN_STARFORMINGGAS) || (defined(GFM_BIPOLAR_WINDS) && (GFM_BIPOLAR_WINDS == 3))
   fof_spin_measurement();
+#endif
+
+
+#ifdef BLACK_HOLES
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+if(TotNgroups > 0)
+{
+  fof_tag_densest_gas_cell();
+//#ifdef CREATE_SUBFOFS
+//  if(All.SubFOF_mode == All.SeedingModeFOForSubFOF)
+//   {
+//#endif
+    int timebin = All.HighestSynchronizedTimeBin;
+    All.Build_tree_with_only_BHs = 1;
+    construct_forcetree(0, 0, 0, timebin); /* build force tree with all particles */
+    gravity_tree_tracerBH_neighbors(timebin);
+
+    myfree(Father);
+    myfree(Nextnode);
+#ifdef BLACK_HOLES
+    myfree(Tree_AuxBH_Points);
+#endif /* #ifdef BLACK_HOLES */
+#ifdef SINKS
+    myfree(Tree_AuxSinks_Points);
+#endif /* #ifdef SINKS */
+    myfree(Tree_Points);
+    force_treefree();
+    All.Build_tree_with_only_BHs = 0;
+//#ifdef CREATE_SUBFOFS
+//   }
+//#endif
+
+ Group2 = (struct group_properties *)mymalloc_movable(&Group2, "Group2", sizeof(struct group_properties) * MaxNgroups);
+// printf("\n Value of P[0].ID and FOF_GList[0].MinID after  %d %d at task %d \n",P[0].ID,FOF_GList[0].MinIDTask,ThisTask);
+ for(i = 0, start = 0; i < NgroupsExt; i++)
+    {
+      while(FOF_PList[start].MinID < FOF_GList[i].MinID)
+        {
+          start++;
+          if(start > NumPart)
+            terminate("start > NumPart");
+        }
+
+      if(FOF_PList[start].MinID != FOF_GList[i].MinID)
+        terminate("ID mismatch");
+
+      for(lenloc = 0; start + lenloc < NumPart;)
+        if(FOF_PList[start + lenloc].MinID == FOF_GList[i].MinID)
+          lenloc++;
+        else
+          break;
+
+      Group2[i].MinID     = FOF_GList[i].MinID;
+      Group2[i].MinIDTask = FOF_GList[i].MinIDTask;
+
+      fof_compute_halo_environment(i, start, lenloc);
+
+      start += lenloc;
+    }
+//   printf("\n Value of NgroupsExt and start at the start of exchange  %d, %d at task %d \n",NgroupsExt,start,ThisTask);
+   fof_exchange_halo_environment_data();
+   fof_finish_halo_environment();
+ }
+#endif
+
+
+
+
+#ifndef SEED_BLACKHOLES_IN_SUBHALOS
+  if(num < 0)
+   {
+    MPI_Barrier(MPI_COMM_WORLD);
+#ifdef CREATE_SUBFOFS
+    if (All.SubFOF_mode == All.SeedingModeFOForSubFOF)
+     {
+#endif
+
+       fof_prepare_to_seed_black_holes();
+       fof_make_black_holes();
+#ifdef CREATE_SUBFOFS
+     }
+#endif
+
+    MPI_Barrier(MPI_COMM_WORLD);
+   }
+#endif
 #endif
 
 #if(defined(GFM_WINDS_VARIABLE) && (GFM_WINDS_VARIABLE == 0)) || defined(GFM_BIPOLAR_WINDS) || defined(GFM_AGN_RADIATION) || \
     defined(MASSIVE_SEEDS_MERGER) || defined(BH_NF_RADIO)
+#ifndef SEED_HALO_ENVIRONMENT_CRITERION
   if(num < 0)
-    fof_assign_HostHaloMass();
 #endif
-
-#ifdef BLACK_HOLES
-  if(num < 0)
-    fof_make_black_holes();
+    fof_assign_HostHaloMass();
 #endif
 
   fof_assign_group_numbers();
@@ -413,22 +551,53 @@ void fof_fof(int num)
       TIMER_STOP(CPU_FOF);
 
       subfind(num);
+//#ifdef SEED_BLACKHOLES_IN_SUBHALOS
+//      subfind_make_black_holes();
+//#endif
+#ifdef STORE_MERGERS_IN_SNAPSHOT
+      mpi_printf("ATTEMPTING TO STORE MERGERS.\n");
+      save_mergers(num);
+#endif
 
       TIMER_START(CPU_FOF);
     }
+
+#ifdef BLACK_HOLES
+#ifdef SEED_BLACKHOLES_IN_SUBHALOS
+  if(num < 0)
+   {
+    MPI_Barrier(MPI_COMM_WORLD);
+    mpi_printf_task(ThisTask, "\n Trying to make subhalos \n");
+    subfind(num);
+    mpi_printf_task(ThisTask, "\n Trying to make black holes \n");
+    subfind_make_black_holes();
+    MPI_Barrier(MPI_COMM_WORLD);
+   }
+#endif
+#endif
+
 #else
+
   Nsubgroups = 0;
   TotNsubgroups = 0;
   if(num >= 0)
     {
       TIMER_STOP(CPU_FOF);
       TIMER_START(CPU_SNAPSHOT);
-
       fof_save_groups(num);
+#ifdef STORE_MERGERS_IN_SNAPSHOT
+      mpi_printf("ATTEMPTING TO STORE MERGERS.\n");
+      save_mergers(num); 
+#endif
 
       TIMER_STOP(CPU_SNAPSHOT);
       TIMER_START(CPU_FOF);
     }
+#endif
+
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+if(TotNgroups > 0)
+  myfree_movable(Group2);
 #endif
 
   myfree_movable(Group);
@@ -442,16 +611,23 @@ void fof_fof(int num)
       TIMER_START(CPU_SNAPSHOT);
 
       /* now distribute the particles into output order */
-      t0 = second();
-      fof_prepare_output_order();
-      fof_subfind_exchange(
-          MPI_COMM_WORLD); /* distribute particles such that FOF groups will appear in coherent way in snapshot files */
-      t1 = second();
-      mpi_printf("FOF: preparing output order of particles took %g sec\n", timediff(t0, t1));
-
+#ifdef CREATE_SUBFOFS
+      if(All.SubFOF_mode == All.ParticleFOFdatacorrespondence)
+        {
+#endif
+          t0 = second();
+          fof_prepare_output_order();
+          fof_subfind_exchange(MPI_COMM_WORLD); /* distribute particles such that FOF groups will appear in coherent way in snapshot files */
+          t1 = second();
+          mpi_printf("FOF: preparing output order of particles took %g sec\n", timediff(t0, t1));
+#ifdef CREATE_SUBFOFS
+        }
+      if(All.SubFOF_mode == 0)
+         myfree(PS);
+#endif
       TIMER_STOP(CPU_SNAPSHOT);
       TIMER_START(CPU_FOF);
-    }
+    } 
   else
     myfree(PS);
 #else
@@ -489,8 +665,7 @@ void fof_prepare_output_order(void)
 #else
       aux_sort[i].ID = P[i].ID;
 #endif
-#if defined(RECOMPUTE_POTENTIAL_IN_SNAPSHOT) || defined(CALCULATE_QUANTITIES_IN_POSTPROCESS) || \
-    defined(COMPUTE_VORONOI_DM_DENSITY_IN_POSTPROC)
+#if defined(RECOMPUTE_POTENTIAL_IN_SNAPSHOT) || defined(CALCULATE_QUANTITIES_IN_POSTPROCESS)
       aux_sort[i].FileOrder = P[i].FileOrder;
 #endif
 
@@ -499,11 +674,9 @@ void fof_prepare_output_order(void)
 
   qsort(aux_sort, NumPart, sizeof(struct data_aux_sort), fof_compare_aux_sort_Type);
 
-  if(RestartFlag == RESTART_RECALC_POTENTIAL || RestartFlag == RESTART_CALC_ADDITIONAL ||
-     RestartFlag == RESTART_CALC_VORONOI_DM_DENSITY)
+  if(RestartFlag == RESTART_RECALC_POTENTIAL || RestartFlag == RESTART_CALC_ADDITIONAL)
     {
-#if defined(RECOMPUTE_POTENTIAL_IN_SNAPSHOT) || defined(CALCULATE_QUANTITIES_IN_POSTPROCESS) || \
-    defined(COMPUTE_VORONOI_DM_DENSITY_IN_POSTPROC)
+#if defined(RECOMPUTE_POTENTIAL_IN_SNAPSHOT) || defined(CALCULATE_QUANTITIES_IN_POSTPROCESS)
       for(i = 0, off = 0; i < NTYPES; off += ntype[i], i++)
         parallel_sort(aux_sort + off, ntype[i], sizeof(struct data_aux_sort), fof_compare_aux_sort_FileOrder);
 #endif
@@ -541,13 +714,26 @@ double fof_get_comoving_linking_length(void)
   int i, ndm;
   long long ndmtot;
   double mass, masstot, rhodm;
+#if defined(CREATE_SUBFOFS) && defined(BFOFS_AS_GASCLUMPS)                                         
+  int Link_Types;
+#endif
 
   for(i = 0, ndm = 0, mass = 0; i < NumPart; i++)
+   {
+#if defined(CREATE_SUBFOFS) && defined(BFOFS_AS_GASCLUMPS)
+    if(All.SubFOF_mode == 1)
+       Link_Types = GAS_CLUMP_PRIMARY_LINK_TYPES;
+    else if(All.SubFOF_mode == 0)
+       Link_Types = FOF_PRIMARY_LINK_TYPES;
+    if(((1 << P[i].Type) & (Link_Types)))
+#else
     if(((1 << P[i].Type) & (FOF_PRIMARY_LINK_TYPES)))
+#endif
       {
         ndm++;
         mass += P[i].Mass;
       }
+   }
   sumup_large_ints(1, &ndm, &ndmtot);
   MPI_Allreduce(&mass, &masstot, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   rhodm = (All.Omega0 - All.OmegaBaryon) * 3 * All.Hubble * All.Hubble / (8 * M_PI * All.G);
@@ -565,6 +751,7 @@ void fof_compile_catalogue(void)
 {
   int i, j, start, nimport, ngrp, recvTask;
   struct fof_group_list *get_FOF_GList;
+  int MinParticlesPerGroup;
 
   /* sort according to MinID */
   mysort(FOF_PList, NumPart, sizeof(struct fof_particle_list), fof_compare_FOF_PList_MinID);
@@ -761,18 +948,27 @@ void fof_compile_catalogue(void)
   myfree(get_FOF_GList);
 
   /* eliminate all groups that are too small, and count local groups */
+
+  
+  MinParticlesPerGroup = FOF_GROUP_MIN_LEN;
+#if defined(CREATE_SUBFOFS) && defined(BFOFS_AS_GASCLUMPS)
+  if (All.SubFOF_mode == 1)
+       MinParticlesPerGroup = 3;  
+#endif
+
   for(i = 0, Ngroups = 0, Nids = 0; i < NgroupsExt; i++)
     {
-      if(FOF_GList[i].LocCount + FOF_GList[i].ExtCount
+        if(FOF_GList[i].LocCount + FOF_GList[i].ExtCount
 #ifdef TRACER_PARTICLE
              - FOF_GList[i].LocTrCount - FOF_GList[i].ExtTrCount
 #endif
-         < FOF_GROUP_MIN_LEN)
+         < MinParticlesPerGroup)
         {
           FOF_GList[i] = FOF_GList[NgroupsExt - 1];
           NgroupsExt--;
           i--;
         }
+
       else
         {
           if(FOF_GList[i].MinIDTask == ThisTask)
@@ -845,10 +1041,19 @@ void fof_assign_group_numbers(void)
             terminate("start >= NgroupsExt");
         }
       Group[i].GrNr = FOF_GList[start].GrNr;
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+      Group2[i].GrNr = FOF_GList[start].GrNr;      
+#endif
+
     }
 
   /* sort the groups according to group-number */
   parallel_sort(Group, Ngroups, sizeof(struct group_properties), fof_compare_Group_GrNr);
+
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+  parallel_sort(Group2, Ngroups, sizeof(struct group_properties), fof_compare_Group_GrNr);
+#endif
+
 
   for(i = 0; i < NumPart; i++)
     PS[i].GrNr = TotNgroups + 1; /* this marks all particles that are not in any group */
@@ -912,6 +1117,12 @@ void fof_compute_group_properties(int gr, int start, int len)
 #ifdef USE_SFR
   double gr_Sfr = 0;
 #endif
+#ifdef PROBABILISTIC_SEEDING
+//  Group[gr].PlaceSeedIfCriterionSatisfied = 0; 
+  Group[gr].RandomFractionForSeed = get_random_fraction(3); 
+  mpi_printf("For group %d, generated a random seed of %.3f", gr, Group[gr].RandomFractionForSeed);
+#endif
+
 #ifdef GFM_STELLAR_EVOLUTION
   double *GroupMassMetallicity = NULL, *GroupMassMetals = NULL; /* FIXME */
   double gr_GasMassMetallicity = 0, gr_StellarMassMetallicity = 0;
@@ -929,7 +1140,86 @@ void fof_compute_group_properties(int gr, int start, int len)
 #endif
 #ifdef BLACK_HOLES
   double gr_BH_Mass = 0, gr_BH_Mdot = 0, gr_MaxDens = 0;
+
+#ifdef CHECK_FOR_ENOUGH_GAS_MASS_IN_DCBH_FORMING_POCKETS
+  MyFloat gr_MaxNeighboringDCBHFormingGasMass = 0;
+#endif
+
+#ifdef OUTPUT_LOG_FILES_FOR_SEEDING
+  MyFloat gr_Metallicity_maxdens = 0, gr_Sfr_maxdens = 0, gr_Mass_maxdens = 0;
+  MyIDType gr_ID_maxdens = 0;
+  MyFloat gr_StarFormingGasMass = 0;
+  MyFloat gr_StarFormingGasMassMetallicity = 0;
+  MyFloat gr_StarFormingMetalFreeGasMass = 0;
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS
+  MyFloat gr_StarFormingMetalFreeLymanWernerGasMass = 0;
+  MyFloat gr_LymanWernerGasMass = 0;
+  MyFloat gr_MaxLymanWernerIntensityInDenseMetalPoorGas = 0;
+#endif
+#endif
+
+#ifdef SEED_BASED_ON_PROBABLISTIC_HALO_PROPERTIES
+#ifdef PROBABILISTIC_SEED_MASS_HALO_MASS_RATIO_CRITERION
+  MyFloat gr_RandomMinHaloMassForSeeding_maxdens = 0;
+#endif
+#endif
+
+#ifdef EVOLVING_SEEDING_PROBABILITY
+ MyFloat gr_SecondRandomNumberForSeeding_maxdens = 0;
+ MyFloat gr_SecondRandomNumberForSeeding_average = 0;
+#endif
+
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION2
+ MyFloat gr_ThirdRandomNumberForSeeding_maxdens = 0;
+#endif
+
+#ifdef UNIFORM_SEEDMASS_DISTRIBUTION
+ MyFloat gr_DrawnSeedBlackHoleMass_maxdens = 0;
+#endif
+
+#ifdef PREVENT_SPURIOUS_RESEEDING
+  MyFloat gr_SeedMass_maxdens = 0;
+#endif
+
+
+
+#ifdef PREVENT_SPURIOUS_RESEEDING
+  MyFloat gr_TotalGasSeedMass=0;
+#endif
+
+  int gr_CouldHaveBeenABlackHole_sum = 0;
+
+
+#ifdef PREVENT_SEEDING_AROUND_BLACKHOLE_NEIGHBORS2
+  int gr_BHNeighborExists_maxdens=0;
+#endif
+
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_SOURCES
+  MyFloat gr_LymanWernerIntensityLocalSources_maxdens_type2 = 0;
+  MyFloat gr_LymanWernerIntensityLocalSources_maxdens_type3 = 0;
+#endif
+
+
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS
+  MyFloat gr_LymanWernerIntensityLocalStarFormingGas_maxdens_type2 = 0;
+  MyFloat gr_LymanWernerIntensityLocalStarFormingGas_maxdens_type3 = 0;
+#endif
+
+
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_ALL_SOURCES
+  MyFloat gr_LymanWernerIntensityAllSources_maxdens_type2 = 0;
+  MyFloat gr_LymanWernerIntensityAllSources_maxdens_type3 = 0;
+#endif
+
+#ifdef PREVENT_SPURIOUS_RESEEDING2
+  int gr_NeighborOfBlackhole_maxdens=0;
+#endif
+
   Group[gr].index_maxdens = Group[gr].task_maxdens = -1;
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+  Group[gr].index_MinPot = Group[gr].task_MinPot = -1;
+#endif
+
 #ifdef BH_NF_RADIO
   double gr_Min_BH_Potential    = MAX_FLOAT_NUMBER;
   Group[gr].ID_Min_BH_Potential = 0;
@@ -940,6 +1230,10 @@ void fof_compute_group_properties(int gr, int start, int len)
   double gr_WindMass = 0;
 #endif
   double gr_CM[3], gr_Vel[3];
+#ifdef CONSTRUCT_FOF_NGBTREE
+  double gr_CM_unwrapped[3];
+#endif
+
 #if defined(GFM_BIPOLAR_WINDS) && GFM_BIPOLAR_WINDS != 3
   double gr_GravAcc[3];
 #endif
@@ -947,15 +1241,24 @@ void fof_compute_group_properties(int gr, int start, int len)
     {
       gr_CM[k]  = 0;
       gr_Vel[k] = 0;
+#ifdef CONSTRUCT_FOF_NGBTREE
+      gr_CM_unwrapped[k]  = 0;
+#endif
+
 #if defined(GFM_BIPOLAR_WINDS) && GFM_BIPOLAR_WINDS != 3
       gr_GravAcc[k] = 0;
 #endif
       Group[gr].FirstPos[k] = P[start_index].Pos[k];
     }
 
-#if defined(GFM_BIPOLAR_WINDS) && GFM_BIPOLAR_WINDS == 3
+#if defined(CALCULATE_SPIN_STARFORMINGGAS) || (defined(GFM_BIPOLAR_WINDS) && (GFM_BIPOLAR_WINDS == 3))
   double gr_MinPotential = MAX_FLOAT_NUMBER;
 #endif
+
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+  double gr_DMMinPotential = MAX_FLOAT_NUMBER;
+#endif
+
 
   double gr_MassType[NTYPES];
   for(k = 0; k < NTYPES; k++)
@@ -963,7 +1266,6 @@ void fof_compute_group_properties(int gr, int start, int len)
       Group[gr].LenType[k] = 0;
       gr_MassType[k]       = 0;
     }
-
   /* calculate */
   for(k = 0; k < len; k++)
     {
@@ -1070,7 +1372,64 @@ void fof_compute_group_properties(int gr, int start, int len)
 #endif
 
 #ifdef BLACK_HOLES
-      if(P[index].Type == PTYPE_BNDRY)
+#ifdef PREVENT_SPURIOUS_RESEEDING
+      if(P[index].Type == 0)
+        {
+          gr_TotalGasSeedMass += SphP[index].SeedMass; 
+        }
+      else if(P[index].Type == 4)
+        {
+          gr_TotalGasSeedMass += STP(index).SeedMass;
+        }
+#endif     
+      if(P[index].Type == 0)
+         gr_CouldHaveBeenABlackHole_sum += SphP[index].CouldHaveBeenABlackHole;
+
+
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS
+      if(P[index].Type == 0)
+        {
+          if ((SphP[index].StarFormingGasLymanWernerIntensity_type2 + SphP[index].StarFormingGasLymanWernerIntensity_type3) > All.MinLymanWernerFluxForNewSeed)        
+            {
+                 gr_LymanWernerGasMass += P[index].Mass;
+            }
+        }
+#endif
+
+#ifdef EVOLVING_SEEDING_PROBABILITY
+      if(P[index].Type == 0)
+          gr_SecondRandomNumberForSeeding_average += P[index].Mass * SphP[index].SecondRandomNumberForSeeding;    
+#endif
+
+#ifdef OUTPUT_LOG_FILES_FOR_SEEDING
+#ifdef SUPPRESS_STARFORMATION_ABOVE_CRITICAL_LYMANWERNERFLUX
+      if((P[index].Type == 0) && (SphP[index].GasIsDense == 1))
+#else
+      if((P[index].Type == 0) && (SphP[index].Sfr > 0))
+#endif
+      {
+         gr_StarFormingGasMass += P[index].Mass;
+         gr_StarFormingGasMassMetallicity += P[index].Mass * SphP[index].Metallicity;
+         if (SphP[index].MassMetallicity < All.MaxMetallicityForAssumingMetalFree * P[index].Mass * GFM_SOLAR_METALLICITY)
+           {
+#ifdef REFINEMENT_HIGH_RES_GAS
+             gr_StarFormingMetalFreeGasMass += SphP[index].HighResMass;
+#else
+             gr_StarFormingMetalFreeGasMass += P[index].Mass;
+#endif
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS
+             if ((SphP[index].StarFormingGasLymanWernerIntensity_type2 + SphP[index].StarFormingGasLymanWernerIntensity_type3) > All.MinLymanWernerFluxForNewSeed)
+#ifdef REFINEMENT_HIGH_RES_GAS 
+                 gr_StarFormingMetalFreeLymanWernerGasMass += SphP[index].HighResMass;
+#else
+                 gr_StarFormingMetalFreeLymanWernerGasMass += P[index].Mass;
+#endif
+#endif
+           }
+      }
+#endif
+
+      if(P[index].Type == 5)
         {
           gr_BH_Mdot += BPP(index).BH_Mdot;
           gr_BH_Mass += BPP(index).BH_Mass;
@@ -1084,9 +1443,90 @@ void fof_compute_group_properties(int gr, int start, int len)
         }
       if(P[index].Type == PTYPE_GAS)
         {
-          if(SphP[index].Density > gr_MaxDens)
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS
+#ifdef SUPPRESS_STARFORMATION_ABOVE_CRITICAL_LYMANWERNERFLUX
+          if(SphP[index].GasIsDense == 1)
+#else
+          if(SphP[index].Sfr > 0)
+#endif
+            if (SphP[index].MassMetallicity < All.MaxMetallicityForAssumingMetalFree * P[index].Mass * GFM_SOLAR_METALLICITY)
+               if(SphP[index].StarFormingGasLymanWernerIntensity_type2 + SphP[index].StarFormingGasLymanWernerIntensity_type3 > gr_MaxLymanWernerIntensityInDenseMetalPoorGas)
+                  gr_MaxLymanWernerIntensityInDenseMetalPoorGas = SphP[index].StarFormingGasLymanWernerIntensity_type2 + SphP[index].StarFormingGasLymanWernerIntensity_type3;   
+#endif
+
+#ifdef CHECK_FOR_ENOUGH_GAS_MASS_IN_DCBH_FORMING_POCKETS
+          if(SphP[index].NeighboringDCBHFormingGasMass > gr_MaxNeighboringDCBHFormingGasMass)
+              gr_MaxNeighboringDCBHFormingGasMass = SphP[index].NeighboringDCBHFormingGasMass;
+#endif
+#ifdef SEED_BHS_FROM_ELIGIBLE_GAS_CELLS
+#if defined(SEED_STARFORMINGMETALFREEGASMASS_CRITERION) || defined(SEED_STARFORMINGMETALFREELYMANWERNERGASMASS_CRITERION)
+#ifdef SUPPRESS_STARFORMATION_ABOVE_CRITICAL_LYMANWERNERFLUX
+             if(SphP[index].GasIsDense == 1)
+#else
+             if(SphP[index].Sfr > 0)
+#endif
+             if (SphP[index].MassMetallicity < All.MaxMetallicityForAssumingMetalFree * P[index].Mass * GFM_SOLAR_METALLICITY)
+#ifdef SEED_STARFORMINGMETALFREELYMANWERNERGASMASS_CRITERION
+             if ((SphP[index].StarFormingGasLymanWernerIntensity_type2 + SphP[index].StarFormingGasLymanWernerIntensity_type3) > All.MinLymanWernerFluxForNewSeed)          
+#endif
+#endif
+#endif
+             if(SphP[index].Density > gr_MaxDens)
             {
               gr_MaxDens              = SphP[index].Density;
+#ifdef OUTPUT_LOG_FILES_FOR_SEEDING
+              gr_Metallicity_maxdens  = SphP[index].Metallicity;
+              gr_Sfr_maxdens =  SphP[index].Sfr;
+              gr_Mass_maxdens = P[index].Mass;
+              gr_ID_maxdens = P[index].ID;
+#endif
+
+#ifdef SEED_BASED_ON_PROBABLISTIC_HALO_PROPERTIES
+#ifdef PROBABILISTIC_SEED_MASS_HALO_MASS_RATIO_CRITERION
+              if (SphP[index].RandomMinHaloMassForSeeding < 0)
+                  SphP[index].RandomMinHaloMassForSeeding = - SphP[index].RandomMinHaloMassForSeeding;
+              gr_RandomMinHaloMassForSeeding_maxdens  = SphP[index].RandomMinHaloMassForSeeding;
+#endif
+#endif
+
+#ifdef EVOLVING_SEEDING_PROBABILITY
+             gr_SecondRandomNumberForSeeding_maxdens  = SphP[index].SecondRandomNumberForSeeding;
+#endif
+
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION2
+             gr_ThirdRandomNumberForSeeding_maxdens  = SphP[index].ThirdRandomNumberForSeeding;
+#endif
+
+#ifdef UNIFORM_SEEDMASS_DISTRIBUTION
+             gr_DrawnSeedBlackHoleMass_maxdens  = SphP[index].DrawnSeedBlackHoleMass;
+#endif
+
+
+#ifdef PREVENT_SPURIOUS_RESEEDING
+              gr_SeedMass_maxdens  = SphP[index].SeedMass;
+#endif
+
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_SOURCES
+              gr_LymanWernerIntensityLocalSources_maxdens_type2  = SphP[index].StellarLymanWernerIntensity_type2; 
+              gr_LymanWernerIntensityLocalSources_maxdens_type3  = SphP[index].StellarLymanWernerIntensity_type3;
+#endif
+
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS
+              gr_LymanWernerIntensityLocalStarFormingGas_maxdens_type2  = SphP[index].StarFormingGasLymanWernerIntensity_type2;
+              gr_LymanWernerIntensityLocalStarFormingGas_maxdens_type3  = SphP[index].StarFormingGasLymanWernerIntensity_type3;
+#endif
+
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_ALL_SOURCES
+      	      gr_LymanWernerIntensityAllSources_maxdens_type2  = P[index].StellarAllLymanWernerIntensity_type2;
+              gr_LymanWernerIntensityAllSources_maxdens_type3  = P[index].StellarAllLymanWernerIntensity_type3;
+#endif
+
+#ifdef PREVENT_SEEDING_AROUND_BLACKHOLE_NEIGHBORS2
+              gr_BHNeighborExists_maxdens  = SphP[index].BHNeighborExists;
+#endif
+#ifdef PREVENT_SPURIOUS_RESEEDING2
+              gr_NeighborOfBlackhole_maxdens = SphP[index].NeighborOfBlackhole;
+#endif
               Group[gr].index_maxdens = index;
               Group[gr].task_maxdens  = ThisTask;
             }
@@ -1098,7 +1538,7 @@ void fof_compute_group_properties(int gr, int start, int len)
         gr_WindMass += P[index].Mass;
 #endif
 
-#if defined(GFM_BIPOLAR_WINDS) && GFM_BIPOLAR_WINDS == 3
+#if defined(CALCULATE_SPIN_STARFORMINGGAS) || (defined(GFM_BIPOLAR_WINDS) && (GFM_BIPOLAR_WINDS == 3))
       if(P[index].Potential < gr_MinPotential)
         {
           gr_MinPotential               = P[index].Potential;
@@ -1108,21 +1548,79 @@ void fof_compute_group_properties(int gr, int start, int len)
         }
 #endif
 
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+      if(P[index].Type == 1)
+          if(P[index].Potential < gr_DMMinPotential) 
+            {
+               gr_DMMinPotential               = P[index].Potential;
+               Group[gr].index_MinPot = index;
+               Group[gr].task_MinPot  = ThisTask;
+            }
+#endif
+
+
       for(j = 0; j < 3; j++)
         {
           xyz[j] = fof_periodic_nearest(P[index].Pos[j] - P[start_index].Pos[j]);
           gr_CM[j] += P[index].Mass * xyz[j];
+
+#ifdef CONSTRUCT_FOF_NGBTREE
+          gr_CM_unwrapped[j] += P[index].Mass * P[index].Pos[j];
+#endif
+
           gr_Vel[j] += P[index].Mass * P[index].Vel[j];
 #if defined(GFM_BIPOLAR_WINDS) && GFM_BIPOLAR_WINDS != 3
           gr_GravAcc[j] += P[index].Mass * P[index].GravAccel[j];
 #endif
         }
     }
+#ifdef CREATE_SUBFOFS
+  if(All.SubFOF_mode == 0)
+   {
+#endif
+#if defined(EVOLVING_SEEDING_PROBABILITY) || defined(SEED_HALO_ENVIRONMENT_CRITERION2) || defined(UNIFORM_SEEDMASS_DISTRIBUTION)
+    for(k = 0; k < len; k++)
+      {
+        index = FOF_PList[start + k].Pindex;
+        if(P[index].Type == PTYPE_GAS)
+        {
+#ifdef EVOLVING_SEEDING_PROBABILITY
+           SphP[index].SecondRandomNumberForSeeding = gr_SecondRandomNumberForSeeding_maxdens;
+#endif
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION2
+           SphP[index].ThirdRandomNumberForSeeding = gr_ThirdRandomNumberForSeeding_maxdens;
+#endif
+#ifdef UNIFORM_SEEDMASS_DISTRIBUTION
+           SphP[index].DrawnSeedBlackHoleMass = gr_DrawnSeedBlackHoleMass_maxdens;
+#endif
+        }
+      }
+#endif
+
+#ifdef SEED_BASED_ON_PROBABLISTIC_HALO_PROPERTIES
+#ifdef PROBABILISTIC_SEED_MASS_HALO_MASS_RATIO_CRITERION
+    for(k = 0; k < len; k++)
+      {
+       	index = FOF_PList[start + k].Pindex;
+        if(P[index].Type == PTYPE_GAS)
+        {
+           SphP[index].RandomMinHaloMassForSeeding = gr_RandomMinHaloMassForSeeding_maxdens;
+        }
+      }
+#endif
+#endif
+#ifdef CREATE_SUBFOFS
+  }
+#endif
 
   /* put values into group struct */
   Group[gr].Mass = gr_Mass;
 #ifdef USE_SFR
   Group[gr].Sfr = gr_Sfr;
+#endif
+
+#ifdef EVOLVING_SEEDING_PROBABILITY
+  Group[gr].SecondRandomNumberForSeeding_average = gr_SecondRandomNumberForSeeding_average; 
 #endif
 
 #ifdef GFM_STELLAR_EVOLUTION
@@ -1138,10 +1636,86 @@ void fof_compute_group_properties(int gr, int start, int len)
 #endif
 #endif
 
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+  Group[gr].DMMinPotential = gr_DMMinPotential;
+#endif
+
+
 #ifdef BLACK_HOLES
   Group[gr].BH_Mass = gr_BH_Mass;
   Group[gr].BH_Mdot = gr_BH_Mdot;
   Group[gr].MaxDens = gr_MaxDens;
+
+#ifdef OUTPUT_LOG_FILES_FOR_SEEDING
+  Group[gr].Metallicity_maxdens = gr_Metallicity_maxdens;
+  Group[gr].Sfr_maxdens = gr_Sfr_maxdens;
+  Group[gr].Mass_maxdens = gr_Mass_maxdens;
+  Group[gr].ID_maxdens = gr_ID_maxdens;
+#endif
+
+#ifdef SEED_BASED_ON_PROBABLISTIC_HALO_PROPERTIES
+#ifdef PROBABILISTIC_SEED_MASS_HALO_MASS_RATIO_CRITERION
+  Group[gr].RandomMinHaloMassForSeeding_maxdens = gr_RandomMinHaloMassForSeeding_maxdens;
+#endif
+#endif
+
+#ifdef EVOLVING_SEEDING_PROBABILITY
+  Group[gr].SecondRandomNumberForSeeding_maxdens = gr_SecondRandomNumberForSeeding_maxdens;
+#endif
+
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION2
+  Group[gr].ThirdRandomNumberForSeeding_maxdens = gr_ThirdRandomNumberForSeeding_maxdens;
+#endif
+
+#ifdef UNIFORM_SEEDMASS_DISTRIBUTION
+  Group[gr].DrawnSeedBlackHoleMass_maxdens = gr_DrawnSeedBlackHoleMass_maxdens;
+#endif
+
+#ifdef CHECK_FOR_ENOUGH_GAS_MASS_IN_DCBH_FORMING_POCKETS
+  Group[gr].MaxNeighboringDCBHFormingGasMass = gr_MaxNeighboringDCBHFormingGasMass;
+#endif
+
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_SOURCES
+  Group[gr].LymanWernerIntensityLocalSources_maxdens_type2 =  gr_LymanWernerIntensityLocalSources_maxdens_type2;
+  Group[gr].LymanWernerIntensityLocalSources_maxdens_type3 =  gr_LymanWernerIntensityLocalSources_maxdens_type3;
+  Group[gr].MaxLymanWernerIntensityInDenseMetalPoorGas = gr_MaxLymanWernerIntensityInDenseMetalPoorGas;
+#endif
+
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS
+  Group[gr].LymanWernerIntensityLocalStarFormingGas_maxdens_type2 =  gr_LymanWernerIntensityLocalStarFormingGas_maxdens_type2;
+  Group[gr].LymanWernerIntensityLocalStarFormingGas_maxdens_type3 =  gr_LymanWernerIntensityLocalStarFormingGas_maxdens_type3;
+#endif
+
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_ALL_SOURCES
+  Group[gr].LymanWernerIntensityAllSources_maxdens_type2   =  gr_LymanWernerIntensityAllSources_maxdens_type2;
+  Group[gr].LymanWernerIntensityAllSources_maxdens_type3 =  gr_LymanWernerIntensityAllSources_maxdens_type3;
+#endif
+
+#ifdef PREVENT_SEEDING_AROUND_BLACKHOLE_NEIGHBORS2
+  Group[gr].BHNeighborExists_maxdens =  gr_BHNeighborExists_maxdens;
+#endif
+
+#ifdef PREVENT_SPURIOUS_RESEEDING2
+  Group[gr].NeighborOfBlackhole_maxdens =  gr_NeighborOfBlackhole_maxdens;
+#endif
+
+#ifdef PREVENT_SPURIOUS_RESEEDING
+  Group[gr].TotalGasSeedMass = gr_TotalGasSeedMass;
+  Group[gr].SeedMass_maxdens = gr_SeedMass_maxdens;
+#endif
+
+  Group[gr].CouldHaveBeenABlackHole_sum = gr_CouldHaveBeenABlackHole_sum;
+
+#ifdef OUTPUT_LOG_FILES_FOR_SEEDING
+  Group[gr].StarFormingGasMass = gr_StarFormingGasMass;
+  Group[gr].StarFormingGasMassMetallicity = gr_StarFormingGasMassMetallicity;
+  Group[gr].StarFormingMetalFreeGasMass = gr_StarFormingMetalFreeGasMass;
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS
+  Group[gr].StarFormingMetalFreeLymanWernerGasMass = gr_StarFormingMetalFreeLymanWernerGasMass;
+  Group[gr].LymanWernerGasMass = gr_LymanWernerGasMass;
+#endif
+#endif
+
 #ifdef BH_NF_RADIO
   Group[gr].Min_BH_Potential = gr_Min_BH_Potential;
   Group[gr].XrayLum          = gr_XrayLum;
@@ -1156,6 +1730,11 @@ void fof_compute_group_properties(int gr, int start, int len)
     {
       Group[gr].CM[k]  = gr_CM[k];
       Group[gr].Vel[k] = gr_Vel[k];
+#ifdef CONSTRUCT_FOF_NGBTREE
+      Group[gr].CM_unwrapped[k]  = gr_CM_unwrapped[k];
+#endif
+
+
 #if defined(GFM_BIPOLAR_WINDS) && GFM_BIPOLAR_WINDS != 3
       Group[gr].GravAcc[k] = gr_GravAcc[k];
 #endif
@@ -1283,6 +1862,8 @@ void fof_exchange_group_data(void)
   mysort(get_Group, nimport, sizeof(struct group_properties), fof_compare_Group_MinID);
 
   /* now add in the partial imported group data to the main ones */
+  printf("\n Value of Group[0].MinID %d at task %d",Group[0].MinID,ThisTask);
+ 
   for(i = 0, start = 0; i < nimport; i++)
     {
       while(Group[start].MinID < get_Group[i].MinID)
@@ -1323,11 +1904,103 @@ void fof_exchange_group_data(void)
 #ifdef BLACK_HOLES
       Group[start].BH_Mdot += get_Group[i].BH_Mdot;
       Group[start].BH_Mass += get_Group[i].BH_Mass;
+
+#ifdef EVOLVING_SEEDING_PROBABILITY
+      Group[start].SecondRandomNumberForSeeding_average += get_Group[i].SecondRandomNumberForSeeding_average;
+#endif
+
+#ifdef PREVENT_SPURIOUS_RESEEDING
+      Group[start].TotalGasSeedMass += get_Group[i].TotalGasSeedMass;
+#endif
+
+      Group[start].CouldHaveBeenABlackHole_sum += get_Group[i].CouldHaveBeenABlackHole_sum;
+
+#ifdef OUTPUT_LOG_FILES_FOR_SEEDING
+      Group[start].StarFormingGasMass += get_Group[i].StarFormingGasMass;
+      Group[start].StarFormingGasMassMetallicity += get_Group[i].StarFormingGasMassMetallicity;
+      Group[start].StarFormingMetalFreeGasMass += get_Group[i].StarFormingMetalFreeGasMass;
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS
+      Group[start].StarFormingMetalFreeLymanWernerGasMass += get_Group[i].StarFormingMetalFreeLymanWernerGasMass;
+      Group[start].LymanWernerGasMass += get_Group[i].LymanWernerGasMass;
+#endif
+#endif
+
+#ifdef CHECK_FOR_ENOUGH_GAS_MASS_IN_DCBH_FORMING_POCKETS
+      if(get_Group[i].MaxNeighboringDCBHFormingGasMass > Group[start].MaxNeighboringDCBHFormingGasMass)
+         Group[start].MaxNeighboringDCBHFormingGasMass = get_Group[i].MaxNeighboringDCBHFormingGasMass;
+#endif
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS
+      if (get_Group[i].MaxLymanWernerIntensityInDenseMetalPoorGas > Group[start].MaxLymanWernerIntensityInDenseMetalPoorGas)
+         Group[start].MaxLymanWernerIntensityInDenseMetalPoorGas = get_Group[i].MaxLymanWernerIntensityInDenseMetalPoorGas;
+#endif
+
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+      if(get_Group[i].DMMinPotential < Group[start].DMMinPotential)
+        {
+          Group[start].DMMinPotential = get_Group[i].DMMinPotential;
+          Group[start].index_MinPot = get_Group[i].index_MinPot;
+          Group[start].task_MinPot  = get_Group[i].task_MinPot;
+        }
+
+#endif
+
+
       if(get_Group[i].MaxDens > Group[start].MaxDens)
         {
           Group[start].MaxDens       = get_Group[i].MaxDens;
           Group[start].index_maxdens = get_Group[i].index_maxdens;
           Group[start].task_maxdens  = get_Group[i].task_maxdens;
+#ifdef OUTPUT_LOG_FILES_FOR_SEEDING
+          Group[start].Metallicity_maxdens = get_Group[i].Metallicity_maxdens;
+          Group[start].Sfr_maxdens = get_Group[i].Sfr_maxdens;
+          Group[start].Mass_maxdens = get_Group[i].Mass_maxdens;
+          Group[start].ID_maxdens = get_Group[i].ID_maxdens;
+#endif
+
+#ifdef SEED_BASED_ON_PROBABLISTIC_HALO_PROPERTIES
+#ifdef PROBABILISTIC_SEED_MASS_HALO_MASS_RATIO_CRITERION
+         Group[start].RandomMinHaloMassForSeeding_maxdens = get_Group[i].RandomMinHaloMassForSeeding_maxdens;
+#endif
+#endif
+
+#ifdef EVOLVING_SEEDING_PROBABILITY
+         Group[start].SecondRandomNumberForSeeding_maxdens = get_Group[i].SecondRandomNumberForSeeding_maxdens;
+#endif
+
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION2
+         Group[start].ThirdRandomNumberForSeeding_maxdens = get_Group[i].ThirdRandomNumberForSeeding_maxdens;
+#endif
+
+#ifdef UNIFORM_SEEDMASS_DISTRIBUTION
+         Group[start].DrawnSeedBlackHoleMass_maxdens = get_Group[i].DrawnSeedBlackHoleMass_maxdens;
+#endif
+
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_SOURCES
+          Group[start].LymanWernerIntensityLocalSources_maxdens_type2 =  get_Group[i].LymanWernerIntensityLocalSources_maxdens_type2;
+          Group[start].LymanWernerIntensityLocalSources_maxdens_type3 =  get_Group[i].LymanWernerIntensityLocalSources_maxdens_type3;
+#endif
+
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS
+          Group[start].LymanWernerIntensityLocalStarFormingGas_maxdens_type2 =  get_Group[i].LymanWernerIntensityLocalStarFormingGas_maxdens_type2;
+          Group[start].LymanWernerIntensityLocalStarFormingGas_maxdens_type3 =  get_Group[i].LymanWernerIntensityLocalStarFormingGas_maxdens_type3;
+#endif
+
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_ALL_SOURCES
+          Group[start].LymanWernerIntensityAllSources_maxdens_type2   =  get_Group[i].LymanWernerIntensityAllSources_maxdens_type2;
+          Group[start].LymanWernerIntensityAllSources_maxdens_type3 =  get_Group[i].LymanWernerIntensityAllSources_maxdens_type3;
+#endif
+
+#ifdef PREVENT_SPURIOUS_RESEEDING
+          Group[start].SeedMass_maxdens = get_Group[i].SeedMass_maxdens;
+#endif
+
+#ifdef PREVENT_SPURIOUS_RESEEDING2
+          Group[start].NeighborOfBlackhole_maxdens = get_Group[i].NeighborOfBlackhole_maxdens;
+#endif
+
+#ifdef PREVENT_SEEDING_AROUND_BLACKHOLE_NEIGHBORS2
+          Group[start].BHNeighborExists_maxdens = get_Group[i].BHNeighborExists_maxdens;
+#endif
         }
 
 #if defined(BH_NF_RADIO)
@@ -1344,7 +2017,7 @@ void fof_exchange_group_data(void)
       Group[start].WindMass += get_Group[i].WindMass;
 #endif
 
-#if defined(GFM_BIPOLAR_WINDS) && GFM_BIPOLAR_WINDS == 3
+#if defined(CALCULATE_SPIN_STARFORMINGGAS) || (defined(GFM_BIPOLAR_WINDS) && (GFM_BIPOLAR_WINDS == 3))
       if(get_Group[i].MinPotential < Group[start].MinPotential)
         {
           Group[start].MinPotential        = get_Group[i].MinPotential;
@@ -1359,6 +2032,9 @@ void fof_exchange_group_data(void)
           xyz[j] = fof_periodic_nearest(get_Group[i].CM[j] / get_Group[i].Mass + get_Group[i].FirstPos[j] - Group[start].FirstPos[j]);
           Group[start].CM[j] += get_Group[i].Mass * xyz[j];
           Group[start].Vel[j] += get_Group[i].Vel[j];
+#ifdef CONSTRUCT_FOF_NGBTREE
+          Group[start].CM_unwrapped[j] += get_Group[i].CM_unwrapped[j];
+#endif
 #if defined(GFM_BIPOLAR_WINDS) && GFM_BIPOLAR_WINDS != 3
           Group[start].GravAcc[j] += get_Group[i].GravAcc[j];
 #endif
@@ -1378,6 +2054,11 @@ void fof_finish_group_properties(void)
 {
   for(int i = 0; i < NgroupsExt; i++)
     {
+#ifdef BLACK_HOLES
+#ifdef EVOLVING_SEEDING_PROBABILITY
+      Group[i].SecondRandomNumberForSeeding_average /= Group[i].MassType[0];
+#endif   
+#endif
       if(Group[i].MinIDTask == (MyIDType)ThisTask)
         {
           for(int j = 0; j < 3; j++)
@@ -1387,13 +2068,10 @@ void fof_finish_group_properties(void)
               Group[i].GravAcc[j] /= Group[i].Mass;
 #endif
               Group[i].CM[j] = fof_periodic_wrap(Group[i].CM[j] / Group[i].Mass + Group[i].FirstPos[j]);
+#ifdef CONSTRUCT_FOF_NGBTREE
+              Group[i].CM_unwrapped[j] /= Group[i].Mass;
+#endif
             }
-
-          /* define group position as CM . This will be overwritten in case Subfind is used with
-           * the position of the potential minimum
-           */
-          for(int j = 0; j < 3; j++)
-            Group[i].Pos[j] = Group[i].CM[j];
 
 #ifdef BH_NF_RADIO
           if(Group[i].LenType[PTYPE_BNDRY] > 0) /* only if a BH is actually present */
@@ -1443,6 +2121,22 @@ double fof_periodic_nearest(const double x) { return coord_nearest(All.BoxSize, 
  *
  *  \return coordinate within [0, BoxSize).
  */
-double fof_periodic_wrap(const double x) { return coord_wrap(All.BoxSize, x); }
-
+double fof_periodic_wrap(double x)
+{
+  while(x >= All.BoxSize)
+    x -= All.BoxSize;
+  while(x < 0)
+    x += All.BoxSize;
+  return x;
+}
+#ifdef PROBABILISTIC_SEEDING
+float get_random_fraction(int number_of_decimal_places)
+{
+    int upper = pow(10 , number_of_decimal_places), lower = 0, num;
+    float random_fraction;
+    num =  (rand() % (upper - lower + 1)) + lower;
+    random_fraction = (float)num / upper;
+    return random_fraction;
+}
+#endif	
 #endif /* of FOF */

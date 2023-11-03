@@ -155,7 +155,7 @@ void sx_start_run(double a, double t, double dt)
   All.sxCurrentRun++;
 
   // allocate run data structure and initialize variables
-  sxRunData = (struct sxRunData_struct *)mymalloc("sxRunData", sizeof(struct sxRunData_struct));
+  sxRunData = mymalloc("sxRunData", sizeof(struct sxRunData_struct));
 
   // initialize debug and start the main timer
   sx_debug_start_run();
@@ -217,7 +217,7 @@ void sx_start_run(double a, double t, double dt)
 
   // allocate array for gas properties used only during this run
   // DEBUG: This should be in the future somehow allocated only for the active particles
-  sxCell = (struct sxCell_struct *)mymalloc("sxCell", NumGas * sizeof(struct sxCell_struct) );
+  sxCell = mymalloc("sxCell", NumGas * sizeof(struct sxCell_struct) );
 
   // initialize chemistry
   sx_chem_start_run();

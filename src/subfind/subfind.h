@@ -21,6 +21,7 @@
 #include "../allvars.h"
 #include "../domain.h"
 
+
 #define FIND_SMOOTHING_LENGTHS 0
 #define FIND_TOTAL_DENSITIES 1
 
@@ -173,6 +174,13 @@ extern struct subgroup_properties
   MyFloat SurfaceBrightnessLimitRad;
   MyFloat SubMassInPhotRad;
 #endif
+
+#ifdef SEED_BLACKHOLES_IN_SUBHALOS
+  int index_maxdens, task_maxdens;
+  MyFloat sfr_maxdens, maxdens;
+#endif
+
+
 } * SubGroup;
 
 #ifdef ADD_GROUP_PROPERTIES
@@ -366,5 +374,10 @@ void subfind_add_grp_props_read_catalogue(int num, int ngroups_cat, int nsubgrou
 void subfind_add_grp_props_distribute_catalogue_subfind(void);
 void subfind_add_grp_props_finalize(int num, int ngroups_cat, int nsubgroups_cat);
 #endif
+
+#ifdef SEED_BLACKHOLES_IN_SUBHALOS
+void subfind_make_black_holes(void);
+#endif
+
 
 #endif

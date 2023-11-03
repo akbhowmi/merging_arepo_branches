@@ -216,7 +216,7 @@ void pm_init_nonperiodic(void)
 #ifndef FFT_COLUMN_BASED
   const int stride = GRIDz_NP;
 #else
-  const int stride = 1;
+  const int stride    = 1;
 #endif
 
 #ifdef DOUBLEPRECISION_FFTW
@@ -229,27 +229,26 @@ void pm_init_nonperiodic(void)
   const unsigned int flags = FFTW_ESTIMATE | FFTW_DESTROY_INPUT | alignflag;
 
   /* temporarily allocate some arrays to make sure that out-of-place plans are created */
-  const size_t tmp_len    = 2 * GRID_NP * (size_t)stride;
+  const size_t tmp_len = 2 * GRID_NP * (size_t)stride;
   fft_real *rhogrid_tmp   = (fft_real *)mymalloc("rhogrid_tmp", tmp_len * sizeof(*rhogrid_tmp));
   fft_real *forcegrid_tmp = (fft_real *)mymalloc("forcegrid_tmp", tmp_len * sizeof(*forcegrid_tmp));
 
-  myplan.forward_plan_zdir =
-      FFTW(plan_many_dft_r2c)(1, ndim, 1, rhogrid_tmp, NULL, 1, 0, (fft_complex *)forcegrid_tmp, NULL, 1, 0, flags);
 
-  myplan.forward_plan_xdir = FFTW(plan_many_dft)(1, ndim, 1, (fft_complex *)rhogrid_tmp, 0, stride, 0, (fft_complex *)forcegrid_tmp,
-                                                 NULL, stride, 0, FFTW_FORWARD, flags);
+  myplan.forward_plan_zdir = FFTW(plan_many_dft_r2c)(1, ndim, 1, rhogrid_tmp, NULL, 1, 0, (fft_complex *)forcegrid_tmp, NULL, 1, 0, flags);
 
-  myplan.forward_plan_ydir = FFTW(plan_many_dft)(1, ndim, 1, (fft_complex *)rhogrid_tmp, 0, stride, 0, (fft_complex *)forcegrid_tmp,
-                                                 NULL, stride, 0, FFTW_FORWARD, flags);
+  myplan.forward_plan_xdir =
+      FFTW(plan_many_dft)(1, ndim, 1, (fft_complex *)rhogrid_tmp, 0, stride, 0, (fft_complex *)forcegrid_tmp, NULL, stride, 0, FFTW_FORWARD, flags);
 
-  myplan.backward_plan_zdir =
-      FFTW(plan_many_dft_c2r)(1, ndim, 1, (fft_complex *)rhogrid_tmp, NULL, 1, 0, forcegrid_tmp, NULL, 1, 0, flags);
+  myplan.forward_plan_ydir =
+      FFTW(plan_many_dft)(1, ndim, 1, (fft_complex *)rhogrid_tmp, 0, stride, 0, (fft_complex *)forcegrid_tmp, NULL, stride, 0, FFTW_FORWARD, flags);
 
-  myplan.backward_plan_xdir = FFTW(plan_many_dft)(1, ndim, 1, (fft_complex *)rhogrid_tmp, NULL, stride, 0,
-                                                  (fft_complex *)forcegrid_tmp, NULL, stride, 0, FFTW_BACKWARD, flags);
+  myplan.backward_plan_zdir = FFTW(plan_many_dft_c2r)(1, ndim, 1, (fft_complex *)rhogrid_tmp, NULL, 1, 0, forcegrid_tmp, NULL, 1, 0, flags);
 
-  myplan.backward_plan_ydir = FFTW(plan_many_dft)(1, ndim, 1, (fft_complex *)rhogrid_tmp, NULL, stride, 0,
-                                                  (fft_complex *)forcegrid_tmp, NULL, stride, 0, FFTW_BACKWARD, flags);
+  myplan.backward_plan_xdir =
+      FFTW(plan_many_dft)(1, ndim, 1, (fft_complex *)rhogrid_tmp, NULL, stride, 0, (fft_complex *)forcegrid_tmp, NULL, stride, 0, FFTW_BACKWARD, flags);
+
+  myplan.backward_plan_ydir =
+      FFTW(plan_many_dft)(1, ndim, 1, (fft_complex *)rhogrid_tmp, NULL, stride, 0, (fft_complex *)forcegrid_tmp, NULL, stride, 0, FFTW_BACKWARD, flags);
 
   myfree(forcegrid_tmp);
   myfree(rhogrid_tmp);

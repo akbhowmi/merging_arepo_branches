@@ -196,7 +196,16 @@ void cooling_and_starformation(void)
 
       if(P[i].Mass == 0) /* tracer particles don't form stars */
         flag = 1;
-
+#ifdef SUPPRESS_STARFORMATION_ABOVE_CRITICAL_LYMANWERNERFLUX
+      SphP[i].GasIsDense = 6;
+      if(flag == 0)
+       {
+        SphP[i].GasIsDense = 1;
+         if (SphP[i].MassMetallicity < All.MaxMetallicityForAssumingMetalFree * P[i].Mass * GFM_SOLAR_METALLICITY)
+           if ((SphP[i].StarFormingGasLymanWernerIntensity_type2 + SphP[i].StarFormingGasLymanWernerIntensity_type3) > All.MinLymanWernerFluxForNewSeed)
+                flag = 1;
+       }
+#endif 
       if(flag == 1)
         SphP[i].Sfr = 0;
 
@@ -337,6 +346,17 @@ double get_starformation_rate(int i)
   if(All.ComovingIntegrationOn)
     if(SphP[i].Density < All.OverDensThresh)
       flag = 1;
+
+#ifdef SUPPRESS_STARFORMATION_ABOVE_CRITICAL_LYMANWERNERFLUX
+//      SphP[i].GasIsDense = 6;
+      if(flag == 0)
+       {
+//        SphP[i].GasIsDense = 1;
+         if (SphP[i].MassMetallicity < All.MaxMetallicityForAssumingMetalFree * P[i].Mass * GFM_SOLAR_METALLICITY)
+           if ((SphP[i].StarFormingGasLymanWernerIntensity_type2 + SphP[i].StarFormingGasLymanWernerIntensity_type3) > All.MinLymanWernerFluxForNewSeed)
+                flag = 1;
+       }
+#endif
 
   if(flag == 1)
     return 0;

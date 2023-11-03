@@ -36,7 +36,7 @@
 #define UAMU 1.660538782e-24      /* g; 2010 CODATA value */
 //#define GAS_CONSTANT 8.31447248e7 /* = k/u; unit: erg/(K g) */
 #define GAS_CONSTANT 8.314510e7 /* = k/u; unit: erg/(K g) old value */
-#define H_BAR 1.054571628e-27   /* unit: erg s; 2010 CODATA value */
+#define HBAR 1.054571628e-27    /* unit: erg s; 2010 CODATA value */
 #define PI 3.141592653589793238
 #define MASS_E 9.10938215e-28 /* unit: g; 2010 CODATA value */
 

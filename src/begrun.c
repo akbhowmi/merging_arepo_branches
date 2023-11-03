@@ -106,16 +106,18 @@ void begrun0(void)
  */
 void begrun1(void)
 {
+#if defined(X86FIX) && defined(SOFTDOUBLEDOUBLE)
+  x86_fix(); /* disable 80bit treatment of internal FPU registers in favour of proper IEEE 64bit double precision arithmetic */
+#endif       /* #if defined(X86FIX) && defined(SOFTDOUBLEDOUBLE) */
+
 #if defined(PMGRID) && !defined(ONLY_PM) && defined(ASMTH)
   if(ASMTH == 0)
     mpi_terminate("ASMTH == 0 cannot be used with TreePM");
 #endif
 
-  /* ... read in parameters for this run */
-  read_parameter_file(ParameterFile);
+  read_parameter_file(ParameterFile); /* ... read in parameters for this run */
 
-  /* consistency check of parameters */
-  check_parameters();
+  check_parameters(); /* consistency check of parameters */
 
 #ifndef TGSET
   healthtest();
@@ -123,53 +125,55 @@ void begrun1(void)
 
 #ifdef HAVE_HDF5
   H5Eset_auto(my_hdf5_error_handler, NULL);
-#endif
+#endif /* #ifdef HAVE_HDF5 */
 
   gsl_set_error_handler(my_gsl_error_handler);
 
 #ifdef CUDA
   cuda_init();
-#endif
-
-#if defined(DM_WINDTUNNEL) && defined(DM_WINDTUNNEL_EXTERNAL_SOURCE)
-  read_dmwindtunnel_file();
-#endif
+#endif /* #ifdef CUDA */
 
 #if defined(WINDTUNNEL) && defined(WINDTUNNEL_EXTERNAL_SOURCE)
   read_windtunnel_file();
-#endif
+#endif /* #if defined(WINDTUNNEL) && defined(WINDTUNNEL_EXTERNAL_SOURCE) */
 
 #if defined(WINDTUNNEL) && defined(WINDTUNNEL_READ_IN_BFIELD)
   WindtunnelReadIn_InitialiseGlobals();
-#endif
+#endif /* #if defined(WINDTUNNEL) && defined(WINDTUNNEL_READ_IN_BFIELD) */
+
+#ifdef DMPIC
+  dmpic_init();
+#endif /* #ifdef DMPIC */
 
 #ifdef DEBUG
   enable_core_dumps_and_fpu_exceptions();
-#endif
+#endif /* #ifdef DEBUG */
 
   mpi_printf("BEGRUN: Size of particle structure       %3d  [bytes]\n", (int)sizeof(struct particle_data));
   mpi_printf("BEGRUN: Size of SPH particle structure   %3d  [bytes]\n", (int)sizeof(struct sph_particle_data));
   mpi_printf("BEGRUN: Size of gravity tree node        %3d  [bytes]\n", (int)sizeof(struct NODE));
 #ifdef MULTIPLE_NODE_SOFTENING
   mpi_printf("BEGRUN: Size of auxiliary gravity node   %3d  [bytes]\n", (int)sizeof(struct ExtNODE));
-#endif
-#if defined(GFM) || defined(SFR_MCS)
+#endif /* #ifdef MULTIPLE_NODE_SOFTENING */
+#ifdef GFM
   mpi_printf("BEGRUN: Size of star particle structure  %3d  [bytes]\n", (int)sizeof(struct star_particle_data));
-#endif
+#endif /* #ifdef GFM */
 #ifdef BLACK_HOLES
   mpi_printf("BEGRUN: Size of BH particle structure    %3d  [bytes]\n\n", (int)sizeof(struct bh_particle_data));
-#endif
+#endif /* #ifdef BLACK_HOLES */
 #ifdef SINKS
   mpi_printf("BEGRUN: Size of SinkP particle structure %3d  [bytes]\n\n", (int)sizeof(struct sink_particle_data));
-#endif
+#endif /* #ifdef SINKS */
 #ifdef DUST_LIVE
   mpi_printf("BEGRUN: Size of dust particle structure  %3d  [bytes]\n\n", (int)sizeof(struct dust_particle_data));
-#endif
+#endif /* #ifdef DUST_LIVE */
 
-#if defined(DARKENERGY) && defined(TIMEDEPDE)
+#ifdef DARKENERGY
+#ifdef TIMEDEPDE
   /* set up table needed for hubble functions with time dependent w */
   fwa_init();
-#endif
+#endif /* #ifdef TIMEDEPDE */
+#endif /* #ifdef DARKENERGY */
 
   set_units();
 
@@ -204,7 +208,7 @@ void begrun1(void)
 
 #if defined(FORCETEST) && !defined(FORCETEST_TESTFORCELAW) && !defined(GRAVITY_TALLBOX)
   forcetest_ewald_init();
-#endif
+#endif /* #if defined (FORCETEST) && !defined(FORCETEST_TESTFORCELAW) && !defined(GRAVITY_TALLBOX) */
 
   /* set up random number generators */
   random_generator     = gsl_rng_alloc(gsl_rng_ranlxd1);
@@ -225,31 +229,30 @@ void begrun1(void)
 
 #ifdef PERFORMANCE_TEST_SPARSE_MPI_ALLTOALL
   test_mpi_alltoall_performance();
-#endif
+#endif /* #ifdef PERFORMANCE_TEST_SPARSE_MPI_ALLTOALL */
 
   timebins_init(&TimeBinsHydro, "Hydro", &All.MaxPartSph);
   timebins_init(&TimeBinsGravity, "Gravity", &All.MaxPart);
 
 #ifdef TRACER_PARTICLE
-  /* assume that there are less tracers than cells */
-  timebins_init(&TimeBinsTracer, "Tracer", &All.MaxPart);
-#endif
+  timebins_init(&TimeBinsTracer, "Tracer", &All.MaxPart); /* assume that there are less tracers than cells */
+#endif                                                    /* #ifdef TRACER_PARTICLE */
 
 #ifdef BLACK_HOLES
   timebins_init(&TimeBinsBHAccretion, "BHAccretion", &All.MaxPart);
-#endif
+#endif /* #ifdef BLACK_HOLES */
 
 #ifdef SINKS
   timebins_init(&TimeBinsSinksAccretion, "SinksAccretion", &All.MaxPart);
-#endif
+#endif /* #ifdef SINKS */
 
 #ifdef DUST_LIVE
   timebins_init(&TimeBinsDust, "Dust", &All.MaxPart);
-#endif
+#endif /* #ifdef DUST_LIVE */
 
 #ifdef SUBBOX_SNAPSHOTS
   read_subbox_coordinates(All.SubboxCoordinatesPath);
-#endif
+#endif /* #ifdef SUBBOX_SNAPSHOTS */
 
 #ifdef MRT_METAL_COOLING
   init_cooling_metal();
@@ -312,14 +315,10 @@ void begrun1(void)
   gfm_read_preenrich_table(All.PreEnrichAbundanceFile);
 #endif /* #ifdef GFM_PREENRICH */
 
-#if defined(WINDTUNNEL_FIXVARIABLESININJECTIONREGION) && defined(GFM_SET_METALLICITY)
-  get_initial_mass_fractions(&All.mass_fractions[0], All.GasMetallicityInSolar);
-#endif
-
 #endif /* #ifdef GFM_STELLAR_EVOLUTION */
 
 #if defined(GFM_COOLING_METAL) && defined(SFR_MCS)
-  /* Enables use of GFM_COOLING_METAL without rest of GFM */
+  /*Enables use of GFM_COOLING_METAL without rest of GFM*/
   init_cooling_metal();
   mpi_printf("GFM_COOLING_METAL: Metal line cooling rates initialized.\n");
 #endif
@@ -327,20 +326,20 @@ void begrun1(void)
 #ifdef GFM_STELLAR_PHOTOMETRICS
   init_stellar_photometrics();
   mpi_printf("GFM_STELLAR_PHOTOMETRICS: Stellar photometrics initialized.\n");
-#endif
+#endif /* #ifdef GFM_STELLAR_PHOTOMETRICS */
 
 #if defined(BLACK_HOLES) && defined(GFM_AGN_RADIATION)
   init_agn_radiation();
   mpi_printf("GFM_AGN_RADIATION: initialized.\n");
-#endif
+#endif /* #if defined(BLACK_HOLES) && defined(GFM_AGN_RADIATION) */
 
 #if defined(TRACER_PART_NUM_FLUID_QUANTITIES) || defined(TRACER_MC_NUM_FLUID_QUANTITIES)
   set_tracer_part_indices();
-#endif
+#endif /* #if defined(TRACER_PART_NUM_FLUID_QUANTITIES) || defined(TRACER_MC_NUM_FLUID_QUANTITIES) */
 
 #ifdef GROWING_DISK_POTENTIAL
   growing_disk_init();
-#endif
+#endif /* #ifdef GROWING_DISK_POTENTIAL */
 
 #if defined(COOLING) & !defined(SIMPLE_COOLING) & !defined(GRACKLE)
   All.Time = All.TimeBegin;
@@ -357,30 +356,29 @@ void begrun1(void)
   All.Time = All.TimeBegin;
   set_cosmo_factors_for_current_time();
   initialise_grackle();
-#endif
+#endif /* #if defined(COOLING) && defined(GRACKLE) */
 
 #ifdef ATOMIC_DM
   All.Time = All.TimeBegin;
   set_cosmo_factors_for_current_time();
   ADM_InitCool();
-#endif
+#endif /* #ifdef ATOMIC_DM */
 
 #ifdef TGSET
   tgset_begrun();
-#endif
+#endif /* #ifdef TGSET */
 
 #ifdef HEALRAY
-  /* Needs to be before TGCHEM! */
-  healray_begrun();
-#endif
+  healray_begrun();  // Needs to be before TGCHEM!
+#endif               /* #ifdef HEALRAY */
 
 #ifdef TGCHEM
   tgchem_begrun();
-#endif
+#endif /* #ifdef TGCHEM */
 
 #ifdef SGCHEM
   init_chemistry();
-#endif
+#endif /* #ifdef SGCHEM */
 
 #ifdef TREECOLV2
   int success_read_treecolv2_tables;
@@ -391,19 +389,20 @@ void begrun1(void)
 
 #ifdef SINKS
   sinks_begrun();
-#endif
+#endif /* #ifdef SINKS */
 
 #ifdef SINK_PARTICLES
   init_sink_particles(0);
-#endif
+#endif /* #ifdef SINK_PARTICLES */
 
 #if !defined(PMGRID) && defined(SELFGRAVITY) && !defined(GRAVITY_NOT_PERIODIC) && !defined(ONEDIMS_SPHERICAL)
   ewald_init();
-#endif
+#endif /* #if !defined(PMGRID) && defined(SELFGRAVITY) && !defined(GRAVITY_NOT_PERIODIC) && defined(PERIODIC) && \
+          !defined(ONEDIMS_SPHERICAL) */
 
 #ifdef TILE_ICS
   All.BoxSize *= All.TileICsFactor;
-#endif
+#endif /* #ifdef TILE_ICS */
 
   for(size_t i = 0; i < sizeof(All.BoxSizes) / sizeof(All.BoxSizes[0]); i++)
     All.BoxSizes[i] = All.BoxSize;
@@ -424,7 +423,7 @@ void begrun1(void)
   if(RestartFlag != RESTART_FOF_SUBFIND && RestartFlag != RESTART_SLICE && RestartFlag != RESTART_SNAP_CONVERSION &&
      RestartFlag != RESTART_GAS_VELOCITY_POWER_SPECTRUM && RestartFlag != RESTART_TRACER_POWER_SPECTRA)
     long_range_init();
-#endif
+#endif /* #ifdef PMGRID */
 
   if(RestartFlag <= RESTART_SNAPSHOT)
     open_logfiles();
@@ -433,7 +432,7 @@ void begrun1(void)
 
 #ifdef REDUCE_FLUSH
   All.FlushLast = CPUThisRun;
-#endif
+#endif /* #ifdef REDUCE_FLUSH */
 
 #ifdef EOS_DEGENERATE
 #ifndef VARIABLE_GAMMA
@@ -446,7 +445,8 @@ void begrun1(void)
   network_init(All.EosSpecies, All.NetworkRates, All.NetworkPartFunc, All.NetworkMasses, All.NetworkWeakrates, &All.nd);
 
   {
-    for(int k = 0; k < NUM_THREADS; k++)
+    int k;
+    for(k = 0; k < NUM_THREADS; k++)
       network_workspace_init(&All.nd, &All.nw[k]);
   }
 
@@ -474,16 +474,17 @@ void begrun1(void)
       printf("problems with reading fixed metric");
       terminate("bled");
     }
+
 #endif /* #if METRIC_TYPE==3 || METRIC_TYPE==4 */
 #endif /* #ifdef GENERAL_RELATIVITY */
 
 #ifdef COSMIC_RAYS
   init_cosmic_rays();
-#endif
+#endif /* #ifdef COSMIC_RAYS */
 
 #ifdef DUST_LIVE
   init_dust();
-#endif
+#endif /* #ifdef DUST_LIVE */
 
   init_scalars();
 
@@ -491,19 +492,19 @@ void begrun1(void)
 
 #ifdef MRT
   init_gradients_RT();
-#endif
+#endif /* #ifdef MRT */
 
 #ifdef RT_ADVECT
   rt_init_gradients();
-#endif
+#endif /* #ifdef RT_ADVECT */
 
 #ifdef SECOND_DERIVATIVES
   init_hessians();
-#endif
+#endif /* #ifdef SECOND_DERIVATIVES */
 
 #ifdef AMR
   amr_init();
-#endif
+#endif /* #ifdef AMR */
 
 #if defined(VS_TURB) || defined(AB_TURB)
   init_turb();
@@ -514,19 +515,19 @@ void begrun1(void)
 
 #ifdef SIDM
   sidm_Init_CrossSection();
-#endif
+#endif /* #ifdef SIDM */
 
 #ifdef DG
   dg_initialize();
-#endif
+#endif /* #ifdef DG */
 
 #ifdef GRAVITY_TABLE
   grav_table_init();
-#endif
+#endif /* #ifdef GRAVITY_TABLE  */
 
 #ifdef RELAXOBJECT_COOLING2
   load_temperature_profil();
-#endif
+#endif /* #ifdef RELAXOBJECT_COOLING2 */
 
 #ifdef HCOUTPUT
   hcoutput_init();
@@ -534,7 +535,7 @@ void begrun1(void)
 
 #ifdef AURIGA_MOVIE
   auriga_movie_init();
-#endif
+#endif /* #ifdef AURIGA_MOVIE */
 
 #ifdef SFR_MCS_LOG
   setup_sf_log();
@@ -548,13 +549,8 @@ void begrun1(void)
   setup_sn_log();
 #endif
 
-#if((defined(SN_MCS) && !defined(SN_MCS_SINGLE_INJECTION)) || (defined(HII_MCS) && !defined(HII_MCS_TEST)) || defined(PE_MCS)) && \
-    !(defined(SN_MCS_INITIAL_DRIVING) || defined(IMF_SAMPLING_MCS))
+#ifdef SN_MCS
   read_sb99_tables();
-#endif
-
-#ifdef IMF_SAMPLING_MCS
-  init_star_properties_tables();
 #endif
 
 #ifdef HIGH_FREQUENCY_OUTPUT_STARS
@@ -617,6 +613,10 @@ void begrun2(void)
   special_particle_create_list();
 #endif /* #ifdef EXACT_GRAVITY_FOR_PARTICLE_TYPE */
 
+#ifdef EXACT_GRAVITY_FOR_PARTICLE_TYPE
+  lyman_werner_source_create_list();
+#endif
+
 #ifdef REFINEMENT_AROUND_DM
   dm_particle_create_list();
 #endif /* #ifdef REFINEMENT_AROUND_DM */
@@ -671,10 +671,10 @@ void begrun2(void)
   if(RestartFlag == RESTART_RESTART || RestartFlag == RESTART_SNAPSHOT)
     {
       int k;
-      short int *buTimeBin = (short int *)mymalloc_movable(&buTimeBin, "buTimeBin", NumGas * sizeof(short int));
+      short int *buTimeBin = (short int *)mymalloc_movable(&buTimeBin, "buTimeBin", NumPart * sizeof(short int));
       static int buTimeBinActive[TIMEBINS];
 
-      for(k = 0; k < NumGas; k++)
+      for(k = 0; k < NumPart; k++)
         {
           buTimeBin[k]      = P[k].TimeBinHydro;
           P[k].TimeBinHydro = 0;
@@ -697,7 +697,7 @@ void begrun2(void)
       for(k = 0; k < TIMEBINS; k++)
         TimeBinSynchronized[k] = buTimeBinActive[k];
 
-      for(k = 0; k < NumGas; k++)
+      for(k = 0; k < NumPart; k++)
         P[k].TimeBinHydro = buTimeBin[k];
 
       reconstruct_timebins();
@@ -723,11 +723,6 @@ void begrun2(void)
   All.BlackHoleTask        = -1;
   bh_based_cgm_zoom_update();
 #endif /* #ifdef BH_BASED_CGM_ZOOM */
-
-#if defined(BLACK_HOLES) && defined(BH_NEW_LOGS)
-  open_bh_logfiles();
-#endif
-
 }
 
 /*! \brief Computes conversion factors between internal code units and the
@@ -750,14 +745,8 @@ void set_units(void)
     All.G = All.GravityConstantInternal;
 
 #ifdef BECDM
-  All.hbar   = HBAR / pow(All.UnitLength_in_cm, 2) / All.UnitMass_in_g * All.UnitTime_in_s;
-  All.mAxion = All.AxionMassEv * ELECTRONVOLT_IN_ERGS / pow(CLIGHT_REAL, 2) / All.UnitMass_in_g;
-  if(All.ComovingIntegrationOn)
-    {
-      /* need to convert to internal code units (with “little h”) */
-      All.hbar *= pow(All.HubbleParam, 2);
-      All.mAxion *= All.HubbleParam;
-    }
+  All.hbar   = 1.0545718e-27 * pow(All.HubbleParam, 2) / pow(All.UnitLength_in_cm, 2) / All.UnitMass_in_g * All.UnitTime_in_s;
+  All.mAxion = All.AxionMassEv * 1.78266191e-33 * All.HubbleParam / All.UnitMass_in_g;
 #endif
 
   All.UnitDensity_in_cgs     = All.UnitMass_in_g / pow(All.UnitLength_in_cm, 3);
@@ -779,8 +768,7 @@ void set_units(void)
   mpi_printf("BEGRUN: UnitEnergy_in_cgs         = %g\n", All.UnitEnergy_in_cgs);
   mpi_printf("\n");
 
-  /* note: assuming NEUTRAL GAS */
-  meanweight = 4.0 / (1 + 3 * HYDROGEN_MASSFRAC);
+  meanweight = 4.0 / (1 + 3 * HYDROGEN_MASSFRAC); /* note: assuming NEUTRAL GAS */
 
   if(All.MinEgySpec == 0)
     {

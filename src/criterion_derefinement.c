@@ -134,14 +134,6 @@ int derefine_should_this_cell_be_merged(int i, int flag)
     return 0;
 #endif
 
-#if defined(REFINEMENT_KEEP_INITIAL_VOLUME)
-  if(SphP[i].Volume > 0.5 * SphP[i].InitialVolume)
-    return 0;
-
-  if(SphP[i].Volume < 0.5 * SphP[i].InitialVolume)
-    return 1;
-#endif
-
 #if defined(REFINEMENT_VOLUME_LIMIT) && !defined(WINDTUNNEL_REFINEMENT_VOLUME_LIMIT)
   double maxvolume = All.MaxVolume;
   double minvolume = All.MinVolume;
@@ -283,7 +275,7 @@ int derefine_should_this_cell_be_merged(int i, int flag)
         break;
 
       default:
-        terminate("invalid derefinement criterion specified (All.DerefinementCriterion = %d)", All.DerefinementCriterion);
+        terminate("invalid derefinement criterion specified");
         break;
     }
 
@@ -309,35 +301,19 @@ static int derefine_criterion_default(int i)
   if(P[i].Mass < 0.5 * All.TargetGasMass && SphP[i].Density * All.cf_a3inv >= 1.0e-6 * All.PhysDensThresh)
 #else
 
-  double TargetGasMass      = All.TargetGasMass;
-#ifdef REFINEMENT_LIMIT_STARFORMING_GAS
-  double eos_dens_threshold = All.PhysDensThresh;
-#ifdef MODIFIED_EOS
-  eos_dens_threshold *= All.FactorDensThresh;
-#endif
-
-  double dens = SphP[i].Density * All.cf_a3inv;
-  if(dens >= 4. * eos_dens_threshold)
-    {
-      TargetGasMass = All.TargetGasMass * dens / (4. * eos_dens_threshold);
-      if(TargetGasMass > All.HighDensityMaxGasDerefinementFactor * All.TargetGasMass)
-        TargetGasMass = All.HighDensityMaxGasDerefinementFactor * All.TargetGasMass;
-    }
-#endif
-
 #ifdef REFINEMENT_CGM
   if(SphP[i].HighResMassCGM > HIGHRESMASSFAC * P[i].Mass)
     {
-      if(P[i].Mass < 0.5 * TargetGasMass && SphP[i].Volume < 0.5 * All.TargetGasVolume * All.cf_a3inv)
+      if(P[i].Mass < 0.5 * All.TargetGasMass && SphP[i].Volume < 0.5 * All.TargetGasVolume * All.cf_a3inv)
         return 1;
     }
   else
     {
-      if(P[i].Mass < 0.5 * TargetGasMass)
+      if(P[i].Mass < 0.5 * All.TargetGasMass)
         return 1;
     }
 #else
-  if(P[i].Mass < 0.5 * TargetGasMass)
+  if(P[i].Mass < 0.5 * All.TargetGasMass)
     return 1;
 #endif
 

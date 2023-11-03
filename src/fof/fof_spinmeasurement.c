@@ -27,11 +27,17 @@
 #include "../allvars.h"
 #include "../proto.h"
 
-#if defined(FOF) && defined(GFM_BIPOLAR_WINDS) && (GFM_BIPOLAR_WINDS == 3)
+#if (defined(CALCULATE_SPIN_STARFORMINGGAS)) || (defined(FOF) && defined(GFM_BIPOLAR_WINDS) && (GFM_BIPOLAR_WINDS == 3))
 
 #include "fof.h"
 
+#ifdef GFM_BIPOLAR_WINDS
 #define SPIN_MEASURE_RADIUS_FRACTION 0.1
+#endif
+
+#ifdef CALCULATE_SPIN_STARFORMINGGAS
+#define SPIN_MEASURE_RADIUS_FRACTION 1.0
+#endif
 
 /* local data structure for collecting particle/cell data that is sent to other processors if needed */
 typedef struct
@@ -51,7 +57,6 @@ static void particle2in(data_in *in, int i, int firstnode)
   in->Pos[1] = Group[i].Pos_MinPotential[1];
   in->Pos[2] = Group[i].Pos_MinPotential[2];
   in->Mass   = Group[i].Mass;
-
   in->Firstnode = firstnode;
 }
 
@@ -62,6 +67,9 @@ typedef struct
   MyFloat DensGasCenter[3];
   MyFloat DensGasMomentum[3];
   MyFloat DensGasAngMomentum[3];
+#ifdef CALCULATE_SPIN_STARFORMINGGAS
+  MyFloat Mean_Temperature;
+#endif
 } data_out;
 
 static data_out *DataResult;
@@ -80,7 +88,10 @@ static void out2particle(data_out *out, int i, int mode)
           Group[i].DensGasMomentum[k]    = out->DensGasMomentum[k];
           Group[i].DensGasAngMomentum[k] = out->DensGasAngMomentum[k];
         }
-    }
+#ifdef CALCULATE_SPIN_STARFORMINGGAS
+      Group[i].MeanTemperature = out->Mean_Temperature;
+#endif    
+     }
   else /* combine */
     {
       Group[i].DensGasMass += out->DensGasMass;
@@ -90,6 +101,9 @@ static void out2particle(data_out *out, int i, int mode)
           Group[i].DensGasMomentum[k] += out->DensGasMomentum[k];
           Group[i].DensGasAngMomentum[k] += out->DensGasAngMomentum[k];
         }
+#ifdef CALCULATE_SPIN_STARFORMINGGAS
+      Group[i].MeanTemperature += out->Mean_Temperature;
+#endif
     }
 }
 
@@ -186,18 +200,56 @@ void fof_spin_measurement(void)
   /* do final operations on results */
   for(int i = 0; i < Ngroups; i++)
     {
+#ifdef CALCULATE_SPIN_STARFORMINGGAS
+      Group[i].DensGasDimensionlessSpin = 0;
+      Group[i].DensGasDimensionlessSpin_Max = 0;
+      
+      double mass	   = Group[i].Mass;
+      double vvir	   = pow(10 * All.G * All.cf_H * mass, 1.0 / 3);
+      double rvir_phys = vvir / (All.cf_H * 10.);     /* physical */
+      double rvir	   =   (rvir_phys / All.cf_atime); /* comoving */
+      double mass_unit_conversion = 1e10;
+      double sectoyrs = 3.171e-08;
+      double Mpctokm = 3.0857e19;
+      double Grav_constant = 6.67e-11;
+      double kpctoMpc = 0.001;
+      double kmtom = 1000;
+      double Mass_of_sun = 2e30;
+      double rvir_in_m = rvir * kpctoMpc * Mpctokm * kmtom;
+      double HaloCircVel = sqrt(Grav_constant * mass * mass_unit_conversion * Mass_of_sun / rvir_in_m) / kmtom / sqrt(All.Time);
+      double mu = 0.59;     //Mean molcular weight of primordial gas
+      double J_circ = (HaloCircVel * rvir) * sqrt(2); //Specific
+      Group[i].VirialTemperature=4e4 * (mu / 1.2) * pow(mass * 1e2, 2.0/3) / All.Time / 10;
+      Group[i].RvirEstimate = rvir;
+      Group[i].MeanTemperature /= Group[i].DensGasMass;
+#endif
       if(Group[i].DensGasMass > 0)
         {
           Group[i].DensGasCenter[0] /= Group[i].DensGasMass;
           Group[i].DensGasCenter[1] /= Group[i].DensGasMass;
           Group[i].DensGasCenter[2] /= Group[i].DensGasMass;
-
           Group[i].DensGasAngMomentum[0] -=
               Group[i].DensGasCenter[1] * Group[i].DensGasMomentum[2] - Group[i].DensGasCenter[2] * Group[i].DensGasMomentum[1];
           Group[i].DensGasAngMomentum[1] -=
               Group[i].DensGasCenter[2] * Group[i].DensGasMomentum[0] - Group[i].DensGasCenter[0] * Group[i].DensGasMomentum[2];
           Group[i].DensGasAngMomentum[2] -=
               Group[i].DensGasCenter[0] * Group[i].DensGasMomentum[1] - Group[i].DensGasCenter[1] * Group[i].DensGasMomentum[0];
+#ifdef CALCULATE_SPIN_STARFORMINGGAS
+          Group[i].DensGasAngMomentum[0] /= All.Time;     // Converting to peculiar velocity units
+          Group[i].DensGasAngMomentum[1] /= All.Time;
+          Group[i].DensGasAngMomentum[2] /= All.Time;
+          for(int k = 0; k < 3; k++)
+            {
+               Group[i].DensGasDimensionlessSpin += Group[i].DensGasAngMomentum[k] * Group[i].DensGasAngMomentum[k];
+            }
+          Group[i].DensGasDimensionlessSpin = sqrt(Group[i].DensGasDimensionlessSpin);
+          Group[i].DensGasDimensionlessSpin /= Group[i].DensGasMass; //Specific 
+          Group[i].DensGasDimensionlessSpin /= J_circ;
+          double md = 0.05;
+          double jd = 0.05;
+          double Q_c = 2;
+          Group[i].DensGasDimensionlessSpin_Max = md * md * Q_c / 8 / jd * sqrt(Group[i].VirialTemperature / Group[i].MeanTemperature);
+#endif
         }
     }
 }
@@ -218,7 +270,9 @@ static int fof_spin_evaluate(int target, int mode, int threadid)
   MyFloat DensGasCenter[3];
   MyFloat DensGasMomentum[3];
   MyFloat DensGasAngMomentum[3];
-
+#ifdef CALCULATE_SPIN_STARFORMINGGAS
+  MyFloat mu, Temperature, Mean_Temperature;
+#endif
   data_in local, *target_data;
   data_out out;
 
@@ -247,6 +301,10 @@ static int fof_spin_evaluate(int target, int mode, int threadid)
       DensGasMomentum[j]    = 0;
       DensGasAngMomentum[j] = 0;
     }
+#ifdef CALCULATE_SPIN_STARFORMINGGAS
+  Mean_Temperature = 0; 
+#endif
+
 
   /* estimate the virial radius based on the mass */
   double vvir      = pow(10 * All.G * All.cf_H * mass, 1.0 / 3);
@@ -269,7 +327,9 @@ static int fof_spin_evaluate(int target, int mode, int threadid)
       r2 = dx * dx + dy * dy + dz * dz;
 
       if(r2 < h2 && P[j].Type == 0)
+#ifndef CALCULATE_SPIN_STARFORMINGGAS
         if(SphP[j].Sfr > 0)
+#endif
           {
             DensGasMass += P[j].Mass;
             for(k = 0; k < 3; k++)
@@ -282,8 +342,16 @@ static int fof_spin_evaluate(int target, int mode, int threadid)
             DensGasAngMomentum[0] += P[j].Mass * (xyz[1] * P[j].Vel[2] - xyz[2] * P[j].Vel[1]);
             DensGasAngMomentum[1] += P[j].Mass * (xyz[2] * P[j].Vel[0] - xyz[0] * P[j].Vel[2]);
             DensGasAngMomentum[2] += P[j].Mass * (xyz[0] * P[j].Vel[1] - xyz[1] * P[j].Vel[0]);
+#ifdef CALCULATE_SPIN_STARFORMINGGAS
+            mu = 4./(1 + 3 * H_FRACTION + 4 * H_FRACTION * SphP[j].Ne) * MASS_OF_PROTON_CGS;
+            Temperature = (5./3 - 1) * SphP[j].Utherm * 1e10  * mu / BOLTZMANN_CONSTANT_CGS;
+            Mean_Temperature += Temperature * P[j].Mass;
+#endif
           }
     }
+#ifdef CALCULATE_SPIN_STARFORMINGGAS
+  out.Mean_Temperature = Mean_Temperature; 
+#endif
 
   out.DensGasMass = DensGasMass;
   for(k = 0; k < 3; k++)

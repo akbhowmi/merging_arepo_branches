@@ -163,8 +163,8 @@ void do_cr_diffusion(void)
               vel_Alfven =
                   sqrt((SphP[i].B[0] * SphP[i].B[0] + SphP[i].B[1] * SphP[i].B[1] + SphP[i].B[2] * SphP[i].B[2]) / SphP[i].Density);
               grad_pcr          = sqrt(SphP[i].Grad.dcrPressure[0] * SphP[i].Grad.dcrPressure[0] +
-                                       SphP[i].Grad.dcrPressure[1] * SphP[i].Grad.dcrPressure[1] +
-                                       SphP[i].Grad.dcrPressure[2] * SphP[i].Grad.dcrPressure[2]);
+                              SphP[i].Grad.dcrPressure[1] * SphP[i].Grad.dcrPressure[1] +
+                              SphP[i].Grad.dcrPressure[2] * SphP[i].Grad.dcrPressure[2]);
               diffusion_coeff_0 = All.CR_Diffusion_Coefficient / (All.UnitLength_in_cm * All.UnitLength_in_cm) * All.UnitTime_in_s;
 
               if(grad_pcr > 0 && vel_Alfven > 0)
@@ -207,8 +207,8 @@ void do_cr_diffusion(void)
               vel_Alfven_new =
                   sqrt((SphP[i].B[0] * SphP[i].B[0] + SphP[i].B[1] * SphP[i].B[1] + SphP[i].B[2] * SphP[i].B[2]) / SphP[i].Density);
               grad_pcr_new      = sqrt(SphP[i].Grad.dcrPressure[0] * SphP[i].Grad.dcrPressure[0] +
-                                       SphP[i].Grad.dcrPressure[1] * SphP[i].Grad.dcrPressure[1] +
-                                       SphP[i].Grad.dcrPressure[2] * SphP[i].Grad.dcrPressure[2]);
+                                  SphP[i].Grad.dcrPressure[1] * SphP[i].Grad.dcrPressure[1] +
+                                  SphP[i].Grad.dcrPressure[2] * SphP[i].Grad.dcrPressure[2]);
               diffusion_coeff_0 = All.CR_Diffusion_Coefficient / (All.UnitLength_in_cm * All.UnitLength_in_cm) * All.UnitTime_in_s;
 
               if(grad_pcr_new > 0 && vel_Alfven_new > 0)

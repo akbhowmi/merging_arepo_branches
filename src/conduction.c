@@ -57,12 +57,8 @@
 #define m_p (PROTONMASS * g)
 #define k_B (BOLTZMANN * erg / deg)
 
-#ifndef MAX_COND_ITER
 #define MAX_COND_ITER 400
-#endif
-#ifndef COND_ITER_ACCURACY
 #define COND_ITER_ACCURACY 1.0e-10
-#endif
 
 static struct inexch
 {
@@ -202,7 +198,7 @@ void conduction(void)
 #ifdef CONDUCTION_SATURATION
           electron_free_path = All.ElectronFreePathFactor * Temp[i] * Temp[i] / (SphP[i].Density * All.cf_a3inv);
           temp_scale_length =
-              All.cf_atime * fabs(SphP[i].Utherm) /
+              All.Time * fabs(SphP[i].Utherm) /
               sqrt(SphP[i].Grad.dutherm[0] * SphP[i].Grad.dutherm[0] + SphP[i].Grad.dutherm[1] * SphP[i].Grad.dutherm[1] +
                    SphP[i].Grad.dutherm[2] * SphP[i].Grad.dutherm[2]);
 

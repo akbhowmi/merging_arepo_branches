@@ -1,5 +1,6 @@
-#!/usr/bin/env python3
+#! /usr/bin/env python
 """ Idealized test, AMR shocktube in 2D. """
+from os.path import isfile
 import h5py
 import numpy as np
 import sys

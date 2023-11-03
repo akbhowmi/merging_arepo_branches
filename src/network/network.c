@@ -1069,8 +1069,8 @@ static int network_init_internal(char *speciesfile, char *ratesfile, char *partf
       compute_constant_screening_factors(nd->screened_rates[i], NULL, NULL, nd);
     }
   {
-    const struct network_nucdata he4 = {.na = 4, .nz = 2};
-    const struct network_nucdata be8 = {.na = 8, .nz = 4};
+    const struct network_nucdata he4 = {.nz = 2, .na = 4};
+    const struct network_nucdata be8 = {.nz = 4, .na = 8};
 
     compute_constant_screening_factors(&nd->alpha_alpha_rate, &he4, &he4, nd);
     compute_constant_screening_factors(&nd->Be8_alpha_rate, &he4, &be8, nd);
@@ -1989,15 +1989,15 @@ int getrates(double rho, double temp, double ye, double yz, int compute_derivs, 
           for(i = 0; i < nd->weakrate_count; i++)
             {
               b1    = n_ca(n_cm(dt, (nd->weakrates[i].lambda1[idx3] - nd->weakrates[i].lambda1[idx1]) / at),
-                           nd->weakrates[i].lambda1[idx1]);
+                        nd->weakrates[i].lambda1[idx1]);
               b2    = n_ca(n_cm(dt, (nd->weakrates[i].lambda1[idx4] - nd->weakrates[i].lambda1[idx2]) / at),
-                           nd->weakrates[i].lambda1[idx2]);
+                        nd->weakrates[i].lambda1[idx2]);
               rate1 = n_a(b1, n_cm(n_m(n_s(b2, b1), drhoye), 1.0 / arhoye));
 
               b1    = n_ca(n_cm(dt, (nd->weakrates[i].lambda2[idx3] - nd->weakrates[i].lambda2[idx1]) / at),
-                           nd->weakrates[i].lambda2[idx1]);
+                        nd->weakrates[i].lambda2[idx1]);
               b2    = n_ca(n_cm(dt, (nd->weakrates[i].lambda2[idx4] - nd->weakrates[i].lambda2[idx2]) / at),
-                           nd->weakrates[i].lambda2[idx2]);
+                        nd->weakrates[i].lambda2[idx2]);
               rate2 = n_a(b1, n_cm(n_m(n_s(b2, b1), drhoye), 1.0 / arhoye));
 
               nw->weakrates[i] = n_a(n_exp(n_cm(rate1, log(10))), n_exp(n_cm(rate2, log(10))));
@@ -2207,8 +2207,8 @@ static network_var compute_screening(const struct network_rate *rate, network_va
       network_var C, b, tau;
 
       C   = n_ca(n_a(n_a(n_cm(Gamma_prime, 0.896434 * rate->z_tilde1), n_cm(Gamma_prime14, -3.44740 * rate->z_tilde2)),
-                     n_cm(lGamma_prime, -0.5551)),
-                 rate->C_const);
+                   n_cm(lGamma_prime, -0.5551)),
+               rate->C_const);
       tau = n_cm(itemp13, rate->tau_fac);
       b   = n_cm(n_d(Gamma, tau), 3.);
 

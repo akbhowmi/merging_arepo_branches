@@ -60,8 +60,3 @@ int is_cell_in_bipolar_cold_disk(MyIDType i, int ColdDisk);
 void cross_product(MyFloat *A, MyFloat *B, MyFloat *C);
 void blackhole_spin_evolution(void);
 void blackhole_new_accretion_episode(int i, MyFloat CurrentTime, MyFloat BH_Mass);
-
-#ifdef BH_NEW_LOGS
-void blackhole_write_log_details(FILE *stream, int n);
-void blackhole_dump(char *name);
-#endif

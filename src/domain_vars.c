@@ -31,9 +31,20 @@ struct domain_peano_hilbert_data *mp;
 
 struct local_topnode_data *topNodes, *branchNodes; /*!< points to the root node of the top-level tree */
 
+#ifdef CONSTRUCT_FOF_NGBTREE
+struct domain_peano_hilbert_data *mp_groups;
+struct local_topnode_data *topNodes_groups;
+#endif
+
+
 double totgravcost, totpartcount, gravcost, totsphcost, sphcost;
 
 struct domain_cost_data *DomainLeaveNode;
+
+#ifdef CONSTRUCT_FOF_NGBTREE
+struct domain_cost_data *DomainLeaveNode_groups;
+#endif
+
 
 double fac_work, fac_load, fac_worksph;
 double normsum_work, normsum_load, normsum_worksph;
@@ -57,7 +68,7 @@ int *toGoTracer;
 int *toGetTracer;
 int *list_N_Tracer;
 #endif
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
 int *toGoStar;
 int *toGetStar;
 int *list_N_star;
@@ -109,7 +120,7 @@ void domain_allocate_lists(void)
   toGetTracer   = (int *)mymalloc_movable(&toGetTracer, "toGetTracer", (sizeof(int) * NTask));
   list_N_Tracer = (int *)mymalloc_movable(&list_N_Tracer, "list_N_Tracer", (sizeof(int) * NTask));
 #endif
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
   toGoStar      = (int *)mymalloc_movable(&toGoStar, "toGoStar", (sizeof(int) * NTask));
   toGetStar     = (int *)mymalloc_movable(&toGetStar, "toGetStar", (sizeof(int) * NTask));
   list_N_star   = (int *)mymalloc_movable(&list_N_star, "list_N_star", (sizeof(int) * NTask));
@@ -163,7 +174,7 @@ void domain_free_lists(void)
   myfree(toGetBHs);
   myfree(toGoBHs);
 #endif
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
   myfree(list_loadstar);
   myfree(list_N_star);
   myfree(toGetStar);

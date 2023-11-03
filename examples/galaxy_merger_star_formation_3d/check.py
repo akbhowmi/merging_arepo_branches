@@ -71,7 +71,7 @@ for i_plot, i_snap in enumerate([10, 11, 12, 21, 22, 24]):
     print(os.path.join(simulation_directory, filename))
     try:
         data = h5py.File(os.path.join(simulation_directory, filename), 'r')
-    except (OSError, IOError):
+    except:
         break
     ## figure
     pos1 = np.array(data['PartType1']['Coordinates'], dtype=np.float64)
@@ -79,8 +79,8 @@ for i_plot, i_snap in enumerate([10, 11, 12, 21, 22, 24]):
     pos3 = np.array(data['PartType3']['Coordinates'], dtype=np.float64)
     pos4 = np.array(data['PartType4']['Coordinates'], dtype=np.float64)
 
-    ix = int(i_plot % 3)
-    iy = int(i_plot / 3)
+    ix = np.int(i_plot % 3)
+    iy = np.int(i_plot / 3)
 
     if createFigures:
         ax[iy, ix].scatter(pos2[:, 0],
@@ -129,7 +129,7 @@ if createFigures:
         filename = os.path.join('output', 'snap_%03d.hdf5' % i_snap)
         try:
             data = h5py.File(os.path.join(simulation_directory, filename), 'r')
-        except (OSError, IOError):
+        except:
             break
         pos2 = np.array(data['PartType2']['Coordinates'], dtype=np.float64)
         ids2 = np.array(data['PartType2']['ParticleIDs'], dtype=np.int32)
@@ -186,7 +186,7 @@ if createFigures:
     fig.savefig(os.path.join(simulation_directory, 'Mstar_time.pdf'))
 # check if deviations within tolerance
 abs_tolerance = 3.e8 / (1.e10 / 0.6774)
-if not np.max(np.abs(delta_mass_stars)) <= abs_tolerance:
+if np.max(np.abs(delta_mass_stars)) > abs_tolerance:
     print(
         'Error: stellar mass deviaties from reference more than %g (Msun): ' %
         abs_tolerance)

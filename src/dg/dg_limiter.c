@@ -5,8 +5,8 @@
  *
  * \file        src/dg/dg_limiter.c
  * \date        10/2014
- * \author      Kevin Schaal
- * \brief       Functions for limiting the higher order terms
+ * \author		  Kevin Schaal
+ * \brief		    Functions for limiting the higher order terms
  * \details
  *
  *
@@ -168,7 +168,15 @@ static void min_angles(CBV(a), int cell, int dim, double min_angle[5])
 #endif
   else
     {
-      terminate("invalid dim!");
+      interface_neg = 0;
+      interface_pos = 0;
+#ifdef CHARACTERISTIC_LIMITER
+      index_ngb_neg = 0;
+      index_ngb_pos = 0;
+      LL            = 0;
+#endif
+
+      terminate("invalid dim!\n");
     }
 
 #ifdef CONSERVED_LIMITER

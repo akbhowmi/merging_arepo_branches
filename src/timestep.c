@@ -50,10 +50,6 @@ static void compute_timestep_ohm(void);
 static void set_timestep_ohm(integertime globTimeStep);
 #endif
 
-#ifdef BRAGINSKII_RKL2_SUPER_TIME_STEPPING
-static int get_sts_stages_braginskii_viscosity(double dt_mhd, double dt_brag);
-#endif
-
 /*! \brief Sets various cosmological factors for the current simulation time.
  *
  *  \return void
@@ -687,16 +683,6 @@ integertime get_timestep_gravity(const int p)
       az += All.cf_a2inv * P[p].GravPM[2];
 #endif
 
-#ifdef BH_DF_DISCRETE
-  // For BH particles, incorporate discrete dynamical-friction acceleration also
-  if(P[p].Type == 5)
-    {
-      ax += All.cf_a2inv * BPP(p).DFD_GravAccel[0];
-      ay += All.cf_a2inv * BPP(p).DFD_GravAccel[1];
-      az += All.cf_a2inv * BPP(p).DFD_GravAccel[2];
-    }
-#endif // BH_DF_DISCRETE
-
 #ifdef AB_TURB
       if(P[p].Type == PTYPE_GAS)
         {
@@ -777,41 +763,16 @@ integertime get_timestep_gravity(const int p)
   type_tstp = TSTP_OTVET;
 #endif
 
-#if defined(SN_MCS) || defined(HII_MCS) || defined(PE_MCS)
-#ifndef IMF_SAMPLING_MCS
+#ifdef SN_MCS
+  /* To Do: create separate SNe timestep, for now we use gravity.
+   * Timestep limiter for SNe */
   double t_star;
-  if((P[p].Type == 4) && (P[p].Mass <= All.MaxFBStarMass) && (dt > All.MaxFBStarEvalTimestep))
+  if(P[p].Type == PTYPE_STARS && P[p].Mass <= All.MaxSNStarMass && dt > All.MaxSNEvalTimestep)
     {
-      t_star = STP(p).Age;
-#ifndef SN_MCS_SINGLE_INJECTION
-      if(t_star < All.MaxFBStarEvalTimestepCut)
-        {
-          dt        = All.MaxFBStarEvalTimestep;
-          type_tstp = TSTP_STELLAR_EVO;
-        }
-#else
-      if(t_star < (All.SNDelay))
-        {
-          dt        = All.MaxFBStarEvalTimestep;
-          type_tstp = TSTP_STELLAR_EVO;
-        }
-#endif
+      t_star = get_time_difference_in_Gyr(P[p].StellarAge, All.Time);
+      if(t_star > 3.0e-3 && t_star < 3.7e-2) /* To Do: stop using hard coded values */
+        dt = All.MaxSNEvalTimestep;
     }
-#else
-  if((P[p].Type == 4) && (dt > All.MaxFBStarEvalTimestep))
-    {
-      for(int nslot = 0; nslot < N_STAR_SLOTS; nslot++)
-        {
-          /* Is there a massive star still alive? Then limit timestep*/
-          if(STP(p).LifetimeArr[nslot] < MAX_REAL_NUMBER)
-            {
-              dt        = All.MaxFBStarEvalTimestep;
-              type_tstp = TSTP_STELLAR_EVO;
-              break;
-            }
-        }
-    }
-#endif
 #endif
 
 #ifdef BECDM
@@ -1074,7 +1035,7 @@ integertime get_timestep_hydro(const int p)
 
 #ifdef AB_TURB
   double ac      = sqrt(SphP[p].TurbAccel[0] * SphP[p].TurbAccel[0] + SphP[p].TurbAccel[1] * SphP[p].TurbAccel[1] +
-                        SphP[p].TurbAccel[2] * SphP[p].TurbAccel[2]);
+                   SphP[p].TurbAccel[2] * SphP[p].TurbAccel[2]);
   double dt_turb = 0.1 * csnd / fmax(ac, 1e-30);
 
   if(dt_turb < dt)
@@ -1144,10 +1105,6 @@ integertime get_timestep_hydro(const int p)
           type_tstp = TSTP_SFR;
         }
     }
-#endif
-
-#ifdef TGCHEM
-  dt = tgchem_get_timestep(p, dt);
 #endif
 
 #ifdef OTVET_FIXTIMESTEP
@@ -1696,7 +1653,7 @@ void compute_timestep_braginskii_viscosity(void)
 #ifdef MONOTONE_CONDUCTION
 void compute_timestep_tc(void)
 {
-  if(All.Conduction_Ti_endstep == All.Ti_Current)
+  if(All.conduction_Ti_endstep == All.Ti_Current)
     {
       double dt   = MAX_DOUBLE_NUMBER;
       double ncfl = 4.0;
@@ -1758,16 +1715,16 @@ void compute_timestep_tc(void)
 
       integertime ti_step = All.dt_max_conduction / All.Timebase_interval;
 
-      const int binold = get_timestep_bin(All.Conduction_Ti_endstep - All.Conduction_Ti_begstep);
+      const int binold = get_timestep_bin(All.conduction_Ti_endstep - All.conduction_Ti_begstep);
       const int bin    = timebins_get_bin_and_do_validity_checks(ti_step, binold);
 
       ti_step = bin ? ((integertime)1) << bin : 0;
 
-      All.Conduction_Ti_begstep = All.Conduction_Ti_endstep;
-      All.Conduction_Ti_endstep = All.Conduction_Ti_begstep + ti_step;
+      All.conduction_Ti_begstep = All.conduction_Ti_endstep;
+      All.conduction_Ti_endstep = All.conduction_Ti_begstep + ti_step;
 
       mpi_printf("CONDUCTION: begstep = %" INTEGERTIME_PRI "\tendstep = %" INTEGERTIME_PRI "\tti_step = %" INTEGERTIME_PRI "\n",
-                 All.Conduction_Ti_begstep, All.Conduction_Ti_endstep, ti_step);
+                 All.conduction_Ti_begstep, All.conduction_Ti_endstep, ti_step);
       mpi_printf("CONDUCTION: dt=%g, dt_single=%g, bin=%d, ti_step=%" INTEGERTIME_PRI "\n", All.dt_max_conduction,
                  All.dt_conduction * All.cf_hubble_a, bin, ti_step);
     }

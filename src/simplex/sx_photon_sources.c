@@ -112,8 +112,8 @@ int sx_phot_sources_load(void)
   binOffset += sizeof(double)*SX_NFREQ*tsNumSrc;  // update offset
 
   // Allocate the memory and copy the data
-  sxSourceCoord = (mesh_search_data *)mymalloc("sxSourceCoord", nexport * sizeof(mesh_search_data) );
-  sxSourceIon = (struct sxSourceIon_struct *)mymalloc("sxSourceIon", nexport * sizeof(struct sxSourceIon_struct) );
+  sxSourceCoord = mymalloc("sxSourceCoord", nexport * sizeof(mesh_search_data) );
+  sxSourceIon = mymalloc("sxSourceIon", nexport * sizeof(struct sxSourceIon_struct) );
   for(int i=0; i<nexport; i++)
     {
       sxSourceCoord[i].Pos[0] = tsCoord[i][0];
@@ -152,8 +152,8 @@ int sx_phot_sources_load(void)
       nexport++;
 
   // Allocate the memory and copy the data
-  sxSourceCoord = (mesh_search_data *)mymalloc("sxSourceCoord", nexport * sizeof(mesh_search_data) );
-  sxSourceIon = (struct sxSourceIon_struct *)mymalloc("sxSourceIon", nexport * sizeof(struct sxSourceIon_struct) );
+  sxSourceCoord = mymalloc("sxSourceCoord", nexport * sizeof(mesh_search_data) );
+  sxSourceIon = mymalloc("sxSourceIon", nexport * sizeof(struct sxSourceIon_struct) );
   for(int s = 0; s < nexport ;s++)
     {
       int i = s*NTask+ThisTask; // calculate the correct test source index
@@ -184,8 +184,8 @@ int sx_phot_sources_load(void)
       nexport++;
 
   // Allocate the memory and copy the data
-  sxSourceCoord = (mesh_search_data *)mymalloc("sxSourceCoord", nexport * sizeof(mesh_search_data) );
-  sxSourceIon = (struct sxSourceIon_struct *)mymalloc("sxSourceIon", nexport * sizeof(struct sxSourceIon_struct) );
+  sxSourceCoord = mymalloc("sxSourceCoord", nexport * sizeof(mesh_search_data) );
+  sxSourceIon = mymalloc("sxSourceIon", nexport * sizeof(struct sxSourceIon_struct) );
   int s = 0;
   for(int i = 0; i < NumPart; i++)
     {                                              
@@ -282,8 +282,8 @@ int sx_phot_sources_load(void)
 #endif
 
   // Allocate the memory and copy the data
-  sxSourceCoord = (mesh_search_data *)mymalloc("sxSourceCoord", nexport * sizeof(mesh_search_data) );
-  sxSourceIon = (struct sxSourceIon_struct *)mymalloc("sxSourceIon", nexport * sizeof(struct sxSourceIon_struct) );
+  sxSourceCoord = mymalloc("sxSourceCoord", nexport * sizeof(mesh_search_data) );
+  sxSourceIon = mymalloc("sxSourceIon", nexport * sizeof(struct sxSourceIon_struct) );
   for(int i = 0, s=0; i < NSinksAllTasks; i++)
     { 
       if(SinkP[i].HomeTask == ThisTask)

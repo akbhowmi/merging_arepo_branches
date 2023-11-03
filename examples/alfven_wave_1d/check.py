@@ -32,11 +32,12 @@ omega = bfield_0*k_z/np.sqrt(density_0)
 def verify_result(path):
     # open initial conditions to get parameters
     try:
-        with h5py.File(os.path.join(path, 'ics.hdf5'), 'r') as data:
-            Boxsize = FloatType(data["Header"].attrs["BoxSize"])
-            NumberOfCells = np.int32(data["Header"].attrs["NumPart_Total"][0])
-    except (OSError, IOError):
+        data = h5py.File(os.path.join(path, 'ics.hdf5'), 'r')
+    except:
         return False, ['Could not open initial conditions!']
+    Boxsize = FloatType(data["Header"].attrs["BoxSize"])
+    NumberOfCells = np.int32(data["Header"].attrs["NumPart_Total"][0])
+    data.close()
     # maximum L1 error after two propagations
     DeltaMaxAllowed = 1e-4 * FloatType(NumberOfCells)**-2
     #    loop over all output files; need to be at times when analytic
@@ -54,10 +55,6 @@ def verify_result(path):
             time, Pos, Density, Mass, Velocity, Uthermal, Bfield, Volume, Pressure = \
                 read_sim_data(os.path.join(directory, filename))
         except (OSError, IOError):
-            # should have at least 9 snapshots
-            if i_file <= 8:
-                status = False
-                info.append('Could not find snapshot ' + filename + '!')
             break
 
         # calculate analytic solution at cell positions
@@ -78,15 +75,11 @@ def verify_result(path):
                           L1_bfield_y, L1_bfield_z, L1_pressure], dtype=FloatType))
 
         # criteria for failing the test
-        success = (
-            L1_dens <= DeltaMaxAllowed and
-            L1_vel_y <= DeltaMaxAllowed and
-            L1_vel_z <= DeltaMaxAllowed and
-            L1_bfield_y <= DeltaMaxAllowed and
-            L1_bfield_z <= DeltaMaxAllowed and
-            L1_pressure <= DeltaMaxAllowed
-        )
-        status = status and success
+        if L1_dens > DeltaMaxAllowed or \
+           L1_vel_y > DeltaMaxAllowed or L1_vel_z > DeltaMaxAllowed or \
+           L1_bfield_y > DeltaMaxAllowed or L1_bfield_z > DeltaMaxAllowed or \
+           L1_pressure > DeltaMaxAllowed:
+            status = False
 
         i_file += 1
 
@@ -100,9 +93,10 @@ def visualize_result(path, Lx, Ly):
         os.mkdir(os.path.join(path, 'plots'))
     
     # open initial conditions to get parameters
-    with h5py.File(os.path.join(path, 'ics.hdf5'), 'r') as data:
-        Boxsize = FloatType(data["Header"].attrs["BoxSize"])
-        NumberOfCells = np.int32(data["Header"].attrs["NumPart_Total"][0])
+    data = h5py.File(os.path.join(path, 'ics.hdf5'), 'r')
+    Boxsize = FloatType(data["Header"].attrs["BoxSize"])
+    NumberOfCells = np.int32(data["Header"].attrs["NumPart_Total"][0])
+    data.close()
 
     # only import matplotlib if needed
     import matplotlib

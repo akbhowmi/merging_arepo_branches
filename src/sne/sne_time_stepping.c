@@ -30,7 +30,7 @@ typedef struct
   int Firstnode; /* this is needed as part of the communication alogorithm */
 } data_in;
 
-static data_in *DataGet;
+static data_in *DataIn, *DataGet;
 
 /* routine that fills the relevant particle/cell data into the input structure defined above */
 static void particle2in(data_in *in, int i, int firstnode)
@@ -56,7 +56,7 @@ typedef struct
   MyFloat CurrentMaxTiStep;
 } data_out;
 
-static data_out *DataResult;
+static data_out *DataResult, *DataOut;
 
 /* routine to store or combine result data */
 static void out2particle(data_out *out, int i, int mode)

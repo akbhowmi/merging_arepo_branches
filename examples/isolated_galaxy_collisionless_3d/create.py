@@ -63,7 +63,7 @@ else:
     ])
 # set output times
 outputTimes = np.linspace(0.0, 1.0, 10, dtype=np.float64)
-ones = np.ones(outputTimes.shape, dtype=int)
+ones = np.ones(outputTimes.shape, dtype=np.int)
 # write output list file
 data = np.array([outputTimes, ones]).T
 np.savetxt(os.path.join(simulation_directory, 'output_list.txt'),

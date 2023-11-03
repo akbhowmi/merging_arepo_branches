@@ -373,29 +373,11 @@ void set_pressure_of_cell_internal(struct particle_data *localP, struct sph_part
 #endif
 
 #ifdef JEANS_PRESSURE_LIMIT_MCS
-      double jeans_pressure;
-      double ncells = JEANS_PRESSURE_LIMIT_MCS;
-#ifndef JEANS_MASS_PRESSURE_LIMIT_MCS
-      double celldim = 2.0 * get_cell_radius(i);
-      jeans_pressure = ncells * ncells * All.G * celldim * celldim * localSphP[i].Density * localSphP[i].Density * All.cf_atime / M_PI / GAMMA;
-#else
-      double mass_rho_term = ncells * localP[i].Mass * localSphP[i].Density * localSphP[i].Density;
-      jeans_pressure = (All.G / GAMMA) * cbrt(6.0 * mass_rho_term * mass_rho_term / pow(M_PI,5.0));
-#endif
-#if defined(GRACKLE) && !defined(GRACKLE_TAB) 
-      localSphP[i].Pressure = fmax(get_grackle_pressure(i), jeans_pressure);
-#else
+      double jeans_pressure, celldim, ncells;
+      ncells = JEANS_PRESSURE_LIMIT_MCS;
+      celldim = 2.0 * get_cell_radius(i);
+      jeans_pressure = ncells * ncells * All.G * celldim * celldim * localSphP[i].Density * localSphP[i].Density / M_PI / GAMMA;
       localSphP[i].Pressure = fmax(GAMMA_MINUS1 * localSphP[i].Density * localSphP[i].Utherm, jeans_pressure);
-#endif
-#endif //JEANS_PRESSURE_LIMIT_MCS
-
-#ifdef SMAUG_PRESSURE_FLOOR
-      /* Standard thermal pressure */
-      localSphP[i].Pressure = GAMMA_MINUS1 * localSphP[i].Density * localSphP[i].Utherm;
-      /* Now add polytrope contribution, where T_poly / mu = Tstar * (n / nstar)^(gstar - 1). PolytropeFactor
-      contains all constants, calculated at start of run. Note that these pressures are added (rather
-      than taking max), this is equivalent to Ramses prescription */
-      localSphP[i].Pressure += All.PolytropeFactor * pow(localSphP[i].Density,All.Polytrope_gstar);
 #endif
 
 #else /* now comes the SFR treatment */
@@ -412,10 +394,6 @@ void set_pressure_of_cell_internal(struct particle_data *localP, struct sph_part
 #ifdef COSMIC_RAYS
   localSphP[i].CR_Pressure = (All.GammaCR - 1.0) * localSphP[i].CR_SpecificEnergy * localSphP[i].Density / All.cf_atime;
 #endif
-
-#if defined(GRACKLE) && !defined(GRACKLE_TAB) && !defined(JEANS_PRESSURE_LIMIT_MCS)
-    localSphP[i].Pressure = get_grackle_pressure(i);
-#endif 
 
 #ifdef ENFORCE_JEANS_STABILITY_OF_CELLS
 #ifndef ENFORCE_JEANS_STABILITY_OF_CELLS_EEOS
@@ -727,13 +705,8 @@ void do_special_boundaries(struct particle_data *localP, struct sph_particle_dat
 
 #endif /* MHD */
 
-#if defined(GFM_NORMALIZED_METAL_ADVECTION) && (defined(GFM_SET_METALLICITY) || defined(GFM_PREENRICH))
-
-#ifndef GFM_SET_METALLICITY
-      localSphP[i].Metallicity = All.metallicity;
-#else
-      localSphP[i].Metallicity = All.GasMetallicityInSolar * GFM_SOLAR_METALLICITY;
-#endif
+#ifdef GFM_NORMALIZED_METAL_ADVECTION
+      localSphP[i].Metallicity     = All.metallicity;
       localSphP[i].MassMetallicity = SphP[i].Metallicity * localP[i].Mass;
       for(int j = 0; j < GFM_N_CHEM_ELEMENTS; j++)
         {
@@ -1011,7 +984,7 @@ void update_primitive_variables_single(struct particle_data *localP, struct sph_
 #ifdef MHD_DEDNER_VARIABLE_SPEED
       localSphP[i].Psi = localSphP[i].PsiConserved / localP[i].Mass;
 #else
-      localSphP[i].Psi         = localSphP[i].PsiConserved / localSphP[i].Volume;
+      localSphP[i].Psi = localSphP[i].PsiConserved / localSphP[i].Volume;
 #endif
 #endif
 #endif

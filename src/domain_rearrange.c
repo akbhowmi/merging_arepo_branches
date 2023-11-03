@@ -72,7 +72,7 @@ void domain_rearrange_particle_sequence(void)
             P[NumGas - 1]   = psave;
             Key[NumGas - 1] = key;
 
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
             if(P[NumGas - 1].Type == 4)
               StarP[P[NumGas - 1].AuxDataID].PID = NumGas - 1;
 #endif
@@ -99,13 +99,17 @@ void domain_rearrange_particle_sequence(void)
 #endif
 
 #if defined(BLACK_HOLES) || defined(REFINEMENT_MERGE_CELLS) || defined(GFM_WINDS) || defined(GFM_WINDS_LOCAL) || defined(SINKS) || \
-    defined(SINK_PARTICLES) || defined(DUST_LIVE) || defined(SFR_MCS)
+    defined(SINK_PARTICLES) || defined(DUST_LIVE) || defined(SN_MCS)
   int i, count_elim, count_gaselim, count_BHelim, count_windelim, count_dustelim, count_sinkselim;
+
+#ifdef SN_MCS
+  int count_starelim = 0;
+#endif
 
   count_elim      = 0;
   count_gaselim   = 0;
   count_BHelim    = 0;
-  count_windelim  = 0; /* For SFR_MCS, these are star not wind particles */
+  count_windelim  = 0;
   count_dustelim  = 0;
   count_sinkselim = 0;
 
@@ -142,7 +146,7 @@ void domain_rearrange_particle_sequence(void)
             P[NumGas - 1]   = P[NumPart - 1];
             Key[NumGas - 1] = Key[NumPart - 1];
 
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
             if(P[NumGas - 1].Type == 4)
               StarP[P[NumGas - 1].AuxDataID].PID = NumGas - 1;
 #endif
@@ -161,7 +165,7 @@ void domain_rearrange_particle_sequence(void)
             NumGas--;
             count_gaselim++;
           }
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
         else if(P[i].Type == PTYPE_STARS)
           {
             StarP[P[i].AuxDataID]              = StarP[N_star - 1];
@@ -190,7 +194,33 @@ void domain_rearrange_particle_sequence(void)
             N_star--;
             count_windelim++;
           }
-#endif /* GFM || SFR_MCS */
+#endif /* GFM */
+
+#ifdef SN_MCS
+        /*To Do: Use star particle struct */
+        else if(P[i].Type == PTYPE_STARS)
+          {
+            if(i < NumPart - 1)
+              {
+                P[i]   = P[NumPart - 1];
+                Key[i] = Key[NumPart - 1];
+
+#ifdef BLACK_HOLES
+                if(P[i].Type == 5)
+                  BHP[P[i].AuxDataID].PID = i;
+#endif
+#ifdef SINKS
+                if(P[i].Type == 5)
+                  SinkP[P[i].AuxDataID].PID = i;
+#endif
+#ifdef DUST_LIVE
+                if(P[i].Type == DUST_LIVE)
+                  DustP[P[i].AuxDataID].PID = i;
+#endif
+              }
+            count_starelim++;
+          }
+#endif
 
 #ifdef BLACK_HOLES
         else if(P[i].Type == 5)
@@ -203,7 +233,7 @@ void domain_rearrange_particle_sequence(void)
                 P[i]   = P[NumPart - 1];
                 Key[i] = Key[NumPart - 1];
 
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
                 if(P[i].Type == PTYPE_STARS)
                   StarP[P[i].AuxDataID].PID = i;
 #endif
@@ -234,7 +264,7 @@ void domain_rearrange_particle_sequence(void)
                 P[i]   = P[NumPart - 1];
                 Key[i] = Key[NumPart - 1];
 
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
                 if(P[i].Type == PTYPE_STARS)
                   StarP[P[i].AuxDataID].PID = i;
 #endif
@@ -265,7 +295,7 @@ void domain_rearrange_particle_sequence(void)
                 P[i]   = P[NumPart - 1];
                 Key[i] = Key[NumPart - 1];
 
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
                 if(P[i].Type == PTYPE_STARS)
                   StarP[P[i].AuxDataID].PID = i;
 #endif
@@ -331,8 +361,12 @@ void domain_rearrange_particle_sequence(void)
   count[2] = count_BHelim;
   nelem    = 3;
 #endif
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
   count[3] = count_windelim;
+  nelem    = 4;
+#endif
+#ifdef SN_MCS
+  count[3] = count_starelim;
   nelem    = 4;
 #endif
 #ifdef DUST_LIVE
@@ -348,13 +382,13 @@ void domain_rearrange_particle_sequence(void)
 
   if(ThisTask == 0)
     {
-#if !defined(DUST_LIVE) && !defined(SFR_MCS)
+#if !defined(DUST_LIVE) && !defined(SN_MCS)
       printf(
           "DOMAIN: Eliminated %d derefined/swallowed gas cells, merged away %d black holes/sinks, removed %d recoupled wind "
           "particles.\n",
           tot[1], tot[2] + tot[5], tot[3]);
 #else
-#ifdef SFR_MCS
+#ifdef SN_MCS
       printf("DOMAIN: Eliminated %d derefined/swallowed gas cells, merged away %d black holes/sinks, removed %d star particles.\n",
              tot[1], tot[2] + tot[5], tot[3]);
 #else
@@ -375,7 +409,7 @@ void domain_rearrange_particle_sequence(void)
 #ifdef BLACK_HOLES
   All.TotNumBHs -= tot[2];
 #endif
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
   All.TotN_star -= tot[3];
 #endif
 #ifdef DUST_LIVE

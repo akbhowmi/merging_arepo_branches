@@ -49,10 +49,7 @@ void domain_displacePositions(const enum domain_displace_mode mode)
       domain_displacePosition(P[i].Pos, mode);
 
       if(i < NumGas)
-        {
-          domain_displacePosition(SphP[i].Center, mode);
-          domain_displacePosition(SphP[i].Grad.Center, mode);
-        }
+        domain_displacePosition(SphP[i].Center, mode);
 
 #if defined(BLACK_HOLES) && defined(BH_FRICTION)
       if(P[i].Type == PTYPE_BNDRY)

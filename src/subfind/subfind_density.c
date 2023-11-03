@@ -351,11 +351,9 @@ double subfind_density(int mode)
 
                   if(iter >= MAXITER - 10)
                     {
-                      printf(
-                          "SUBFIND: ngb iteration %2d: i=%d task=%d ID=%d Hsml=%g Left=%g Right=%g Ngbs=%g Right-Left=%g "
-                          "pos=(%g|%g|%g) Type=%d\n",
-                          iter, i, ThisTask, (int)P[i].ID, PS[i].Hsml, Left[i], Right[i], (double)DM_NumNgb[i], Right[i] - Left[i],
-                          P[i].Pos[0], P[i].Pos[1], P[i].Pos[2], P[i].Type);
+                      printf("SUBFIND: ngb iteration %2d: i=%d task=%d ID=%d Hsml=%g Left=%g Right=%g Ngbs=%g Right-Left=%g pos=(%g|%g|%g) Type=%d\n", iter, i,
+                             ThisTask, (int)P[i].ID, PS[i].Hsml, Left[i], Right[i], (double)DM_NumNgb[i], Right[i] - Left[i],
+                             P[i].Pos[0], P[i].Pos[1], P[i].Pos[2],P[i].Type);
                       myflush(stdout);
                     }
 

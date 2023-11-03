@@ -108,8 +108,8 @@ void calculate_gradients_RT(void)
 
   mpi_printf_rt(0, "RT: Calculating Gradients...\n");
 
-  minvalues = (double *)mymalloc("gradmin", NumGas * N_Grad_RT * sizeof(double));
-  maxvalues = (double *)mymalloc("gradmax", NumGas * N_Grad_RT * sizeof(double));
+  minvalues = mymalloc("gradmin", NumGas * N_Grad_RT * sizeof(double));
+  maxvalues = mymalloc("gradmax", NumGas * N_Grad_RT * sizeof(double));
 
   struct matrix_vec_data
   {
@@ -118,9 +118,9 @@ void calculate_gradients_RT(void)
     double grad[NUMDIMS];       /* output */
   } * mdata;
 
-  mdata = (struct matrix_vec_data *)mymalloc("mdata", N_Grad_RT * sizeof(struct matrix_vec_data));
+  mdata = mymalloc("mdata", N_Grad_RT * sizeof(struct matrix_vec_data));
 
-  double *Value = (double *)mymalloc("Value", N_Grad_RT * sizeof(double));
+  double *Value = mymalloc("Value", N_Grad_RT * sizeof(double));
 
   for(int idx = 0; idx < TimeBinsHydro.NActiveParticles; idx++)
     {

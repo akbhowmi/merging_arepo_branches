@@ -24,6 +24,10 @@
 #include "allvars.h"
 #include "proto.h"
 
+#ifdef STORE_MERGERS_IN_SNAPSHOT
+#include "./blackhole/store_mergers_in_snapshot/mergers_io.h"
+#endif
+
 #ifndef IDS_OFFSET
 #ifdef LONGIDS
 #define IDS_OFFSET 100000000000
@@ -54,12 +58,15 @@ int swap_file = 8;
 #ifdef TRACER_MC
 int N_tracer_idx;
 #endif
-#if defined(GFM) || defined(SFR_MCS)
+
+#ifdef GFM
 int N_star_idx;
 #endif
+
 #ifdef BLACK_HOLES
 int N_BH_idx;
 #endif
+
 #ifdef SINKS
 int N_Sinks_idx;
 #endif
@@ -67,8 +74,7 @@ int N_Sinks_idx;
 int N_dust_idx;
 #endif
 
-#if defined(ADD_GROUP_PROPERTIES) || defined(RECOMPUTE_POTENTIAL_IN_SNAPSHOT) || defined(CALCULATE_QUANTITIES_IN_POSTPROCESS) || \
-    defined(COMPUTE_VORONOI_DM_DENSITY_IN_POSTPROC)
+#if defined(ADD_GROUP_PROPERTIES) || defined(RECOMPUTE_POTENTIAL_IN_SNAPSHOT) || defined(CALCULATE_QUANTITIES_IN_POSTPROCESS)
 static struct ntypes_data
 {
   int npart[NTYPES];
@@ -121,8 +127,7 @@ void read_ic(const char *const fname, const int readTypes)
 
   num_files = find_files(fname);
 
-#if defined(ADD_GROUP_PROPERTIES) || defined(RECOMPUTE_POTENTIAL_IN_SNAPSHOT) || defined(CALCULATE_QUANTITIES_IN_POSTPROCESS) || \
-    defined(COMPUTE_VORONOI_DM_DENSITY_IN_POSTPROC)
+#if defined(ADD_GROUP_PROPERTIES) || defined(RECOMPUTE_POTENTIAL_IN_SNAPSHOT) || defined(CALCULATE_QUANTITIES_IN_POSTPROCESS)
   ntype_in_files = (struct ntypes_data *)mymalloc("ntype_in_files", num_files * sizeof(struct ntypes_data));
   memset(ntype_in_files, 0, num_files * sizeof(struct ntypes_data));
 #endif
@@ -137,7 +142,7 @@ void read_ic(const char *const fname, const int readTypes)
     {
       NumPart = 0;
       NumGas  = 0;
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
       N_star     = 0;
       N_star_idx = 0;
 #endif
@@ -158,8 +163,7 @@ void read_ic(const char *const fname, const int readTypes)
       N_dust_idx = 0;
 #endif
 
-#if defined(ADD_GROUP_PROPERTIES) || defined(RECOMPUTE_POTENTIAL_IN_SNAPSHOT) || defined(CALCULATE_QUANTITIES_IN_POSTPROCESS) || \
-    defined(COMPUTE_VORONOI_DM_DENSITY_IN_POSTPROC)
+#if defined(ADD_GROUP_PROPERTIES) || defined(RECOMPUTE_POTENTIAL_IN_SNAPSHOT) || defined(CALCULATE_QUANTITIES_IN_POSTPROCESS)
       if(rep == 1)
         MPI_Allreduce(MPI_IN_PLACE, ntype_in_files, num_files * NTYPES, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 #endif
@@ -240,10 +244,14 @@ void read_ic(const char *const fname, const int readTypes)
           All.MaxPart    = max_load / (1.0 - 2 * ALLOC_TOLERANCE);
           All.MaxPartSph = max_sphload / (1.0 - 2 * ALLOC_TOLERANCE);
 
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
           int max_starload;
           MPI_Allreduce(&N_star, &max_starload, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
           All.MaxPartStar = max_starload + ALLOC_STARBH_ROOM * (All.TotNumGas / NTask);
+#endif
+
+#ifdef STORE_MERGERS_IN_SNAPSHOT
+          All.MaxMergers = 1000;
 #endif
 
 #ifdef BLACK_HOLES
@@ -274,6 +282,8 @@ void read_ic(const char *const fname, const int readTypes)
           else if(RestartFlag != RESTART_SLICE && RestartFlag != RESTART_PROJECTION)
             terminate("Code compiled with option EXACT_GRAVITY_FOR_PARTICLE_TYPE but no particles of specified type found in ICs.");
 #endif
+
+
 #if defined(CIRCUMSTELLAR) &&                                                                                 \
     (defined(CIRCUMSTELLAR_IRRADIATION) || defined(ALPHA_VISCOSITY) || defined(CIRCUMSTELLAR_REFINEMENTS)) && \
     !defined(EXTERNALGRAVITY)
@@ -522,9 +532,6 @@ void read_ic(const char *const fname, const int readTypes)
 #ifdef TRACER_MC_CHECKS
               TracerLinkedList[itr].ParentID = P[i].ID;
 #endif
-#ifdef SN_MCS
-              TracerLinkedList[itr].EjectaFlag = 0;
-#endif
               add_tracer_to_parent(i, itr);
             }
         }
@@ -588,7 +595,7 @@ void read_ic(const char *const fname, const int readTypes)
     }
 #endif
 
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
   for(int i = N_star_idx = 0; i < NumPart; i++)
     if(P[i].Type == PTYPE_STARS)
       {
@@ -828,7 +835,7 @@ void empty_read_buffer(const enum iofields blocknr, const int offset, const int 
                 particle = N_tracer_idx + n;
                 break;
 #endif
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
               case A_STARP:
                 particle = N_star_idx + n;
                 break;
@@ -838,6 +845,7 @@ void empty_read_buffer(const enum iofields blocknr, const int offset, const int 
                 particle = N_BH_idx + n;
                 break;
 #endif
+
 #ifdef DUST_LIVE
               case A_DUSTP:
                 particle = N_dust_idx + n;
@@ -892,7 +900,7 @@ void empty_read_buffer(const enum iofields blocknr, const int offset, const int 
               case A_P:
                 array_pos = P + offset + n;
                 break;
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
               case A_STARP:
                 array_pos = StarP + N_star_idx + n;
                 break;
@@ -902,6 +910,7 @@ void empty_read_buffer(const enum iofields blocknr, const int offset, const int 
                 array_pos = BHP + N_BH_idx + n;
                 break;
 #endif
+
 #ifdef DUST_LIVE
               case A_DUSTP:
                 array_pos = DustP + N_dust_idx + n;
@@ -1136,7 +1145,7 @@ void share_particle_number_in_file(const char *const fname, const int filenr, co
           }
 
       All.TotNumGas = header.npartTotal[0] + (((long long)header.npartTotalHighWord[0]) << 32);
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
       All.TotN_star = header.npartTotal[4] + (((long long)header.npartTotalHighWord[4]) << 32);
 #endif
 #ifdef BLACK_HOLES
@@ -1213,7 +1222,7 @@ void share_particle_number_in_file(const char *const fname, const int filenr, co
 #ifdef TILE_ICS
       All.TotNumPart *= All.TileICsFactor * All.TileICsFactor * All.TileICsFactor;
       All.TotNumGas *= All.TileICsFactor * All.TileICsFactor * All.TileICsFactor;
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
       All.TotN_star *= All.TileICsFactor * All.TileICsFactor * All.TileICsFactor;
 #endif
 #ifdef BLACK_HOLES
@@ -1278,7 +1287,7 @@ void share_particle_number_in_file(const char *const fname, const int filenr, co
       if(type == 0)
         NumGas += n_for_this_task;
 
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
       if(type == 4)
         N_star += n_for_this_task;
 #endif
@@ -1313,8 +1322,7 @@ void share_particle_number_in_file(const char *const fname, const int filenr, co
         }
 #endif
 
-#if defined(ADD_GROUP_PROPERTIES) || defined(RECOMPUTE_POTENTIAL_IN_SNAPSHOT) || defined(CALCULATE_QUANTITIES_IN_POSTPROCESS) || \
-    defined(COMPUTE_VORONOI_DM_DENSITY_IN_POSTPROC)
+#if defined(ADD_GROUP_PROPERTIES) || defined(RECOMPUTE_POTENTIAL_IN_SNAPSHOT) || defined(CALCULATE_QUANTITIES_IN_POSTPROCESS)
       for(int type = 0; type < NTYPES; type++)
         ntype_in_files[filenr].npart[type] = header.npart[type];
 #endif
@@ -1506,8 +1514,7 @@ void read_file(const char *const fname, const int filenr, const int readTask, co
 
       if(blocknr == IO_LASTENTRY)
         {
-#if defined(ADD_GROUP_PROPERTIES) || defined(RECOMPUTE_POTENTIAL_IN_SNAPSHOT) || defined(CALCULATE_QUANTITIES_IN_POSTPROCESS) || \
-    defined(COMPUTE_VORONOI_DM_DENSITY_IN_POSTPROC)
+#if defined(ADD_GROUP_PROPERTIES) || defined(RECOMPUTE_POTENTIAL_IN_SNAPSHOT) || defined(CALCULATE_QUANTITIES_IN_POSTPROCESS)
           int pc = nstart;
 
           for(int type = 0; type < NTYPES; type++)
@@ -1619,12 +1626,13 @@ void read_file(const char *const fname, const int filenr, const int readTask, co
 #ifdef TRACER_MC
                           N_tracer_idx = N_tracer;
 #endif
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
                           N_star_idx = N_star;
 #endif
 #ifdef BLACK_HOLES
                           N_BH_idx = NumBHs;
 #endif
+
 #ifdef SINKS
                           N_Sinks_idx = NumSinks;
 #endif
@@ -1756,12 +1764,13 @@ void read_file(const char *const fname, const int filenr, const int readTask, co
 #endif
                                     offset += pc;
 
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
                                   N_star_idx += pc;
 #endif
 #ifdef BLACK_HOLES
                                   N_BH_idx += pc;
 #endif
+
 #ifdef SINKS
                                   N_Sinks_idx += pc;
 #endif
@@ -1825,7 +1834,7 @@ void read_file(const char *const fname, const int filenr, const int readTask, co
       if(type == PTYPE_GAS)
         NumGas += n_for_this_task;
 
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
       if(type == PTYPE_STARS)
         N_star += n_for_this_task;
 #endif
@@ -2039,7 +2048,6 @@ int find_files(const char *const fname)
  */
 void distribute_file(const int nfiles, int *const filenr, int *const master, int *const last)
 {
-  myassert(NTask >= nfiles);
   const int tasks_per_file = NTask / nfiles;
   const int tasks_left     = NTask % nfiles;
   if(tasks_left == 0)
@@ -2052,15 +2060,15 @@ void distribute_file(const int nfiles, int *const filenr, int *const master, int
   else
     {
       const double tpf = ((double)NTask) / nfiles;
-      myassert(tpf >= 1);
-      *last = -1;
+      *last            = -1;
       for(int i = 0; i < nfiles; i++)
         {
           *master = *last + 1;
           *last   = (i + 1) * tpf;
           if(*last >= NTask)
             *last = *last - 1;
-          myassert(*last >= *master);
+          if(*last < *master)
+            terminate("last < master");
           *filenr = i;
 
           if(i == nfiles - 1)
@@ -2300,7 +2308,7 @@ void tile_ics(void)
   /* allocate memory for new particles */
   domain_resize_storage(NumPart * (All.TileICsFactor * All.TileICsFactor * All.TileICsFactor - 1),
                         NumGas * (All.TileICsFactor * All.TileICsFactor * All.TileICsFactor - 1), 0);
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
   domain_resize_storage_stars(N_star * (All.TileICsFactor * All.TileICsFactor * All.TileICsFactor - 1));
 #endif
 #ifdef BLACK_HOLES
@@ -2373,7 +2381,7 @@ void tile_ics(void)
         }
     }
 
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
   for(ix = 0; ix < All.TileICsFactor; ix++)
     for(iy = 0; iy < All.TileICsFactor; iy++)
       for(iz = 0; iz < All.TileICsFactor; iz++)
@@ -2407,7 +2415,7 @@ void tile_ics(void)
 #endif
 
   NumGas *= All.TileICsFactor * All.TileICsFactor * All.TileICsFactor;
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
   N_star *= All.TileICsFactor * All.TileICsFactor * All.TileICsFactor;
 #endif
 #ifdef BLACK_HOLES

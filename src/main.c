@@ -159,8 +159,7 @@ int main(int argc, char **argv)
       RestartFlag == RESTART_PROJECTION_AXIS || RestartFlag == RESTART_TRACER_POWER_SPECTRA ||
       RestartFlag == RESTART_CORRELATION_FUNCTION || RestartFlag == RESTART_VORONOI_MESH || RestartFlag == RESTART_SHOCK_FINDER ||
       RestartFlag == RESTART_VORONOI_MESH_SLICE || RestartFlag == RESTART_GRADIENTS || RestartFlag == RESTART_RECALC_POTENTIAL ||
-      RestartFlag == RESTART_CALC_ADDITIONAL || RestartFlag == RESTART_AURIGA_MOVIE || RestartFlag == RESTART_SIMPLEX ||
-      RestartFlag == RESTART_CALC_VORONOI_DM_DENSITY) &&
+      RestartFlag == RESTART_CALC_ADDITIONAL || RestartFlag == RESTART_AURIGA_MOVIE || RestartFlag == RESTART_SIMPLEX) &&
      RestartSnapNum < 0)
     {
       mpi_terminate("Need to give the snapshot number");
@@ -242,8 +241,7 @@ int main(int argc, char **argv)
     }
 #endif
 
-  /* set-up run  */
-  begrun1();
+  begrun1(); /* set-up run  */
 
   /* see if we are loading a restart file or an IC file */
   if(RestartFlag == RESTART_RESTART)
@@ -387,6 +385,10 @@ int main(int argc, char **argv)
           All.TreeAllocFactor    = 0.7;
           All.NgbTreeAllocFactor = 0.7;
 
+#ifdef CONSTRUCT_FOF_NGBTREE
+          All.TopNodeAllocFactor_groups = 0.08;
+#endif
+
           strncat(All.SnapshotFileBase, "_converted", MAXLEN_PATH - strlen(All.SnapshotFileBase) - 1);
           mpi_printf("Start writing file %s\nRestartSnapNum %d\n", All.SnapshotFileBase, RestartSnapNum);
           savepositions(RestartSnapNum, 0);
@@ -406,11 +408,9 @@ int main(int argc, char **argv)
 
   begrun2();
 
-  /* main simulation loop */
-  run();
+  run(); /* main simulation loop */
 
-  /* clean up & finalize MPI */
-  endrun();
+  endrun(); /* clean up & finalize MPI */
 
   return EXIT_SUCCESS;
 }

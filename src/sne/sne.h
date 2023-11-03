@@ -51,6 +51,7 @@ extern int Wherewasi;
  * i.e. to define the cumulative distribution function of the radial supernova distribution*/
 #define SNEPDF_NBINS 1000
 #define SNEPDF_RMAX 20. * KILOPARSEC / All.UnitLength_in_cm
+double *SNEPDF_radial_CDF;
 
 enum SNE_type
 {

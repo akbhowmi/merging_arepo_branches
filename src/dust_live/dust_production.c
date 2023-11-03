@@ -118,7 +118,7 @@ void create_dust_particles(void)
       if(All.MaxID == 0) /* MaxID not calculated yet */
         calculate_maxid();
 
-      list = (int *)mymalloc("list", NTask * sizeof(int));
+      list = mymalloc("list", NTask * sizeof(int));
 
       MPI_Allgather(&dust_spawned, 1, MPI_INT, list, 1, MPI_INT, MPI_COMM_WORLD);
 
@@ -381,7 +381,7 @@ void refine_dust_particles(void)
       if(All.MaxID == 0) /* MaxID not calculated yet */
         calculate_maxid();
 
-      list = (int *)mymalloc("list", NTask * sizeof(int));
+      list = mymalloc("list", NTask * sizeof(int));
 
       MPI_Allgather(&dust_created, 1, MPI_INT, list, 1, MPI_INT, MPI_COMM_WORLD);
 

@@ -16,10 +16,6 @@ int open_old_sink_file_and_read_sink_data(void);
 
 void set_sink_particle_parameters(void); /* Test outside of SINK_PARTICLES_FEEDBACK for now but it was inside before */
 
-#ifdef SINK_MERGERS
-void perform_mergers(void);
-#endif
-
 #ifdef SINK_PARTICLES_FEEDBACK
 void assign_sne(int sink_ID, double mass_to_convert, int candidate_task);
 void find_number_of_sne_drawing_from_IMF(double mass_to_convert, int *n_sne, double *massarr);

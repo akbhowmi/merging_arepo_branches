@@ -314,11 +314,11 @@ void sx_phot_start_run(void)
   // Allocate all movable memory at once
   // NOTE: we need to do it at this point, because movable arrays have to be allocated at the end
   // NOTE: there are some non-movable arrays allocated below (during steps), however, they are freed before any reallocation
-  sxRealAPP = (struct sxABPP_struct *)mymalloc_movable(&sxRealAPP,"sxAPP", sxMaxNumABPP * sizeof(struct sxABPP_struct));
-  sxRealBPP = (struct sxABPP_struct *)mymalloc_movable(&sxRealBPP,"sxBPP", sxMaxNumABPP * sizeof(struct sxABPP_struct));
+  sxRealAPP = mymalloc_movable(&sxRealAPP,"sxAPP", sxMaxNumABPP * sizeof(struct sxABPP_struct));
+  sxRealBPP = mymalloc_movable(&sxRealBPP,"sxBPP", sxMaxNumABPP * sizeof(struct sxABPP_struct));
   sxAPP = sxRealAPP; 
   sxBPP = sxRealBPP;
-  sxQPP = (struct sxQPP_struct *)mymalloc_movable(&sxQPP,"sxQPP", sxMaxNumQPP * sizeof(struct sxQPP_struct));
+  sxQPP = mymalloc_movable(&sxQPP,"sxQPP", sxMaxNumQPP * sizeof(struct sxQPP_struct));
 
 #ifdef SX_DISPLAY_STATS
   // clear the photon statistics

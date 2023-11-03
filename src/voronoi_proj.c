@@ -121,26 +121,26 @@ int voronoi_proj_init(struct projection_data *pdata, int pflag)
   pdata->MaxNray = pdata->npixels;
   pdata->Ray     = (ray_data *)mymalloc("Ray", pdata->MaxNray * sizeof(ray_data));
 
-  pdata->rho = (double *)mymalloc("rho", pdata->npixels * sizeof(double));
+  pdata->rho = (float *)mymalloc("rho", pdata->npixels * sizeof(double));
 #ifdef MHD
-  pdata->bsqr = (double *)mymalloc("bsqr", pdata->npixels * sizeof(double));
+  pdata->bsqr = (float *)mymalloc("bsqr", pdata->npixels * sizeof(double));
 #endif
-  pdata->ptot = (double *)mymalloc("ptot", pdata->npixels * sizeof(double));
+  pdata->ptot = (float *)mymalloc("ptot", pdata->npixels * sizeof(double));
 #ifdef GFM_DUST
-  pdata->metal_rho = (double *)mymalloc("metal_rho", pdata->npixels * sizeof(double));
-  pdata->dust_rho  = (double *)mymalloc("dust_rho", pdata->npixels * sizeof(double));
-  pdata->dust_lum  = (double *)mymalloc("dust_lum", pdata->npixels * sizeof(double));
+  pdata->metal_rho = (float *)mymalloc("metal_rho", pdata->npixels * sizeof(double));
+  pdata->dust_rho  = (float *)mymalloc("dust_rho", pdata->npixels * sizeof(double));
+  pdata->dust_lum  = (float *)mymalloc("dust_lum", pdata->npixels * sizeof(double));
 #endif
 #ifdef VORONOI_PROJ_TAU
-  pdata->tau      = (double *)mymalloc("tau", pdata->npixels * sizeof(double));
-  pdata->oldk     = (double *)mymalloc("oldk", pdata->npixels * sizeof(double));
-  pdata->tps      = (double *)mymalloc("tps", pdata->npixels * sizeof(double));
-  pdata->rhops    = (double *)mymalloc("rhops", pdata->npixels * sizeof(double));
-  pdata->len      = (double *)mymalloc("len", pdata->npixels * sizeof(double));
+  pdata->tau      = (float *)mymalloc("tau", pdata->npixels * sizeof(double));
+  pdata->oldk     = (float *)mymalloc("oldk", pdata->npixels * sizeof(double));
+  pdata->tps      = (float *)mymalloc("tps", pdata->npixels * sizeof(double));
+  pdata->rhops    = (float *)mymalloc("rhops", pdata->npixels * sizeof(double));
+  pdata->len      = (float *)mymalloc("len", pdata->npixels * sizeof(double));
   pdata->finished = (int *)mymalloc("len", pdata->npixels * sizeof(int));
 #endif
 #ifdef MRT
-  pdata->photon = (double *)mymalloc("photon", pdata->npixels * sizeof(double));
+  pdata->photon = (float *)mymalloc("photon", pdata->npixels * sizeof(double));
 #endif
 
   memset(pdata->rho, 0, pdata->npixels * sizeof(double));

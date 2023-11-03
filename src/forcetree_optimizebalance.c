@@ -93,14 +93,13 @@ double force_get_current_balance(double *impact)
   myfree(inTaskCost);
 #endif
 
-  for(int i = 0, oldmax = oldsum = 0; i < NTask; i++)
+  int i;
+  for(i = 0, oldmax = oldsum = 0; i < NTask; i++)
     {
       oldsum += TaskCost[i];
       if(oldmax < TaskCost[i])
         oldmax = TaskCost[i];
     }
-
-  MPI_Bcast(&oldsum, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
   *impact = 1.0 + domain_grav_weight[All.HighestActiveTimeBin] * (oldmax - oldsum / NTask) / All.TotGravCost;
 

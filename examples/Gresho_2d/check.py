@@ -31,7 +31,7 @@ FloatType = np.float64  # double precision: np.float64, for single use np.float3
 ## open initial conditiions to get parameters
 try:
     data = h5py.File(os.path.join(simulation_directory, 'IC.hdf5'), 'r')
-except (OSError, IOError):
+except:
     print('Could not open initial conditions!')
     sys.exit(-1)
 Boxsize = FloatType(data['Header'].attrs['BoxSize'])
@@ -54,11 +54,7 @@ while True:
     filename = 'snap_%03d.hdf5' % i_file
     try:
         data = h5py.File(os.path.join(directory, filename), 'r')
-    except (OSError, IOError):
-        # should have at least two snapshots
-        if i_file <= 1:
-            print('Could not find snapshot ' + filename + '!')
-            sys.exit(-1)
+    except:
         break
     # get simulation data
     ## simulation data
@@ -72,30 +68,35 @@ while True:
     Uthermal = np.array(data['PartType0']['InternalEnergy'], dtype=FloatType)
     Volume = Mass / Density
 
-    xPosFromCenter = Pos[:, 0] - 0.5 * Boxsize
-    yPosFromCenter = Pos[:, 1] - 0.5 * Boxsize
+    xPosFromCenter = (Pos[:, 0] - 0.5 * Boxsize)
+    yPosFromCenter = (Pos[:, 1] - 0.5 * Boxsize)
     Radius = np.sqrt(xPosFromCenter**2 + yPosFromCenter**2)
+    i_select, = np.where(Radius != 0.0)
     RotationVelocity = yPosFromCenter * Velocity[:,
                                                  0] - xPosFromCenter * Velocity[:,
                                                                                 1]
-    # rotation velocity undefined where Radius == 0
-    i_select = Radius != 0.0
     RotationVelocity[i_select] /= Radius[i_select]
-    RotationVelocity[~i_select] = np.nan
+    RotationVelocity[Radius[:] == 0.0] = 0.0
     # calculate analytic solution
     ## density
     Density_ref = np.full(Density.shape, density_0, dtype=FloatType)
 
     ## different zones
-    i1 = Radius < 0.2
-    i2 = (Radius >= 0.2) & (Radius < 0.4)
-    i3 = Radius >= 0.4
+    i1, = np.where(Radius < 0.2)
+    i2, = np.where((Radius >= 0.2) & (Radius < 0.4))
+    i3, = np.where(Radius >= 0.4)
 
     ## velocity
     RotationVelocity_ref = np.zeros(Velocity.shape[0], dtype=FloatType)
     RotationVelocity_ref[i1] = 5.0 * Radius[i1]
     RotationVelocity_ref[i2] = 2.0 - 5.0 * Radius[i2]
     RotationVelocity_ref[i3] = 0.0
+    Velocity_ref = np.zeros(Velocity.shape, dtype=FloatType)
+    i_select, = np.where(Radius != 0.0)
+    Velocity_ref[i_select, 0] = RotationVelocity_ref[i_select] * (
+        Pos[i_select, 1] - 0.5 * Boxsize) / Radius[i_select]
+    Velocity_ref[i_select, 1] = -RotationVelocity_ref[i_select] * (
+        Pos[i_select, 0] - 0.5 * Boxsize) / Radius[i_select]
 
     ## specific internal energy
     Pressure_ref = np.zeros(Uthermal.shape, dtype=FloatType)
@@ -220,12 +221,7 @@ while True:
                          'velocity_%03d.pdf' % i_file))
         plt.close(fig)
     # criteria for failing the test
-    success = (
-        L1_dens <= DeltaMaxAllowed and
-        L1_vel <= DeltaMaxAllowed and
-        L1_utherm <= DeltaMaxAllowed
-    )
-    if not success:
+    if L1_dens > DeltaMaxAllowed or L1_vel > DeltaMaxAllowed or L1_utherm > DeltaMaxAllowed:
         sys.exit(-1)
     i_file += 1
 

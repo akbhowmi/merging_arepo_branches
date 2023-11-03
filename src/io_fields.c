@@ -116,7 +116,7 @@ void io_func_pos(const int particle, const int components, void *const buffer, c
 #ifdef GRAVITY_NOT_PERIODIC
       const bool gravity_periodic = false;
 #else
-      const bool gravity_periodic = true;
+      const bool gravity_periodic         = true;
 #endif
       if(gravity_periodic || P[particle].Type == 0)
         domain_displacePosition(pp, DISPLACE_POSITION_BACKWARD);
@@ -131,7 +131,7 @@ void io_func_pos(const int particle, const int components, void *const buffer, c
       double *ppd        = (double *)buffer;
       for(int k = 0; k < components; k++)
         {
-          if(output_coordinates_in_dp && DumpFlag != DUMP_BOTH_MINI)
+          if(output_coordinates_in_dp && DumpFlag != 3)
             ppd[k] = pp[k];
           else
             ppo[k] = pp[k];
@@ -140,7 +140,7 @@ void io_func_pos(const int particle, const int components, void *const buffer, c
   else
     {
 #ifdef READ_COORDINATES_IN_DOUBLE
-      double *in_buffer = (double *)buffer;
+      double *in_buffer = buffer;
 #else
       MyInputFloat *in_buffer             = (MyInputFloat *)buffer;
 #endif
@@ -257,7 +257,7 @@ static void io_func_accel(int particle, int components, void *out_buffer, int mo
         P[particle].GravAccel[k] = ((MyOutputFloat *)out_buffer)[k];
     }
 }
-#endif // OUTPUTACCELERATION
+#endif
 
 /* -- user defined functions: shock finder -- */
 
@@ -528,7 +528,7 @@ static void io_func_tracer_fluid(int particle, int components, void *buffer, int
 /* -- user defined functions: gas properties -- */
 
 #if defined(COOLING) || defined(OTVET)
-#if !defined(CHIMES) && !defined(GRACKLE)
+#ifndef CHIMES
 /*! \brief IO function of the electron number density.
  *
  *  \param[in] particle Index of particle/cell.
@@ -570,10 +570,10 @@ static void io_func_ne(int particle, int components, void *buffer, int mode)
       SphP[particle].Ne = ((MyInputFloat *)buffer)[0];
     }
 }
-#endif /* !(CHIMES) && !(GRACKLE) */
+#endif /* !(CHIMES) */
 #endif
 
-#if defined(COOLING) && !defined(OTVET) && !defined(CHIMES) & !defined(GRACKLE)
+#if defined(COOLING) && !defined(OTVET) && !defined(CHIMES)
 /*! \brief Output function for neutral hydrogen fraction.
  *
  *  \param[in] particle Index of particle/cell.
@@ -599,7 +599,7 @@ static void io_func_nh(int particle, int components, void *buffer, int mode)
 }
 #endif
 
-#if defined(COOLING) && defined(OUTPUT_HE_IONIZATION_STATE) && !defined(OTVET) && !defined(CHIMES) && !defined(GRACKLE)
+#if defined(COOLING) && defined(OUTPUT_HE_IONIZATION_STATE) && !defined(OTVET) && !defined(CHIMES)
 /*! \brief Output function for neutral helium fraction.
  *
  *  \param[in] particle Index of particle/cell.
@@ -840,11 +840,6 @@ static void io_func_metallicity(int particle, int components, void *out_buffer, 
   else
     {
       P[particle].Metallicity = ((MyOutputFloat *)out_buffer)[0];
-#if(defined(SN_MCS) || (defined(HII_MCS) && !defined(HII_MCS_TEST)) || defined(PE_MCS)) && \
-    !(defined(SN_MCS_INITIAL_DRIVING) || defined(IMF_SAMPLING_MCS) || defined(SB99_FIXED_Z))
-      if(P[particle].Type == 4)
-        STP(particle).iz = get_sb99_z_index(P[particle].Metallicity);
-#endif
     }
 }
 #endif
@@ -1364,110 +1359,6 @@ static void io_func_chimes_mu(int particle, int components, void *buffer, int mo
 }
 #endif /* CHIMES */
 
-#ifdef SFR_MCS
-static void io_func_stellar_birthtime(int particle, int components, void *buffer, int mode)
-{
-  if(mode == 0)
-    ((MyOutputFloat *)buffer)[0] = StarP[particle].BirthTime;
-  else
-    {
-      StarP[particle].BirthTime = ((MyInputFloat *)buffer)[0];
-#if defined(SN_MCS) || (defined(HII_MCS) && !defined(HII_MCS_TEST)) || defined(PE_MCS)
-      StarP[particle].Age = get_time_difference_in_Gyr(StarP[particle].BirthTime, All.Time) * 1e9;
-#if defined(HII_MCS) && !(defined(HII_MCS_TEST) || defined(IMF_SAMPLING_MCS))
-      int it_high;
-      for(it_high = 1; it_high < sb99.N_t_Photons && StarP[particle].Age > sb99.TimestepsPhotons[it_high]; it_high++);
-
-      StarP[particle].photon_it_high = it_high;
-#endif
-#if defined(PE_MCS) && !defined(IMF_SAMPLING_MCS)
-      int it_fuv_high;
-      for(it_fuv_high = 1; it_fuv_high < sb99.N_t_FUV && StarP[particle].Age > sb99.TimestepsFUV[it_fuv_high]; it_fuv_high++);
-
-      StarP[particle].fuv_it_high = it_fuv_high;
-#endif
-#endif
-    }
-}
-static void io_func_stellar_age_in_Gyr(int particle, int components, void *buffer, int mode)
-{
-  if(mode == 0)
-    ((MyOutputFloat *)buffer)[0] = (MyOutputFloat)get_time_difference_in_Gyr(StarP[particle].BirthTime, All.Time);
-  /* This field is written but not read */
-}
-#ifdef PE_MCS
-static void io_func_pe_heating(int particle, int components, void *buffer, int mode)
-{
-  if(mode == 0)
-    {
-      ((MyOutputFloat *)buffer)[0] = (MyOutputFloat)calculate_pe_heating_rate(particle);
-    }
-}
-#endif
-#endif /* SFR_MCS */
-
-#ifdef TURB_APPROX_MCS_OUTPUT_RATES
-static void io_func_turbulent_production_rate(int particle, int components, void *buffer, int mode)
-{
-  if(mode == 0)
-    ((MyOutputFloat *)buffer)[0] = (MyOutputFloat)get_turbulent_production_rate_single(particle);
-}
-
-static void io_func_turbulent_dissipation_rate(int particle, int components, void *buffer, int mode)
-{
-  if(mode == 0)
-    {
-      double kturb                 = SphP[particle].TurbEnergy / SphP[particle].Volume;
-      double dx                    = pow(6.0 * SphP[particle].Volume / M_PI, 1.0 / 3.0);
-      ((MyOutputFloat *)buffer)[0] = -1.58 * SphP[particle].Volume * sqrt(kturb / SphP[particle].Density) * kturb / dx;
-      ;
-    }
-}
-
-static void io_func_turbulent_adiabatic_rate(int particle, int components, void *buffer, int mode)
-{
-  if(mode == 0)
-    {
-      double divv = SphP[particle].dvel_unlim[0][0] + SphP[particle].dvel_unlim[1][1] + SphP[particle].dvel_unlim[2][2];
-      ((MyOutputFloat *)buffer)[0] = -2.0 * SphP[particle].TurbEnergy * divv / 3.0;
-    }
-}
-#endif /* TURB_APPROX_MCS_OUTPUT_RATES */
-
-#ifdef BH_DF_DISCRETE
-/*! \brief IO function for Discrete Dynamical Friction gravitational accelerations.
- *
- *  Copied from `io_func_accel()`.
- *  Note different 'a' factors in output than in code.
- *
- *  \param[in] particle Index of particle/cell.
- *  \param[in] components Number of entries in array.
- *  \param[out] out_buffer File output buffer.
- *  \param[in] mode Mode 0: output, 1: input.
- *
- *  \return void
- */
-static void io_func_bh_dfd_accel(int particle, int components, void *out_buffer, int mode)
-{
-  int k;
-
-  if(mode == 0)
-    {
-      if(RestartFlag != RESTART_SNAP_CONVERSION)
-        for(k = 0; k < 3; k++)
-          ((MyOutputFloat *)out_buffer)[k] = All.cf_a2inv * BPP(particle).DFD_GravAccel[k];
-      else
-        for(k = 0; k < 3; k++)
-          ((MyOutputFloat *)out_buffer)[k] = BPP(particle).DFD_GravAccel[k];
-    }
-  else
-    {
-      for(k = 0; k < 3; k++)
-        BPP(particle).DFD_GravAccel[k] = ((MyOutputFloat *)out_buffer)[k];
-    }
-}
-#endif // BH_DF_DISCRETE
-
 /*! \brief Function for field registering.
  *
  *  For init_field arguments read the description of init_field.
@@ -1513,6 +1404,56 @@ void init_io_fields(void)
   init_units(IO_MASS, 0., -1., 0., 1., 0., All.UnitMass_in_g);
   init_snapshot_type(IO_MASS, SN_MINI);
 
+#ifdef PREVENT_SPURIOUS_RESEEDING
+  init_field(IO_SEEDMASS, "SEEDMASS ", "SeedMass", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_SPHP, &SphP[0].SeedMass, 0,
+             GAS_ONLY);
+  init_units(IO_SEEDMASS, 0., -1., 0., 1., 0., All.UnitMass_in_g);
+
+  init_field(IO_SEEDMASS_STAR, "SEEDMASS_STAR ", "SeedMass", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_STARP, &StarP[0].SeedMass, 0,
+             STARS_ONLY);
+  init_units(IO_SEEDMASS_STAR, 0., -1., 0., 1., 0., All.UnitMass_in_g);
+
+#ifdef ACCOUNT_FOR_SWALLOWED_PAINTED_GAS
+  init_field(IO_SEEDMASS_BH, "SEEDMASS_BH ", "SeedMass", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_BHP, &BHP[0].SeedMass, 0, BHS_ONLY);
+  init_units(IO_SEEDMASS_BH, 0., -1., 0., 1., 0., All.UnitMass_in_g);
+#endif
+
+//  mpi_printf("***value right before dumping %g %g \n",&BHP[0].Time_Of_Seeding,&BHP[1].Time_Of_Seeding);
+  init_field(IO_TIME_OF_SEEDING, "TIME_OF_SEEDING", "Time_Of_Seeding", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_BHP,
+                 &BHP[0].Time_Of_Seeding, 0, BHS_ONLY);
+  init_units(IO_TIME_OF_SEEDING, 0, 0, 0, 0, 0, 0); /* scale factor */
+
+  init_field(IO_NUMBHNGB, "NUMBHNGB", "NumBHNGB", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_SPHP,
+                 &SphP[0].NumBHNGB, 0, GAS_ONLY);
+  init_units(IO_NUMBHNGB, 0, 0, 0, 0, 0, 0); /* scale factor */
+
+  init_field(IO_NFOUND, "NFOUND", "nfound", MEM_INT, FILE_INT, FILE_INT, 1, A_SPHP,
+                 &SphP[0].nfound, 0, GAS_ONLY);
+  init_units(IO_NFOUND, 0, 0, 0, 0, 0, 0); /* scale factor */
+
+  init_field(IO_NITERATIONS, "NITERATIONS", "niterations", MEM_INT, FILE_INT, FILE_INT, 1, A_SPHP,
+                 &SphP[0].niterations, 0, GAS_ONLY);
+  init_units(IO_NITERATIONS, 0, 0, 0, 0, 0, 0); /* scale factor */
+
+  init_field(IO_PAINTED, "PAINTED", "NeighborsHaveBeenPainted", MEM_INT, FILE_INT, FILE_INT, 1, A_BHP,
+                 &BHP[0].NeighborsHaveBeenPainted, 0, BHS_ONLY);
+  init_units(IO_PAINTED, 0, 0, 0, 0, 0, 0); /* scale factor */
+#endif
+
+
+#ifdef PREVENT_SEEDING_AROUND_BLACKHOLE_NEIGHBORS2
+  init_field(IO_BHNEIGHBOREXISTS, "BHNEIGHBOREXISTS ", "BHNeighborExists", MEM_INT, FILE_INT, FILE_INT, 1, A_SPHP,
+                 &SphP[0].BHNeighborExists, 0, GAS_ONLY);
+  init_units(IO_BHNEIGHBOREXISTS, 0, 0, 0, 0, 0, 0);
+#endif
+
+#ifdef PREVENT_SPURIOUS_RESEEDING2
+  init_field(IO_NEIGHBOROFBLACKHOLE, "NEIGHBOROFBLACKHOLE ", "NeighborOfBlackhole", MEM_INT, FILE_INT, FILE_INT, 1, A_SPHP,
+                 &SphP[0].NeighborOfBlackhole, 0, GAS_ONLY);
+  init_units(IO_NEIGHBOROFBLACKHOLE, 0, 0, 0, 0, 0, 0);
+#endif
+
+
 #ifdef OUTPUTPOTENTIAL
   /* gravitational potential */
   init_field(IO_POT, "POT ", "Potential", MEM_MY_SINGLE, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_P, &P[0].Potential, 0, ALL_TYPES);
@@ -1525,14 +1466,70 @@ void init_io_fields(void)
   init_snapshot_type(IO_POT_MINI, SN_MINI_ONLY);
 #endif
 
-#ifdef COMPUTE_VORONOI_DM_DENSITY_IN_POSTPROC
-  init_field(IO_VDM, "DMVD", "DM_VoronoiDensity", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_P, &P[0].DM_VoronoiDensity, 0,
-             ALL_TYPES);
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+//  printf("\n Print no_of_BHs_ngb = %d",P[0].no_of_BHs_ngb);
+  init_field(IO_BH_NGB, "BGB ", "no_of_BHs_ngb", MEM_INT, FILE_INT, FILE_NONE, 1, A_P, &P[0].no_of_BHs_ngb, 0, ALL_TYPES);
+  init_units(IO_BH_NGB, 0, 0, 0, 0, 0, 0);
+#endif
+
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_ALL_SOURCES
+  init_field(IO_STELLARALL_LYMANWERNERINTENSITY_TYPE2, "LWI ", "StellarAllLymanWernerIntensity_type2", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_P, &P[0].StellarAllLymanWernerIntensity_type2, 0,
+             ALL_TYPES); /* gravitational potential */
+  init_units(IO_STELLARALL_LYMANWERNERINTENSITY_TYPE2, 0.0, 0.0, 0.0, 0.0, 0., 0.);
+
+  init_field(IO_STELLARALL_LYMANWERNERINTENSITY_TYPE3, "LWI ", "StellarAllLymanWernerIntensity_type3", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_P, &P[0].StellarAllLymanWernerIntensity_type3, 0,
+             ALL_TYPES); /* gravitational potential */
+  init_units(IO_STELLARALL_LYMANWERNERINTENSITY_TYPE3, 0.0, 0.0, 0.0, 0.0, 0., 0.);
+#endif
+
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_ALL_STARFORMINGGAS
+  init_field(IO_STARFORMINGGASALL_LYMANWERNERINTENSITY_TYPE2, "LSI ", "StarFormingGasAllLymanWernerIntensity_type2", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_P, &P[0].StarFormingGasAllLymanWernerIntensity_type2, 0,
+             ALL_TYPES); /* gravitational potential */
+  init_units(IO_STARFORMINGGASALL_LYMANWERNERINTENSITY_TYPE2, 0.0, 0.0, 0.0, 0.0, 0., 0.);
+
+  init_field(IO_STARFORMINGGASALL_LYMANWERNERINTENSITY_TYPE3, "LSI ", "StarFormingGasAllLymanWernerIntensity_type3", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_P, &P[0].StarFormingGasAllLymanWernerIntensity_type3, 0,
+             ALL_TYPES); /* gravitational potential */
+  init_units(IO_STARFORMINGGASALL_LYMANWERNERINTENSITY_TYPE3, 0.0, 0.0, 0.0, 0.0, 0., 0.);
 #endif
 
   /* GAS CELLS */
 
-  /* internal energy */
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_SOURCES
+  init_field(IO_STELLARLYMANWERNERINTENSITY_TYPE2, "SLI ", "LymanWernerIntensityLocalSources_type2", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_SPHP, 
+             &SphP[0].StellarLymanWernerIntensity_type2, 0 , GAS_ONLY);
+  init_units(IO_STELLARLYMANWERNERINTENSITY_TYPE2, 0.0, 0.0, 0.0, 0.0, 0., 0.);
+
+  init_field(IO_STELLARLYMANWERNERINTENSITY_TYPE3, "SLI ", "LymanWernerIntensityLocalSources_type3", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_SPHP,
+             &SphP[0].StellarLymanWernerIntensity_type3, 0 , GAS_ONLY);
+  init_units(IO_STELLARLYMANWERNERINTENSITY_TYPE3, 0.0, 0.0, 0.0, 0.0, 0., 0.);
+
+#endif
+
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS
+  init_field(IO_STARFORMINGGASLYMANWERNERINTENSITY_TYPE2, "SGI ", "LymanWernerIntensityLocalStarFormingGas_type2", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_SPHP,
+             &SphP[0].StarFormingGasLymanWernerIntensity_type2, 0 , GAS_ONLY);
+  init_units(IO_STARFORMINGGASLYMANWERNERINTENSITY_TYPE2, 0.0, 0.0, 0.0, 0.0, 0., 0.);
+
+  init_field(IO_STARFORMINGGASLYMANWERNERINTENSITY_TYPE3, "SGI ", "LymanWernerIntensityLocalStarFormingGas_type3", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_SPHP,
+             &SphP[0].StarFormingGasLymanWernerIntensity_type3, 0 , GAS_ONLY);
+  init_units(IO_STARFORMINGGASLYMANWERNERINTENSITY_TYPE3, 0.0, 0.0, 0.0, 0.0, 0., 0.);
+
+#endif
+
+#ifdef SEED_BASED_ON_PROBABLISTIC_HALO_PROPERTIES
+#ifdef PROBABILISTIC_SEED_MASS_HALO_MASS_RATIO_CRITERION
+  init_field(IO_RANDOMMINHALOMASSFORSEEDING, "RNS ", "RandomMinHaloMassForSeeding", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_SPHP,
+             &SphP[0].RandomMinHaloMassForSeeding, 0 , GAS_ONLY);
+  init_units(IO_RANDOMMINHALOMASSFORSEEDING, 0.0, 0.0, 0.0, 0.0, 0., 0.);
+#endif
+#endif
+
+#ifdef EVOLVING_SEEDING_PROBABILITY 
+  init_field(IO_SECONDRANDOMNUMBERFORSEEDING, "RNS ", "SecondRandomNumberForSeeding", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_SPHP,
+             &SphP[0].SecondRandomNumberForSeeding, 0 , GAS_ONLY);
+  init_units(IO_SECONDRANDOMNUMBERFORSEEDING, 0.0, 0.0, 0.0, 0.0, 0., 0.);
+#endif
+
   init_field(IO_U, "U   ", "InternalEnergy", MEM_MY_SINGLE, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_SPHP, &SphP[0].Utherm, 0,
              GAS_ONLY);
   init_units(IO_U, 0., 0., 0., 0., 2., All.UnitVelocity_in_cm_per_s * All.UnitVelocity_in_cm_per_s);
@@ -1663,13 +1660,6 @@ void init_io_fields(void)
              0, GAS_ONLY);
 #endif
 
-#ifdef OUTPUT_QRAD
-  init_field(IO_QRAD, "QRAD", "RadiativeEnergyTransport", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_NONE, 1, A_SPHP, &SphP[0].Qrad, 0,
-             GAS_ONLY);
-  init_field(IO_RADIALQRAD, "RADIALQRAD", "RadialRadTrans", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_NONE, 1, A_SPHP, &SphP[0].RadialQrad,
-             0, GAS_ONLY);
-#endif
-
   /* GAS CELLS (GRADIENTS) */
 
 #ifdef OUTPUT_PRESSURE_GRADIENT
@@ -1734,6 +1724,19 @@ void init_io_fields(void)
              &SphP[0].w.HostHaloMass, 0, GAS_ONLY);
   init_units(IO_GFM_WINDHOSTMASS, 0., -1., 0., 1., 0., All.UnitMass_in_g);
 #endif
+
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+#if(PTYPE_USED_FOR_ENVIRONMENT_BASED_SEEDING == 0)
+  init_field(IO_HOSTHALOMASS, "GGHM", "HostHaloMass", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_SPHP,
+             &SphP[0].HostHaloMass, 0, GAS_ONLY);
+  init_units(IO_HOSTHALOMASS, 0., -1., 0., 1., 0., All.UnitMass_in_g);
+#else
+  init_field(IO_HOSTHALOMASS, "GGHM", "HostHaloMass", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_P,
+             &P[0].HostHaloMass, 0, ALL_TYPES);
+  init_units(IO_HOSTHALOMASS, 0., -1., 0., 1., 0., All.UnitMass_in_g);
+#endif
+#endif
+
 #if defined(GFM_COOLING_METAL) && defined(GFM_WINDS_VARIABLE) && (GFM_WINDS_VARIABLE == 1)
   init_field(IO_GFM_WINDHOSTDISP, "GWDV", "GFM_WindDMVelDisp", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_SPHP,
              &SphP[0].w.DMVelDisp, 0, GAS_ONLY);
@@ -1771,6 +1774,32 @@ void init_io_fields(void)
       init_units(IO_GFM_AGE, 0, 0, 0, 0, 0, 0); /* scale factor */
       init_snapshot_type(IO_GFM_AGE, SN_MINI);
 #endif
+
+#ifdef GAS_BASED_SEED_MODEL
+  init_field(IO_PGASID, "GASID", "Parent_GasID", MEM_MY_ID_TYPE, FILE_MY_ID_TYPE, FILE_MY_ID_TYPE, 1, A_STARP, &StarP[0].Parent_GasID, 0, STARS_ONLY);
+  init_units(IO_PGASID, 0, 0, 0, 0, 0, 0);  /* dimensionless counter */
+
+  init_field(IO_SPAWNED, "SPAWNED", "Spawned", MEM_MY_ID_TYPE, FILE_MY_ID_TYPE,FILE_MY_ID_TYPE, 1, A_STARP, &StarP[0].Spawned, 0, STARS_ONLY);
+  init_units(IO_SPAWNED, 0, 0, 0, 0, 0, 0);
+#endif
+
+#ifdef SUPPRESS_STARFORMATION_ABOVE_CRITICAL_LYMANWERNERFLUX
+  init_field(IO_GASISDENSE, "GASISDENSE", "GasIsDense", MEM_MY_ID_TYPE, FILE_MY_ID_TYPE,FILE_MY_ID_TYPE, 1, A_SPHP, &SphP[0].GasIsDense, 0, GAS_ONLY);
+  init_units(IO_GASISDENSE, 0, 0, 0, 0, 0, 0);
+#endif
+
+
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+#if(PTYPE_USED_FOR_ENVIRONMENT_BASED_SEEDING == 0)
+  init_field(IO_ISTHISTHEDENSESTCELL, "ISTHISTHEDENSESTCELL", "IsThisTheDensestCell", MEM_MY_ID_TYPE, FILE_MY_ID_TYPE,FILE_MY_ID_TYPE, 1, A_SPHP, &SphP[0].IsThisTheDensestCell, 0, GAS_ONLY);
+  init_units(IO_ISTHISTHEDENSESTCELL, 0, 0, 0, 0, 0, 0);
+#else
+  init_field(IO_ISTHISTHEMINPOTENTIAL, "ISTHISTHEMINPOTENTIAL", "IsThisTheMinPotential", MEM_MY_ID_TYPE, FILE_MY_ID_TYPE,FILE_MY_ID_TYPE, 1, A_P, &P[0].IsThisTheMinPotential, 0, ALL_TYPES);
+  init_units(IO_ISTHISTHEMINPOTENTIAL, 0, 0, 0, 0, 0, 0);
+#endif
+#endif
+
+
 
 #if defined(GFM_STELLAR_EVOLUTION) && ((GFM_OUTPUT_MASK)&4)
       init_field(IO_GFM_INITIAL_MASS, "GIMA", "GFM_InitialMass", MEM_MY_DOUBLE, FILE_DOUBLE, FILE_DOUBLE, 1, A_STARP,
@@ -1985,132 +2014,13 @@ void init_io_fields(void)
              &SphP[0].RadPress[0], 0, GAS_ONLY);
 #endif
 
-#ifdef SFR_MCS
-  init_field(IO_MCS_BIRTH_TIME, "BIRT", "StellarFormationTime", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_STARP, 0,
-             io_func_stellar_birthtime, STARS_ONLY);
-  init_units(IO_MCS_BIRTH_TIME, 0, 0, 0, 0, 0, 0);
-  init_field(IO_MCS_AGE, "SAGE", "StellarAgeGyr", MEM_NONE, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_STARP, 0,
-             io_func_stellar_age_in_Gyr, STARS_ONLY);
-  init_units(IO_MCS_AGE, 0, 0, 1, 0, -1, SEC_PER_GIGAYEAR);
-
-#if SFR_MCS_RATE_CRITERIA > 0
-  init_field(IO_MCS_GRADV_SQ, "GRV2", "GradVelSquared", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_SPHP, &SphP[0].gradv_sq,
-             0, GAS_ONLY);
-#endif
-
-#ifdef SFR_MCS_BIRTH_RECORDS
-  init_field(IO_MCS_BIRTH_POS, "BIRP", "BirthPos", MEM_MY_SINGLE, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 3, A_STARP,
-             &StarP[0].BirthPos[0], 0, STARS_ONLY);
-  init_units(IO_MCS_BIRTH_POS, 1., -1., 1., 0., 0., All.UnitLength_in_cm);
-  init_field(IO_MCS_BIRTH_VEL, "BIRV", "BirthVel", MEM_MY_SINGLE, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 3, A_STARP,
-             &StarP[0].BirthVel[0], 0, STARS_ONLY);
-  init_units(IO_MCS_BIRTH_VEL, 0.5, 0., 0., 0., 1., All.UnitVelocity_in_cm_per_s);
-  init_field(IO_MCS_BIRTH_RHO, "BIRD", "BirthDensity", MEM_MY_SINGLE, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_STARP,
-             &StarP[0].BirthDensity, 0, STARS_ONLY);
-  init_units(IO_MCS_BIRTH_RHO, -3., 2., -3., 1., 0., All.UnitDensity_in_cgs);
-#endif
-
-#ifdef IMF_SAMPLING_MCS
-  init_field(IO_IMF_MCS_MASSES, "IMFM", "StellarMassArray", MEM_MY_SINGLE, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, N_STAR_SLOTS, A_STARP,
-             &StarP[0].MassArr[0], 0, STARS_ONLY);
-  init_units(IO_IMF_MCS_MASSES, 0., -1., 0., 1., 0., All.UnitMass_in_g);
-  init_field(IO_IMF_MCS_LIFETIMES, "IMFL", "StellarLifetimeArray", MEM_MY_SINGLE, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, N_STAR_SLOTS,
-             A_STARP, &StarP[0].LifetimeArr[0], 0, STARS_ONLY);
-  init_units(IO_IMF_MCS_LIFETIMES, 0., 0., 1., 0., -1., SEC_PER_YEAR);
-#ifdef HII_MCS
-  init_field(IO_IMF_MCS_PHOTON_RATES, "IMFI", "StellarIonisingPhotonRate1e49Array", MEM_MY_SINGLE, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT,
-             N_STAR_SLOTS, A_STARP, &StarP[0].S_HiiArr[0], 0, STARS_ONLY);
-  init_units(IO_IMF_MCS_PHOTON_RATES, 0., 0., -1, 0, 1., 1e49);
-#ifdef HII_MCS_LR
-  init_field(IO_IMF_MCS_PHOTON_ENERGY, "IMFE", "StellarIonisingEnergyPerPhotonArray", MEM_MY_SINGLE, FILE_MY_IO_FLOAT,
-             FILE_MY_IO_FLOAT, N_STAR_SLOTS, A_STARP, &StarP[0].EnergyPerPhotonArr[0], 0, STARS_ONLY);
-#endif
-#endif
-#ifdef PE_MCS
-  init_field(IO_IMF_MCS_LFUVS, "IMFF", "StellarLuminosityFUVArray", MEM_MY_SINGLE, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, N_STAR_SLOTS,
-             A_STARP, &StarP[0].L_FUVArr[0], 0, STARS_ONLY);
-#endif
-#endif  // IMF_SAMPLING_MCS
-
 #ifdef SN_MCS
-  init_field(IO_MCS_N_SN, "NSN ", "NumberOfSupernovae", MEM_INT, FILE_INT, FILE_INT, 1, A_STARP, &StarP[0].N_SN_cum, 0, STARS_ONLY);
-  init_units(IO_MCS_N_SN, 0, 0, 0, 0, 0, 0);
-  init_field(IO_MCS_N_SN_EVENT, "NSNE", "NumberOfSupernovaEvents", MEM_INT, FILE_INT, FILE_INT, 1, A_STARP, &StarP[0].N_SN_event_cum,
-             0, STARS_ONLY);
-  init_units(IO_MCS_N_SN_EVENT, 0, 0, 0, 0, 0, 0);
-  init_field(IO_MCS_INITIAL_MASS, "IMAS", "InitialMass", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_STARP,
-             &StarP[0].InitialMass, 0, STARS_ONLY);
-  init_units(IO_MCS_INITIAL_MASS, 0., -1., 0., 1., 0., All.UnitMass_in_g);
-#ifdef SN_MCS_LOCATION_RECORDS
-  init_field(IO_MCS_SN_TIME, "SNT ", "SupernovaTime", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_STARP, &StarP[0].SNTime,
-             0, STARS_ONLY);
-  init_units(IO_MCS_SN_TIME, 0, 0, 0, 0, 0, 0);
-  init_field(IO_MCS_SN_POS, "SNP ", "SupernovaPos", MEM_MY_SINGLE, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 3, A_STARP, &StarP[0].SNPos[0],
-             0, STARS_ONLY);
-  init_units(IO_MCS_SN_POS, 1., -1., 1., 0., 0., All.UnitLength_in_cm);
-  init_field(IO_MCS_SN_RHO, "SNLD", "SupernovaLocalDensity", MEM_MY_SINGLE, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_STARP,
-             &StarP[0].SNDensity, 0, STARS_ONLY);
-  init_units(IO_MCS_SN_RHO, -3., 2., -3., 1., 0., All.UnitDensity_in_cgs);
-#ifdef GRACKLE
-  init_field(IO_MCS_SN_TEMP, "SNLT", "SupernovaLocalTemperature", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_STARP,
-             &StarP[0].SNTemperature, 0, STARS_ONLY);
-  init_units(IO_MCS_SN_TEMP, 0, 0, 0, 0, 0, 0);
-#endif  // GRACKLE
-#endif  // SN_MCS_LOCATION_RECORDS
-#endif  // SN_MCS
-
-#ifdef HII_MCS
-  init_field(IO_MCS_STROMGREN_SOURCE_ID, "STID", "StromgrenSourceID", MEM_MY_ID_TYPE, FILE_MY_ID_TYPE, FILE_NONE, 1, A_SPHP,
-             &SphP[0].StromgrenSourceID, 0, GAS_ONLY);
-  init_field(IO_MCS_R_STROMGREN, "STRG", "StromgrenRadius", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_SPHP,
-             &SphP[0].R_Stromgren, 0, GAS_ONLY);
-  init_field(IO_MCS_PHOTON_RATE, "STRR", "IonisingPhotonRate1e49", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_STARP,
-             &StarP[0].S_Hii, 0, STARS_ONLY);
-#ifdef HII_MCS_LR
-  init_field(IO_MCS_EDENS_HII, "EDHI", "EnergyDensityHii", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_SPHP,
-             &SphP[0].EnergyDensHii, 0, GAS_ONLY);
-#endif
-#ifdef HII_MCS_RECORDS
-#ifdef HII_MCS_ANISO
-  init_field(IO_MCS_R_STROMGREN_ARR, "STRA", "StromgrenRadiusArray", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, HII_MCS_N_PIX,
-             A_SPHP, &SphP[0].R_StromgrenArr[0], 0, GAS_ONLY);
-#endif
-  init_field(IO_MCS_N_HII_SOURCE, "NHIS", "NumberOfIonisingStars", MEM_INT, FILE_INT, FILE_INT, 1, A_SPHP, &SphP[0].N_Sources, 0,
-             GAS_ONLY);
-  init_field(IO_MCS_HII_SOURCE_IDS, "HSID", "IonisingStarIDs", MEM_MY_ID_TYPE, FILE_MY_ID_TYPE, FILE_MY_ID_TYPE, 3, A_SPHP,
-             &SphP[0].StarIDArr, 0, GAS_ONLY);
-  init_field(IO_MCS_HII_RECOM_RATE, "HIRR", "HiiRecombinationRate1e49", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_SPHP,
-             &SphP[0].HiiRecombinationRate, 0, GAS_ONLY);
-#endif  // HII_MCS_RECORDS
-#endif  // HII_MCS
-
-#ifdef PE_MCS
-  init_field(IO_MCS_GFUV, "GFUV", "G_Habing", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_SPHP, &SphP[0].G_FUV, 0,
-             GAS_ONLY);
-  init_field(IO_MCS_PEHR, "PEHR", "PhotoelectricHeatingRate", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_SPHP, 0,
-             io_func_pe_heating, GAS_ONLY);
-  init_field(IO_MCS_LUFV, "LUFV", "LuminosityFUV", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_STARP, &StarP[0].L_FUV, 0,
+  init_field(IO_MCS_N_SN, "NSN ", "NumberOfSupernovae", MEM_INT, FILE_INT, FILE_INT, 1, A_P, &P[0].N_SN_cum, 0, STARS_ONLY);
+  init_field(IO_MCS_N_SN_EVENT, "NSNE", "NumberOfSupernovaEvents", MEM_INT, FILE_INT, FILE_INT, 1, A_P, &P[0].N_SN_event_cum, 0,
              STARS_ONLY);
-#ifdef PE_MCS_STORE_DUST_COLUMN
-  init_field(IO_MCS_DCOL, "DCOL", "DustColumnDensity", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_STARP,
-             &StarP[0].DustColumn, 0, STARS_ONLY);
-#endif
-#endif  // PE_MCS
-#endif  // SFR_MCS
-
-#ifdef TURB_APPROX_MCS
-  init_field(IO_MCS_TURBSPEC, "TSPC", "TurbulentSpecEnergy", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_SPHP,
-             &SphP[0].TurbSpecEnergy, 0, GAS_ONLY);
-#ifdef TURB_APPROX_MCS_OUTPUT_RATES
-  init_field(IO_MCS_DVEL_UNLIM, "DVUN", "VelocityGradientUnlimited", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_NONE, 9, A_SPHP,
-             &SphP[0].dvel_unlim[0][0], 0, GAS_ONLY);
-  init_field(IO_MCS_TURB_PROD, "TPRD", "TurbulentProductionRate", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_NONE, 1, A_SPHP, 0,
-             io_func_turbulent_production_rate, GAS_ONLY);
-  init_field(IO_MCS_TURB_DISS, "TDIS", "TurbulentDissipationRate", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_NONE, 1, A_SPHP, 0,
-             io_func_turbulent_dissipation_rate, GAS_ONLY);
-  init_field(IO_MCS_TURB_ADIA, "TADI", "TurbulentAdiabaticRate", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_NONE, 1, A_SPHP, 0,
-             io_func_turbulent_adiabatic_rate, GAS_ONLY);
-#endif
+  init_field(IO_MCS_INITIAL_MASS, "IMAS", "InitialMass", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_P, &P[0].InitialMass,
+             0, STARS_ONLY);
+  init_units(IO_MCS_INITIAL_MASS, 0., -1., 0., 1., 0., All.UnitMass_in_g);
 #endif
 
   /* BLACK HOLES */
@@ -2125,6 +2035,11 @@ void init_io_fields(void)
 
   init_field(IO_BHHSML, "BHHS", "BH_Hsml", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_BHP, &BHP[0].BH_Hsml, 0, BHS_ONLY);
   init_units(IO_BHHSML, 1., -1., 1., 0., 0., All.UnitLength_in_cm);
+
+#if defined(PREVENT_SEEDING_AROUND_BLACKHOLE_NEIGHBORS2) || defined(CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS)
+  init_field(IO_GASHSML, "SPML", "Gas_Hsml", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_SPHP, &SphP[0].Hsml, 0, GAS_ONLY);
+  init_units(IO_GASHSML, 1., -1., 1., 0., 0., All.UnitLength_in_cm);
+#endif
 
 #ifdef MRT_BH
   init_field(IO_BHPHSML, "BPHS", "BH_PhotonHsml", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_BHP, &BHP[0].BH_PhotonHsml, 0,
@@ -2144,6 +2059,11 @@ void init_io_fields(void)
   init_field(IO_BHRHO, "BHRO", "BH_Density", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_BHP, &BHP[0].BH_Density, 0,
              BHS_ONLY);
   init_units(IO_BHRHO, -3., 2., -3., 1., 0., All.UnitDensity_in_cgs);
+
+//#ifdef GAS_BASED_SEED_MODEL
+//  init_field(IO_PGASID, "GASID", "Parent_GasID", MEM_MY_ID_TYPE, FILE_MY_ID_TYPE, FILE_MY_ID_TYPE, 1, A_BHP, &BHP[0].Parent_GasID, 0, BHS_ONLY);
+//  init_units(IO_PGASID, 0, 0, 0, 0, 0, 0);  /* dimensionless counter */
+//#endif
 
   init_field(IO_BHPROGS, "BHPR", "BH_Progs", MEM_INT, FILE_INT, FILE_INT, 1, A_BHP, &BHP[0].BH_CountProgs, 0, BHS_ONLY);
   init_units(IO_BHPROGS, 0, 0, 0, 0, 0, 0); /* dimensionless counter */
@@ -2178,14 +2098,7 @@ void init_io_fields(void)
              &BHP[0].BH_MdotEddington, 0, BHS_ONLY);
   init_units(IO_BHMDOTEDDIN, 0.0, 0.0, 1.0, -1.0, 1.0,
              All.UnitMass_in_g / All.UnitLength_in_cm * All.UnitVelocity_in_cm_per_s); /* mass/time */
-
-#ifdef BH_DF_DISCRETE
-  init_field(IO_BH_DFD_ACCEL, "BHDA", "DFD_Acceleration", MEM_NONE, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 3, A_NONE, 0, io_func_bh_dfd_accel, BHS_ONLY);
-  // init_units(IO_BH_DFD_ACCEL, 0.0, 0.0, 1.0, -1.0, 1.0,
-  //            All.UnitVelocity_in_cm_per_s / All.UnitTime_in_s); /* length/time^2 */
-#endif // BH_DF_DISCRETE
-
-#endif // BLACK_HOLES
+#endif
 
 #ifdef BH_BUBBLES
   init_field(IO_BHMBUB, "BHMB", "BH_Mass_bubbles", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_BHP, &BHP[0].BH_Mass_bubbles,
@@ -2862,6 +2775,10 @@ void init_io_fields(void)
   /* GRACKLE */
 
 #ifdef GRACKLE
+  enum types_in_file grackle_read_in = FILE_NONE;
+#ifdef GRACKLE_ABUNDANCE_IN_ICS
+  grackle_read_in = FILE_MY_IO_FLOAT;
+#endif
   init_field(IO_GRACKLE_TEMP, "TEMP", "GrackleTemperature", MEM_NONE, FILE_MY_IO_FLOAT, FILE_NONE, 1, A_NONE, 0, io_func_grackle_temp,
              GAS_ONLY);
   init_field(IO_GRACKLE_COOL_TIME, "GCLT", "GrackleCoolTime", MEM_NONE, FILE_MY_IO_FLOAT, FILE_NONE, 1, A_NONE, 0,
@@ -2869,10 +2786,6 @@ void init_io_fields(void)
 #endif
 
 #if defined(GRACKLE) && !defined(GRACKLE_TAB)
-  enum types_in_file grackle_read_in = FILE_NONE;
-#ifdef GRACKLE_ABUNDANCE_IN_ICS
-  grackle_read_in = FILE_MY_IO_FLOAT;
-#endif
   init_field(IO_GRACKLE_E, "ELEC", "ElectronMassFraction", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, grackle_read_in, 1, A_SPHP, &SphP[0].e_frac,
              0, GAS_ONLY);
   init_field(IO_GRACKLE_HI, "HI  ", "HIMassFraction", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, grackle_read_in, 1, A_SPHP,
@@ -2950,6 +2863,13 @@ void init_io_fields(void)
   init_field(IO_HIGHRESMASS, "HRGM", "HighResGasMass", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_SPHP,
              &SphP[0].HighResMass, 0, GAS_ONLY);
 #endif
+
+#ifdef CHECK_FOR_ENOUGH_GAS_MASS_IN_DCBH_FORMING_POCKETS
+  init_field(IO_NEIGHBORING_DCBH_FORMING_GAS_MASS, "NDCM", "NeighboringDCBHFormingGasMass", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_SPHP,
+             &SphP[0].NeighboringDCBHFormingGasMass, 0, GAS_ONLY);
+#endif
+
+
 #if defined(REFINEMENT_CGM)
   init_field(IO_HIGHRESMASSCGM, "HRCM", "HighResGasMassCGM", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_SPHP,
              &SphP[0].HighResMassCGM, 0, GAS_ONLY);
@@ -2989,6 +2909,11 @@ void init_io_fields(void)
   /* TODO: STARS_ONLY not used (old logic still used in get_particles_in_block()) */
   init_field(IO_AGE, "AGE ", "StellarFormationTime", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 1, A_P, &P[0].StellarAge, 0,
              STARS_ONLY);
+#endif
+
+#ifdef OUTPUT_STELLAR_AGE
+  init_field(IO_AGE_GYR, "AGG ", "StellarAgeGyr", MEM_MY_FLOAT, FILE_MY_IO_FLOAT, FILE_MY_IO_FLOAT, 
+             1, A_STARP, &StarP[0].StellarAgeGyr, 0, STARS_ONLY);
 #endif
 
 #ifdef LOCAL_FEEDBACK_PARTICLES

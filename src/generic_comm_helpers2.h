@@ -554,7 +554,7 @@ static int generic_comm_pattern_for_given_particles(int nactive, int indices[], 
 static void generic_prepare_import_counts_inlined_ibarrier(void)
 {
   int nLevels         = my_fls(MyNTask - 1);
-  int received_levels = 0, send_levels = 0;
+  int received_levels = 0, sent_levels = 0;
 
   int *stagelist = (int *)mymalloc("stagelist", nLevels * sizeof(int));
   for(int j = 0; j < nLevels; j++)
@@ -606,13 +606,13 @@ static void generic_prepare_import_counts_inlined_ibarrier(void)
       if(barrier_active)
         {
           for(int stage = 0; stage < nLevels; stage++)
-            if(!(send_levels & (1 << stage)))
+            if(!(sent_levels & (1 << stage)))
               {
                 int mask = ((1 << stage) - 1);
 
                 if((mask & received_levels) == mask)
                   {
-                    send_levels |= (1 << stage);
+                    sent_levels |= (1 << stage);
 
                     int target = (MyThisTask + (1 << stage)) % MyNTask;
 

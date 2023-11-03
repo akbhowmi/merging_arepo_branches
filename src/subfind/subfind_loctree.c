@@ -717,14 +717,14 @@ int subfind_locngb_compare_key(const void *a, const void *b)
   return 0;
 }
 
-/*! \brief Iterates on smoothing length of neighbor search to get a desired
+/*! \brief Iterates on smoothing length of  neighbor search to get a desired
  *         number of neighbors.
  *
  *  \param[in] xyz Search center of neighbor search.
  *  \param[in] desngb Desired number of neighbors.
  *  \param[in] hguess Initial guess of smoothing length.
  *
- *  \return Distance of the outermost particle to search center.
+ *  \return Distance of the outermost particle to seearch center.
  */
 double subfind_locngb_treefind(MyDouble xyz[3], int desngb, double hguess)
 {
@@ -736,8 +736,6 @@ double subfind_locngb_treefind(MyDouble xyz[3], int desngb, double hguess)
 
   while(1)
     {
-      myassert(isfinite(hguess));
-
       numngb = subfind_locngb_treefind_variable(xyz, hguess);
 
       if(numngb < desngb)
@@ -773,8 +771,6 @@ int subfind_locngb_treefind_variable(MyDouble searchcenter[3], double hguess)
   int numngb, no, p;
   double dx, dy, dz, r2, h2;
   struct LocNODE *thisnode;
-
-  myassert(isfinite(hguess));
 
   h2 = hguess * hguess;
 

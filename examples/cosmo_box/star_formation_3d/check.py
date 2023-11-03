@@ -32,7 +32,7 @@ FloatType = np.float64  # double precision: np.float64, for single use np.float3
 
 Boxsize = 7.5  ## Mpc/h
 CellsPerDimension = 32  ## 3d sim
-NumberOfCells = CellsPerDimension**3
+NumberOfCells = CellsPerDimension * CellsPerDimension * CellsPerDimension
 HubbleParam = 0.6774
 UnitMass = 1.0e10 / HubbleParam
 Volume = (Boxsize / HubbleParam) * (Boxsize / HubbleParam) * (Boxsize /
@@ -101,15 +101,15 @@ if makeplots:
         if pos.shape[0] > 32**3:
             i_select = np.random.uniform(low=0.0,
                                          high=pos.shape[0],
-                                         size=32**3).astype(int)
+                                         size=32**3).astype(np.int)
         else:
             i_select = np.arange(pos.shape[0])
         ## Try to show the different gas phases and their spatial distribution
         z = 1. / a - 1
         if i == 0:
             continue
-        ax_col = int((i - 1) % 2)
-        ax_row = int((i - 1) / 2)
+        ax_col = np.int((i - 1) % 2)
+        ax_row = np.int((i - 1) / 2)
         print('col %d, row %d' % (ax_col, ax_row))
         print(ax[ax_col][ax_row])
         ax[ax_row][ax_col].text(5.5, 10.0, 'redshift %.1f' % z)
@@ -183,15 +183,15 @@ if makeplots:
         if (pos.shape[0] > 32**3):
             i_select = np.random.uniform(low=0.0,
                                          high=pos.shape[0],
-                                         size=32**3).astype(int)
+                                         size=32**3).astype(np.int)
         else:
             i_select = np.arange(pos.shape[0])
         ## Try to show the different gas phases and their spatial distribution
         z = 1. / a - 1
         if i == 0:
             continue
-        ax_col = int((i - 1) % 2)
-        ax_row = int((i - 1) / 2)
+        ax_col = np.int((i - 1) % 2)
+        ax_row = np.int((i - 1) / 2)
 
         Nplot = 512
         from scipy import spatial  # needed for KDTree that we use for nearest neighbour search and Voronoi mesh

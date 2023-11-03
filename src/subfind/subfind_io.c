@@ -79,6 +79,14 @@ void subfind_save_final(int num)
 
   CommBuffer = (void *)mymalloc("CommBuffer", COMMBUFFERSIZE);
 
+  if(NTask < All.NumFilesPerSnapshot)
+    {
+      warn(
+          "Number of processors must be larger or equal than All.NumFilesPerSnapshot! Reducing All.NumFilesPerSnapshot "
+          "accordingly.\n");
+      All.NumFilesPerSnapshot = NTask;
+    }
+
   if(All.SnapFormat < SNAP_FORMAT_GADGET || All.SnapFormat > SNAP_FORMAT_HDF5)
     mpi_printf("Unsupported File-Format All.SnapFormat=%d \n", All.SnapFormat);
 
@@ -94,16 +102,41 @@ void subfind_save_final(int num)
     {
       if(ThisTask == 0)
         {
-          file_path_sprintf(buf, "%s/groups_%03d", All.OutputDir, num);
-          mkdir(buf, MKDIR_MODE);
+#ifdef CREATE_SUBFOFS
+         if (All.SubFOF_mode == 0)
+          {
+#endif
+            file_path_sprintf(buf, "%s/groups_%03d", All.OutputDir, num);
+            mkdir(buf, MKDIR_MODE);
+#ifdef CREATE_SUBFOFS
+          }
+         else
+          {
+            file_path_sprintf(buf, "%s/groups_sub_%03d", All.OutputDir, num);
+            mkdir(buf, MKDIR_MODE);
+          }
+#endif          
         }
       MPI_Barrier(MPI_COMM_WORLD);
     }
-
-  if(All.NumFilesPerSnapshot > 1)
-    file_path_sprintf(buf, "%s/groups_%03d/fof_subhalo_tab_%03d.%d", All.OutputDir, num, num, filenr);
+#ifdef CREATE_SUBFOFS
+  if (All.SubFOF_mode == 0)
+   {  
+#endif
+    if(All.NumFilesPerSnapshot > 1)
+      file_path_sprintf(buf, "%s/groups_%03d/fof_subhalo_tab_%03d.%d", All.OutputDir, num, num, filenr);
+    else
+      file_path_sprintf(buf, "%s/fof_subhalo_tab_%03d", All.OutputDir, num);
+#ifdef CREATE_SUBFOFS
+   }
   else
-    file_path_sprintf(buf, "%s/fof_subhalo_tab_%03d", All.OutputDir, num);
+   {
+    if(All.NumFilesPerSnapshot > 1)
+      file_path_sprintf(buf, "%s/groups_sub_%03d/fof_sub_subhalo_tab_%03d.%d", All.OutputDir, num, num, filenr);
+    else
+      file_path_sprintf(buf, "%s/fof_sub_subhalo_tab_%03d", All.OutputDir, num);
+   }
+#endif
 
   ngrps = All.NumFilesPerSnapshot / All.NumFilesWrittenInParallel;
   if((All.NumFilesPerSnapshot % All.NumFilesWrittenInParallel))

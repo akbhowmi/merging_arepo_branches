@@ -5,6 +5,8 @@
 # If you add a new system below, also add that SYSTYPE to Template-Makefile.systype.
 
 
+
+
 ifeq ($(SYSTYPE), "ARCCA")
   MPICHLIB =
   CC       =  mpicc -std=c99
@@ -503,21 +505,6 @@ ifeq ($(SYSTYPE), "Gordon")
   MPICHLIB =
   HDF5INCL = -I/opt/hdf5/intel/mvapich2/ib/include -DH5_USE_16_API
   HDF5LIB  = -L/opt/hdf5/intel/mvapich2/ib/lib -lhdf5
-endif
-
-
-ifeq ($(SYSTYPE), "Grendel")
-    # There's a LOT of non-standard packages in Grendel, so point them to your personal installation
-    CC       = mpicxx
-    FC       = gcc
-    OPTIMIZE = -std=c++11 -O2 -Wall -Wno-format-security -Wno-unknown-pragmas -Wno-unused-function -g
-    GSL_INCL = -I/com/gsl/include -I/home/mark/MESA/mesasdk/include
-    GSL_LIBS = -L/com/gsl/lib -L/home/mark/MESA/mesasdk/lib
-    HDF5INCL = -I/home/mark/cmodules/hdf5/include -DH5_USE_16_API
-    HDF5LIB  = -L/home/mark/cmodules/hdf5/lib -lhdf5
-    HYPRE_INCL = -I/home/mark/cmodules/hypre-master/src/hypre/include
-    HYPRE_LIB  = -L/home/mark/cmodules/hypre-master/src/hypre/lib -lHYPRE
-    MPICHLIB = -lmpi
 endif
 
 
@@ -1093,51 +1080,6 @@ ifeq ($(SYSTYPE), "PhilipNUC")
   LINKER = mpicxx
 endif
 
-ifeq ($(SYSTYPE), "Puma")
-  # compiler and its optimization options
-  OPTIMIZE  = -std=c11 -ggdb -O3 -Wall -Wno-format-security -Wno-unknown-pragmas -Wno-unused-function
-
-  # overwrite default:
-  OPT      += -I/opt/ohpc/pub/mpi/openmpi3-gnu8/3.1.4/include
-  MPICHLIB  = -L/opt/ohpc/pub/mpi/openmpi3-gnu8/3.1.4/lib -lmpi
-  GSL_INCL  = -I/opt/ohpc/pub/libs/gnu8/gsl/2.6/include
-  GSL_LIBS  = -L/opt/ohpc/pub/libs/gnu8/gsl/2.6/lib -lgsl -lgslcblas
-  HWLOC_LIB = -L/opt/ohpc/pub/apps/hwloc/2.2.0/lib -lhwloc
-  GMP_LIBS  = -lgmp
-
-  # libraries that are included on demand, depending on Config.sh options
-  FFTW_INCL = # in Puma's OS, no path needed
-  FFTW_LIBS = # in Puma's OS, no path needed
-  HDF5INCL  = -I/opt/ohpc/pub/libs/gnu8/hdf5/1.10.5/include -DH5_USE_16_API
-  HDF5LIB   = -L/opt/ohpc/pub/libs/gnu8/hdf5/1.10.5/lib -lhdf5 -lz
-  HWLOC_INCL= -I/opt/ohpc/pub/apps/hwloc/2.2.0/include
-endif
-
-ifeq ($(SYSTYPE), "quest")
-  # Quest computing cluster at Northwestern University, Evanston IL, USA
-  #   see: https://www.it.northwestern.edu/research/user-services/quest/
-  #   added by Luke Zoltan Kelley, 2020-05, lzkelley@northwestern.edu
-  # Working modules:
-  #   hdf5/1.8.19-serial gsl/2.5-gcc-6.4.0 gcc/6.4.0 mpi/openmpi-3.1.3-gcc-6.4.0 fftw/3.3.8-ompi-gcc
-  #   `GSL_HOME`, `HDF5_HOME`, and `FFTW_HOME` need to be added manually
-  CC       =  mpicc
-  OPTIMIZE = -std=c11 -O2 -g -Wall -Wno-unused-but-set-variable -Wno-uninitialized -Wno-unused-function
-  GMP_INCL = 
-  GMP_LIBS = 
-  GSL_INCL = -I$(GSL_HOME)/include
-  GSL_LIBS = -L$(GSL_HOME)/lib
-  HDF5INCL = -I$(HDF5_HOME)/include -DH5_USE_16_API
-  HDF5LIB  = -L$(HDF5_HOME)/lib -lhdf5 -lz
-  FFTW_INCL= -I$(FFTW_HOME)/include
-  FFTW_LIBS= -L$(FFTW_HOME)/lib
-  MPICHLIB = -lmpi
-  ifeq (NUM_THREADS, $(findstring NUM_THREADS, $(CONFIGVARS)))
-    OPTIMIZE += -qopenmp
-  else
-    OPTIMIZE += -Wno-unknown-pragmas
-  endif
-endif
-
 
 ifeq ($(SYSTYPE), "Quest-intel")
   CC       = mpicc   # sets the C compiler
@@ -1275,23 +1217,6 @@ ifeq ($(SYSTYPE), "stampede2-SKX")
   OPT      += -DUSE_MPI_IN_PLACE
 endif
 
-# Sunnyvale @CITA; used by Rainer Weinberger
-ifeq ($(SYSTYPE), "Sunnyvale")
-  CC       = mpicc   # sets the C compiler
-  FC       = mpif90
-  CP       = mpicpc
-  OPTIMIZE = -std=c11 -O3 -Wall
-  GSL_INCL = 
-  GSL_LIBS = 
-  FFTW_INCL= 
-  FFTW_LIBS= 
-  HWLOC_INCL = 
-  HWLOC_LIB = -lhwloc
-  MPICHLIB =
-  HDF5INCL =  -DH5_USE_16_API
-  HDF5LIB  =  -L/opt/hdf5/1.8.20-gcc-7.3.0/lib -lhdf5 -lz
-  LINKER   = $(FC)  
-endif
 
 ifeq ($(SYSTYPE), "SuperMuc")
   # module load fftw   needed on SuperMUC
@@ -1377,65 +1302,6 @@ ifeq ($(SYSTYPE), "SuperMuc-NG")
   GMP_INCL = -I/dss/dsshome1/0F/di98fem3/libs/include
   GMP_LIBS = -L/dss/dsshome1/0F/di98fem3/libs/lib
   LINKER   = $(FC)
-endif
-
-ifeq ($(SYSTYPE), "SuperMuc-NG-GCC")
-  CC       = mpicxx   # sets the C compiler
-  FC       = mpif90
-  CPPC     = mpicxx   # sets the C compiler
-  OPTIMIZE = -g -std=c++11 -O3 -Wall -march=native -Wformat=0 -Wno-unknown-pragmas -Wno-unused-function -Wno-unused -fstack-protector-all -fno-omit-frame-pointer #-fsanitize=address
-  GSL_INCL = $(GSL_INC)
-  GSL_LIBS = -L$(GSL_LIBDIR)
-  FFTW_INCL= $(FFTW_INC)
-  FFTW_LIBS= -L$(FFTW_LIBDIR)
-  HWLOC_INCL = $(HWLOC_INC)
-  HWLOC_LIB = -L$(HWLOC_LIBDIR) -lhwloc
-  MPICHLIB = -lbfd -ldl -lz
-  HDF5INCL = $(HDF5_INC) -DH5_USE_16_API
-  HDF5LIB  = $(HDF5_SHLIB) $(CFITSIO_LIB)
-  GMP_INCL = $(GMP_INC)
-  GMP_LIBS = $(GMP_SHLIB)
-  LINKER   = $(CPPC) -fstack-protector-all -fno-omit-frame-pointer #-fsanitize=address
-endif
-
-ifeq ($(SYSTYPE), "SuperMuc-NG-GCC")
-  CC       = mpicxx   # sets the C compiler
-  FC       = mpif90
-  CPPC     = mpicxx   # sets the C compiler
-  OPTIMIZE = -g -std=c++11 -O3 -Wall -march=native -Wformat=0 -Wno-unknown-pragmas -Wno-unused-function -Wno-unused -fstack-protector-all -fno-omit-frame-pointer #-fsanitize=address
-  GSL_INCL = $(GSL_INC)
-  GSL_LIBS = -L$(GSL_LIBDIR)
-  FFTW_INCL= $(FFTW_INC)
-  FFTW_LIBS= -L$(FFTW_LIBDIR)
-  HWLOC_INCL = $(HWLOC_INC)
-  HWLOC_LIB = -L$(HWLOC_LIBDIR) -lhwloc
-  MPICHLIB = -lbfd -ldl -lz
-  HDF5INCL = $(HDF5_INC) -DH5_USE_16_API
-  HDF5LIB  = $(HDF5_SHLIB) $(CFITSIO_LIB)
-  GMP_INCL = $(GMP_INC)
-  GMP_LIBS = $(GMP_SHLIB)
-  HYPRE_LIB = -lHYPRE
-  LINKER   = $(CPPC) -fstack-protector-all -fno-omit-frame-pointer #-fsanitize=address
-endif
-
-
-ifeq ($(SYSTYPE), "SuperMuc-NG-GCC")
-  CC       = mpicxx   # sets the C compiler
-  FC       = mpif90
-  CPPC     = mpicxx   # sets the C compiler
-  OPTIMIZE = -g -std=c++11 -O3 -Wall -march=native -Wformat=0 -Wno-unknown-pragmas -Wno-unused-function -Wno-unused -fstack-protector-all -fno-omit-frame-pointer #-fsanitize=address
-  GSL_INCL = $(GSL_INC)
-  GSL_LIBS = -L$(GSL_LIBDIR)
-  FFTW_INCL= $(FFTW_INC)
-  FFTW_LIBS= -L$(FFTW_LIBDIR)
-  HWLOC_INCL = $(HWLOC_INC)
-  HWLOC_LIB = -L$(HWLOC_LIBDIR) -lhwloc
-  MPICHLIB = -lbfd -ldl -lz
-  HDF5INCL = $(HDF5_INC) -DH5_USE_16_API
-  HDF5LIB  = $(HDF5_SHLIB) $(CFITSIO_LIB)
-  GMP_INCL = $(GMP_INC)
-  GMP_LIBS = $(GMP_SHLIB)
-  LINKER   = $(CPPC) -fstack-protector-all -fno-omit-frame-pointer #-fsanitize=address
 endif
 
 
@@ -1529,7 +1395,6 @@ ifeq ($(SYSTYPE), "yeti")
   endif
 endif
 
-
 ifeq ($(systype_mpcdf_intel), 1)
   # HPC systems Draco at Max Planck Computing and Data Facility (MPCDF),
   # Garching (Freya, Cobra, Raven):
@@ -1554,10 +1419,10 @@ ifeq ($(systype_mpcdf_intel), 1)
   GSL_INCL = -I$(GSL_HOME)/include/
   GSL_LIBS = -L$(GSL_HOME)/lib/
   FFTW_INCL= -I$(FFTW_HOME)/include/
-  FFTW_LIBS= -L$(FFTW_HOME)/lib/
+  FFTW_LIBS= -L$(FFTW_HOME)/lib/r
   MPICHLIB =
   HDF5INCL = -DH5_USE_16_API=1 -I$(HDF5_HOME)/include/
-  HDF5LIB  = -lhdf5 -L$(HDF5_HOME)/lib/
+  perHDF5LIB  = -lhdf5 -L$(HDF5_HOME)/lib/
   # OpenMP
   ifeq (NUM_THREADS, $(findstring NUM_THREADS, $(CONFIGVARS)))
     OPT += -qopenmp
@@ -1573,7 +1438,6 @@ ifeq ($(systype_mpcdf_intel), 1)
   endif
 endif
 
-
 ifeq ($(systype_mpcdf_open_mpi), 1)
   # HPC systems Draco at Max Planck Computing and Data Facility (MPCDF),
   # Garching (Freya, Cobra, Raven):
@@ -1581,7 +1445,7 @@ ifeq ($(systype_mpcdf_open_mpi), 1)
   #   https://www.mpcdf.mpg.de/services/supercomputing/cobra
   #   https://www.mpcdf.mpg.de/services/supercomputing/raven
   # module load gcc openmpi gsl fftw-serial hdf5-serial
-  CC       = mpicxx -std=c++11
+  CC       = mpicc  -std=c11
   CPP      = mpicxx -std=c++11
   FC       = mpifort
   OPT     += -Wall -Wextra -Wno-unused-parameter
@@ -1591,7 +1455,7 @@ ifeq ($(systype_mpcdf_open_mpi), 1)
   GSL_LIBS = -L$(GSL_HOME)/lib/
   FFTW_INCL= -I$(FFTW_HOME)/include/
   FFTW_LIBS= -L$(FFTW_HOME)/lib/
-  MPICHLIB = 
+  MPICHLIB =
   HDF5INCL = -DH5_USE_16_API=1 -I$(HDF5_HOME)/include/
   HDF5LIB  = -lhdf5 -L$(HDF5_HOME)/lib/
   # OpenMP

@@ -76,11 +76,6 @@
 
 #ifdef MRT
 #include "MRT/RT.h"
-#include "MRT/RT_proto.h"
-#endif
-
-#ifdef LOCAL_FEEDBACK
-#include "local_feedback/local_feedback.h"
 #endif
 
 #ifdef GFM_DUST_COOLING
@@ -168,6 +163,19 @@ void mm_matrix_multiply(double *in, double *out, double *diag, double theta);
 void mm_matrix_multiply_isotropic(double *in, double *out, double *diag, double theta);
 #endif
 
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_SOURCES
+void assign_stellar_lyman_werner_intensity(void);
+void reset_stellar_lyman_werner_intensity(void);
+#endif
+
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS
+void assign_starforminggas_lyman_werner_intensity(void);
+void reset_starforminggas_lyman_werner_intensity(void);
+#ifdef CHECK_FOR_ENOUGH_GAS_MASS_IN_DCBH_FORMING_POCKETS
+void neighboringDCBHforminggas(void);
+#endif
+#endif
+
 /* VITALI  --- CONDUCTION */
 #ifdef CONDUCTION
 void conduction(void);
@@ -233,10 +241,6 @@ void init_braginskii_viscosity(void);
 #include "constrained_transport/constrained_transport.h"
 #endif
 
-#ifdef DM_WINDTUNNEL
-#include "dmwindtunnel/dmwindtunnel.h"
-#endif
-
 #ifdef BECDM
 #include "becdm/becdm.h"
 #endif
@@ -256,10 +260,6 @@ void init_braginskii_viscosity(void);
 
 #ifdef SFR_MCS
 #include "sfr_mcs/sfr_mcs_proto.h"
-#endif
-
-#ifdef SOLAR
-#include "solar/solar.h"
 #endif
 
 void sfr_init(void);
@@ -282,6 +282,12 @@ double fof_find_nearest_dmparticle(MyIDType *vMinID, int *vHead, int *vLen, int 
 
 int ngb_treefind_fof_nearest(MyDouble searchcenter[3], MyFloat hsml, int target, int *startnode, int mode, int *nexport,
                              int *nsend_local);
+
+#ifdef PREVENT_SEEDING_AROUND_BLACKHOLE_NEIGHBORS2
+int search_gravity_tree_for_a_BH_neighbor(MyDouble searchcenter[3], MyFloat hsml, int target, int mode, int thread_id, 
+                                  int numnodes, int *firstnode);
+#endif
+
 int ngb_treebuild(int npart);
 void ngb_insert_pseudo_particles(void);
 void ngb_treeupdate_toplevel(int no, int topnode, int bits, int x, int y, int z);
@@ -292,6 +298,14 @@ void ngb_treefree(void);
 int ngb_treefind_export_node_threads(int no, int target, int thread_id, int image_flag);
 int ngb_treefind_variable_threads(MyDouble searchcenter[3], MyFloat hsml, int target, int mode, int thread_id, int numnodes,
                                   int *firstnode);
+
+#ifdef CONSTRUCT_FOF_NGBTREE
+int ngb_treebuild_groups(int npart);
+void ngb_treeallocate_groups(void);
+void ngb_treefree_groups(void);
+#endif
+
+
 void ngb_recompute_nodes_test(void);
 void ngb_recompute_nodes_normal(void);
 void ngb_treerealloc(int delta_Nodes);
@@ -358,6 +372,18 @@ void sub_turb_read_table(void);
 void sub_turb_parent_halo_accel(double dx, double dy, double dz, double *acc);
 double sub_turb_enclosed_mass(double r, double msub, double vmax, double radvmax, double c);
 void calc_exact_gravity_for_particle_type(void);
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_ALL_SOURCES
+void calc_lyman_werner_intensity_for_stars(void);
+void lyman_werner_source_create_list();
+void lyman_werner_source_update_list();
+#endif
+
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_ALL_STARFORMINGGAS
+void calc_lyman_werner_intensity_for_starforminggas(void);
+void lyman_werner_starforminggas_create_list();
+void lyman_werner_starforminggas_update_list();
+#endif
+
 void calculate_non_standard_physics_with_valid_gravity_tree(void);
 void calculate_non_standard_physics_with_valid_gravity_tree_always(void);
 void calculate_non_standard_physics_prior_gravity_calculation(void);
@@ -519,6 +545,9 @@ void face_limit_fluxes(struct state *st_L, struct state *st_R, struct state *st_
 double get_sound_speed(int p);
 void set_pressure_of_cell(int i);
 void gradient_init(MyFloat *addr, MyFloat *addr_exch, MySingle *addr_grad, int type);
+#ifdef MRT
+void gradient_init_RT(MyFloat *addr, MyFloat *addr_exch, MySingle *addr_grad, int type);
+#endif
 void limit_vel_gradient(double *d, MySingle *grad_vx, MySingle *grad_vy, MySingle *grad_vz, double csnd);
 
 /* rt cg method */
@@ -791,6 +820,10 @@ int ngb_treefind_variable(MyDouble searchcenter[3], MyFloat hsml, int target, in
                           int *nsend_local);
 
 void fof_fof(int num);
+#ifdef CREATE_SUBFOFS
+void fof_fof_sub(int num);
+#endif
+
 void fof_subfind_exchange(MPI_Comm Communicator);
 void fof_prepare_output_order(void);
 
@@ -798,6 +831,8 @@ void subfind(int num);
 double subfind_density(int mode);
 double subfind_overdensity(void);
 void subfind_density_hsml_guess(void);
+
+void write_file(const char *fname, int readTask, int lastTask, int subbox_flag);
 
 void distribute_file(int nfiles, int *filenr, int *master, int *last);
 
@@ -835,6 +870,18 @@ void mysort_peano(void *b, size_t n, size_t s, int (*cmp)(const void *, const vo
 
 int density_isactive(int n);
 
+#ifdef PREVENT_SEEDING_AROUND_BLACKHOLE_NEIGHBORS2
+int BH_Neighbor_isactive(int n);
+void BH_Neighbor(void);
+#endif
+
+#ifdef PREVENT_SPURIOUS_RESEEDING2
+int GasNeighbor_isactive(int n);
+void GasNeighbor(void);
+int GasNeighbor_isactive_reset(int n);
+void GasNeighbor_reset(void);
+#endif
+
 void GetMachNumberCR(struct sph_particle_data *Particle);
 void GetMachNumber(struct sph_particle_data *Particle);
 void GetShock_DtEnergy(struct sph_particle_data *Particle);
@@ -867,10 +914,6 @@ void loadrestart(void);
 void reread_params_after_loading_restart(void);
 void check_omega(void);
 void close_logfiles(void);
-#ifdef BH_NEW_LOGS
-void copy_log_until_now(char *fname, char *temp);
-void close_bh_logfiles(void);
-#endif
 void compute_grav_accelerations(int timebin, int fullflag);
 void compute_global_quantities_of_system(void);
 void cooling_and_starformation(void);
@@ -910,6 +953,11 @@ void check_modified_eos_parameters(void);
 #endif
 
 void gravity_tree(int timebin);
+
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+void gravity_tree_tracerBH_neighbors(int timebin);
+#endif
+
 int init(void);
 #ifndef LT_STELLAREVOLUTION
 void init_clouds(void);
@@ -924,9 +972,6 @@ size_t my_fwrite_fullinfo(const void *data, size_t size, size_t nmemb, FILE *str
 size_t my_fread_fullinfo(void *data, size_t size, size_t nmemb, FILE *stream, const char *func, const char *file, int line);
 int my_system(const char *command);
 void open_logfiles(void);
-#ifdef BH_NEW_LOGS
-void open_bh_logfiles(void);
-#endif
 void write_outputfiles_header(void);
 void peano_hilbert_order(void);
 void read_ic(const char *fname, int readTypes);
@@ -1020,10 +1065,11 @@ void init_hessians(void);
 #endif
 
 #ifdef RT_ADVECT
-void rt_advect_main(void);
 void rt_init_gradients(void);
-int rt_face_get_normals(tessellation *T, int i);
-int rt_check_responsibility_of_this_task(const point *DP, int p1, int p2);
+#endif
+
+#ifdef MRT
+void init_gradients_RT(void);
 #endif
 
 void init_gradients(void);
@@ -1053,7 +1099,6 @@ void outside_state_diode(struct state *state_inside, struct state *state_outside
 #endif
 
 void print_particle_info(int i);
-void print_particle_info_from_ID(const MyIDType ID);
 void print_state_info(const struct state *st);
 void print_state_face_info(const struct state_face *st);
 
@@ -1076,14 +1121,19 @@ void flux_convert_to_lab_frame(struct state *st_L, struct state *st_R, double *v
                                struct state_face *st_face);
 #endif
 
+#if defined(MRT_RIEMANN_ROSUNOV) || defined(MRT_RIEMANN_HLLE)
+void flux_convert_to_lab_frame_RT(struct state *st_L, struct state *st_R, double *vel_face, struct fluxes *flux);
+void face_turn_momentum_flux_RT(struct fluxes *flux, struct geometry *geom);
+#endif
+
 void face_clear_fluxes(struct fluxes *flux);
 int face_check_responsibility_of_this_task(tessellation *T, int p1, int p2, struct state *st_L, struct state *st_R);
 int face_get_normals(tessellation *T, int i, struct geometry *geom);
 int face_get_state(tessellation *T, int p, int i, struct state *st);
 void face_boundary_check(point *p, double *velx, double *vely, double *velz);
-void face_boundary_check_vertex(tessellation *T, int p, double *velx, double *vely, double *velz);
+void face_boundary_check_vertex(tessellation *T, int p, MyFloat *velx, MyFloat *vely, MyFloat *velz);
 double face_timestep(struct state *state_L, struct state *state_R, double *hubble_a, double *atime);
-void state_convert_to_moving_frame(struct state *st, double *vel_face, double hubble_a, double atime);
+void state_convert_to_local_frame(struct state *st, double *vel_face, double hubble_a, double atime);
 void face_do_time_extrapolation(struct state *delta, struct state *st, double atime);
 void face_do_spatial_extrapolation(struct state *delta, struct state *st, struct state *st_other);
 void face_do_spatial_extrapolation_single_quantity(double *delta, double st, double st_other, MySingle *grad, double *dx, double *r);
@@ -1179,6 +1229,20 @@ void load_temperature_profil(void);
 #ifdef RELAXOBJECT_BINARY
 void do_binary_source_terms_first_half(void);
 void do_binary_source_terms_second_half(void);
+#endif
+
+#ifdef MRT
+
+#ifdef MRT_RIEMANN_ROSUNOV
+double godunov_flux_3d_rosunov_RT(struct state *st_L, struct state *st_R, struct state_face *st_face, struct fluxes *flux,
+                                  double vel_face_x);
+#endif
+
+#ifdef MRT_RIEMANN_HLLE
+double godunov_flux_3d_HLLE_RT(struct state *st_L, struct state *st_R, struct state_face *st_face, struct fluxes *flux,
+                               double vel_face_x);
+#endif
+
 #endif
 
 int analytic_riemann_solution(int argc, char *argv[]);

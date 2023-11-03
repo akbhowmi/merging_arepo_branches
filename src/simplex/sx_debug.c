@@ -39,7 +39,7 @@ struct sxTimer_struct
 void sx_debug_find_locations(void)
 {
   int i, t, p;
-  locSearch = (mesh_search_data *)mymalloc("locSearch", nLoc * sizeof(mesh_search_data) );
+  locSearch = mymalloc("locSearch", nLoc * sizeof(mesh_search_data) );
   for(i = 0; i < nLoc; i++)
     {
       locSearch[i].Pos[0] = locCoord[i][0];
@@ -317,18 +317,18 @@ void sx_debug_display_stats(void)
   int t, *nBalTr=NULL, *nDifTr=NULL, *nRecPack=NULL, *nSendPack=NULL;
   double *nInitPh=NULL, *nEmitPh=NULL, *nAbsPh=NULL, *nLostPh=NULL, *nFinPh=NULL;
 
-  nInitPh = (double *)mymalloc("nInitPh", SX_NFREQ * sizeof(double));
-  nEmitPh = (double *)mymalloc("nEmitPh", SX_NFREQ * sizeof(double));
-  nAbsPh  = (double *)mymalloc("nAbsPh", SX_NFREQ * sizeof(double));
-  nLostPh = (double *)mymalloc("nLostPh", SX_NFREQ * sizeof(double));
-  nFinPh = (double *)mymalloc("nPhot", SX_NFREQ * sizeof(double));
+  nInitPh = mymalloc("nInitPh", SX_NFREQ * sizeof(double));
+  nEmitPh = mymalloc("nEmitPh", SX_NFREQ * sizeof(double));
+  nAbsPh  = mymalloc("nAbsPh", SX_NFREQ * sizeof(double));
+  nLostPh = mymalloc("nLostPh", SX_NFREQ * sizeof(double));
+  nFinPh = mymalloc("nPhot", SX_NFREQ * sizeof(double));
 
   if(ThisTask == 0)
     {
-      nBalTr    = (int *)mymalloc("nBalTr", NTask * sizeof(int));
-      nDifTr    = (int *)mymalloc("nDifTr", NTask * sizeof(int));
-      nRecPack  = (int *)mymalloc("nRecPack", NTask * sizeof(int));
-      nSendPack = (int *)mymalloc("nSendPack", NTask * sizeof(int));
+      nBalTr    = mymalloc("nBalTr", NTask * sizeof(int));
+      nDifTr    = mymalloc("nDifTr", NTask * sizeof(int));
+      nRecPack  = mymalloc("nRecPack", NTask * sizeof(int));
+      nSendPack = mymalloc("nSendPack", NTask * sizeof(int));
     }
 
   MPI_Gather(&sxRunData->nBalTransp, 1, MPI_INT, nBalTr, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -444,7 +444,7 @@ void sx_debug_start_run(void)
   int i;
 
   // allocate all timers
-  sxTimer = (struct sxTimer_struct *)mymalloc("sxTimer", sizeof(struct sxTimer_struct) );
+  sxTimer = mymalloc("sxTimer", sizeof(struct sxTimer_struct) );
   for (i=0;i<SX_NTIMERS;i++)
     {
       sxTimer->TimeSum[i] = 0.;

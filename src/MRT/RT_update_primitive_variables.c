@@ -202,7 +202,7 @@ void update_primitive_variables_RT(void)
       for(int num1 = 0; num1 < MRT_BINS; num1++)
         {
           double modF         = sqrt(SphP[i].RT_F[num1][0] * SphP[i].RT_F[num1][0] + SphP[i].RT_F[num1][1] * SphP[i].RT_F[num1][1] +
-                                     SphP[i].RT_F[num1][2] * SphP[i].RT_F[num1][2]);
+                             SphP[i].RT_F[num1][2] * SphP[i].RT_F[num1][2]);
           SphP[i].modFN[num1] = modF / SphP[i].DensPhot[num1];
           if(SphP[i].modFN[num1] > c_internal_units * 1.000000001)
             terminate("%g\t%g\t%g\t%g\t%g\t%g\t ID = %d\n", SphP[i].modFN[num1], c_internal_units, SphP[i].RT_F[num1][0],

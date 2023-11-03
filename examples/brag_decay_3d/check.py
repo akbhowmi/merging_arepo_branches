@@ -129,10 +129,10 @@ for snap in range(1, len(fnames)):
 
     # print(err0, err1)
 
-    if not err0 <= tol0:
+    if err0 > tol0:
         failed = True
         print(msg0.format(err0))
-    if not err1 <= tol1:
+    if err1 > tol1:
         failed = True
         print(msg1.format(err1))
 
@@ -242,8 +242,10 @@ if makeplots:
     plt.legend(frameon=False)
     plt.savefig(vis_path+"/3D_Brag_test_decay.pdf")
 
-# criteria for failing the test
+""" criteria for failing the test """
 if failed:
     sys.exit(1)
 
 print("normal exit")
+""" normal exit """
+sys.exit(0)

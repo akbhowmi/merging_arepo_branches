@@ -21,12 +21,17 @@
 #include "../allvars.h"
 
 extern int Ngroups, NgroupsExt, MaxNgroups, TotNgroups, Nsubgroups, TotNsubgroups;
+
+#ifdef CREATE_SUBFOFS
+extern int NSubFOFs, NSubFOFs, MaxNSubFOFs, TotNSubFOFs;
+#endif
+
 extern int Nids;
 extern long long TotNids;
 
 extern int fof_OldMaxPart;
 extern int fof_OldMaxPartSph;
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
 extern int fof_OldMaxPartStar;
 #endif
 #ifdef BLACK_HOLES
@@ -53,17 +58,56 @@ extern struct group_properties
   MyIDType MinIDTask;
   int GrNr;
   int LenType[NTYPES];
+
   MyFloat MassType[NTYPES];
   MyFloat Mass;
   MyDouble CM[3];
+#ifdef CONSTRUCT_FOF_NGBTREE
+  MyDouble CM_unwrapped[3];
+#endif
   MyFloat Vel[3];
   MyDouble Pos[3];
+#ifdef PROBABILISTIC_SEEDING
+//  int PlaceSeedIfCriterionSatisfied;
+  MyFloat RandomFractionForSeed;
+#endif
+
+#ifdef PREVENT_SPURIOUS_RESEEDING
+  MyFloat TotalGasSeedMass;
+  MyFloat SeedMass_maxdens;
+#endif
+
+#ifdef OUTPUT_LOG_FILES_FOR_SEEDING
+  MyFloat StarFormingGasMass;
+  MyFloat StarFormingGasMassMetallicity;
+  MyFloat StarFormingMetalFreeGasMass;
+
+#if defined(CREATE_SUBFOFS) && defined(SEED_HALO_ENVIRONMENT_CRITERION)
+  MyFloat HostHaloMass;
+#endif
+
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS
+  MyFloat StarFormingMetalFreeLymanWernerGasMass;
+  MyFloat LymanWernerGasMass;
+#endif
+#ifdef CHECK_FOR_ENOUGH_GAS_MASS_IN_DCBH_FORMING_POCKETS
+  MyFloat MaxNeighboringDCBHFormingGasMass;
+#endif
+#ifdef CALCULATE_SPIN_STARFORMINGGAS
+  MyFloat DensGasDimensionlessSpin;
+  MyFloat RvirEstimate;
+  MyFloat MeanTemperature;
+  MyFloat VirialTemperature;
+  MyFloat DensGasDimensionlessSpin_Max;
+#endif
+#endif
+
 #ifdef FOF_FUZZ_SORT_BY_NEAREST_GROUP
   unsigned long long FuzzOffsetType[NTYPES];
 #endif
 
-#ifdef GFM_BIPOLAR_WINDS
-#if(GFM_BIPOLAR_WINDS == 3)
+#if defined(GFM_BIPOLAR_WINDS) || defined(CALCULATE_SPIN_STARFORMINGGAS)
+#if(GFM_BIPOLAR_WINDS == 3) || defined(CALCULATE_SPIN_STARFORMINGGAS)
   MyFloat DensGasMass;
   MyFloat DensGasCenter[3];
   MyFloat DensGasMomentum[3];
@@ -73,6 +117,10 @@ extern struct group_properties
 #else
   MyFloat GravAcc[3];
 #endif
+#endif
+
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+  MyFloat DMMinPotential;
 #endif
 
   MyDouble FirstPos[3];
@@ -92,7 +140,75 @@ extern struct group_properties
   MyFloat BH_Mass;
   MyFloat BH_Mdot;
   MyFloat MaxDens;
+#ifdef OUTPUT_LOG_FILES_FOR_SEEDING
+  MyFloat Metallicity_maxdens;
+  MyFloat Sfr_maxdens;
+  MyFloat Mass_maxdens;
+  MyIDType ID_maxdens;
+#endif
+
+#ifdef SEED_BASED_ON_PROBABLISTIC_HALO_PROPERTIES
+#ifdef PROBABILISTIC_SEED_MASS_HALO_MASS_RATIO_CRITERION
+  MyFloat RandomMinHaloMassForSeeding_maxdens;
+#endif
+#endif
+
+#ifdef EVOLVING_SEEDING_PROBABILITY
+  MyFloat SecondRandomNumberForSeeding_maxdens;
+  MyFloat SecondRandomNumberForSeeding_average;
+#endif
+
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION2
+  MyFloat ThirdRandomNumberForSeeding_maxdens;
+#endif
+
+#ifdef UNIFORM_SEEDMASS_DISTRIBUTION
+ MyFloat DrawnSeedBlackHoleMass_maxdens;
+#endif
+
+  MyFloat AllSeedingCriteriaSatisfied;  
+  int CouldHaveBeenABlackHole_sum;
+
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+#if(PTYPE_USED_FOR_ENVIRONMENT_BASED_SEEDING == 0)
+  int IsThisTheDensestCell_sum;
+#else
+  int IsThisTheMinPotential_sum;
+#endif
+  int NumberOfMajorNeighbors;
+#endif
+
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_SOURCES
+  MyFloat LymanWernerIntensityLocalSources_maxdens_type2;
+  MyFloat LymanWernerIntensityLocalSources_maxdens_type3;
+#endif
+
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS
+  MyFloat LymanWernerIntensityLocalStarFormingGas_maxdens_type2;
+  MyFloat LymanWernerIntensityLocalStarFormingGas_maxdens_type3;
+  MyFloat MaxLymanWernerIntensityInDenseMetalPoorGas;
+#endif
+
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_ALL_SOURCES
+  MyFloat LymanWernerIntensityAllSources_maxdens_type2;
+  MyFloat LymanWernerIntensityAllSources_maxdens_type3;
+#endif
+
+#ifdef PREVENT_SEEDING_AROUND_BLACKHOLE_NEIGHBORS2
+  int BHNeighborExists_maxdens;
+#endif
+
+#ifdef PREVENT_SPURIOUS_RESEEDING2
+  int NeighborOfBlackhole_maxdens;
+#endif
+
   int index_maxdens, task_maxdens;
+
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+  int index_MinPot, task_MinPot;
+#endif
+
+
 #ifdef BH_NF_RADIO
   MyFloat Min_BH_Potential;
   MyIDType ID_Min_BH_Potential;
@@ -131,8 +247,11 @@ extern struct group_properties
   MyFloat Ekin_TopHat200, Epot_TopHat200, Ethr_TopHat200;
 #endif
 #endif
-
-} * Group;
+} * Group, * SubFOF
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+, * Group2
+#endif
+;
 
 #ifdef ADD_GROUP_PROPERTIES
 extern int Ngroups_eff;
@@ -165,8 +284,7 @@ struct data_aux_sort
 #else
   MyIDType ID;
 #endif
-#if defined(RECOMPUTE_POTENTIAL_IN_SNAPSHOT) || defined(CALCULATE_QUANTITIES_IN_POSTPROCESS) || \
-    defined(COMPUTE_VORONOI_DM_DENSITY_IN_POSTPROC)
+#if defined(RECOMPUTE_POTENTIAL_IN_SNAPSHOT) || defined(CALCULATE_QUANTITIES_IN_POSTPROCESS)
   MyIDType FileOrder;
 #endif
 #ifdef SUBFIND
@@ -245,6 +363,9 @@ enum fof_subfind_iofields
 {
   IO_FOF_LEN,
   IO_FOF_MTOT,
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+  IO_FOF_MTOT2,
+#endif
   IO_FOF_POS,
   IO_FOF_CM,
   IO_FOF_POSMINPOT,
@@ -259,6 +380,70 @@ enum fof_subfind_iofields
   IO_FOF_GASDUSTMETAL,
   IO_FOF_BHMASS,
   IO_FOF_BHMDOT,
+#ifdef BLACK_HOLES
+#ifdef PREVENT_SPURIOUS_RESEEDING
+  IO_FOF_TOTALGASSEEDMASS,
+#endif
+#ifdef OUTPUT_LOG_FILES_FOR_SEEDING
+  IO_FOF_STARFORMINGGASMASS,
+  IO_FOF_STARFORMINGGASMETALLICITY,
+  IO_FOF_STARFORMINGMETALFREEGASMASS,
+#endif
+#if defined(CREATE_SUBFOFS) && defined(SEED_HALO_ENVIRONMENT_CRITERION)
+  IO_FOF_HOSTHALOMASS,
+#endif
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_SOURCES
+  IO_FOF_LYMANWERNERINTENSITYLOCALSOURCES_TYPE2, 
+  IO_FOF_LYMANWERNERINTENSITYLOCALSOURCES_TYPE3,
+#endif
+
+#ifdef CHECK_FOR_ENOUGH_GAS_MASS_IN_DCBH_FORMING_POCKETS
+  IO_FOF_MAX_NEIGHBORING_DCBH_FORMING_GASMASS,
+#endif
+
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS
+  IO_FOF_LYMANWERNERINTENSITYLOCALSTARFORMINGGAS_TYPE2,
+  IO_FOF_LYMANWERNERINTENSITYLOCALSTARFORMINGGAS_TYPE3, 
+  IO_FOF_MAXLYMANWERNERINTENSITYINDENSEMETALPOORGAS,
+  IO_FOF_STARFORMINGMETALFREELYMANWERNERGASMASS,
+  IO_FOF_LYMANWERNERGASMASS,
+#endif
+
+#ifdef OUTPUT_LOG_FILES_FOR_SEEDING
+  IO_FOF_METALLICITY_MAXDENS,
+#endif
+
+#ifdef SEED_BASED_ON_PROBABLISTIC_HALO_PROPERTIES
+#ifdef PROBABILISTIC_SEED_MASS_HALO_MASS_RATIO_CRITERION
+  IO_FOF_RANDOMMINHALOMASSFORSEEDING_MAXDENS,
+#endif
+#ifdef EVOLVING_SEEDING_PROBABILITY
+  IO_FOF_SECONDRANDOMNUMBERFORSEEDING_AVERAGE,
+#endif
+#endif
+
+  IO_FOF_COULDHAVEBEENABLACKHOLE_SUM,
+
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+  IO_FOF_ISTHISTHEMINPOTENTIAL_SUM,
+  IO_FOF_NUMBEROFMAJORNEIGHBORS,
+#endif
+
+
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_ALL_SOURCES
+  IO_FOF_LYMANWERNERINTENSITYALLSOURCES_TYPE2,
+  IO_FOF_LYMANWERNERINTENSITYALLSOURCES_TYPE3,
+#endif
+#ifdef CALCULATE_SPIN_STARFORMINGGAS
+  IO_FOF_SPIN_STARFORMINGGAS,
+  IO_FOF_SPIN_STARFORMINGGAS_MAX,
+  IO_FOF_TEMPERATURE,
+  IO_FOF_VIRIAL_TEMPERATURE,
+#endif
+#ifdef CALCULATE_SPIN_STARFORMINGGAS
+  IO_FOF_RVIRESTIMATE,
+#endif
+#endif
   IO_FOF_WINDMASS,
   IO_FOF_XRAYLUM,
   IO_FOF_RADIOLUM,
@@ -383,6 +568,12 @@ enum fof_subfind_iofields
   IO_SUB_GRNR,
   IO_SUB_PARENT,
   IO_SUB_SFR,
+#ifdef SEED_BLACKHOLES_IN_SUBHALOS
+  IO_SUB_MAXDENS,
+  IO_SUB_INDEXMAXDENS,
+  IO_SUB_TASKMAXDENS,
+  IO_SUB_SFRMAXDENS,
+#endif
   IO_SUB_SFRINRAD,
   IO_SUB_SFRINHALFRAD,
   IO_SUB_SFRINMAXRAD,
@@ -421,10 +612,20 @@ enum fof_subfind_iofields
 double fof_find_groups(MyIDType *vMinID, int *vHead, int *vLen, int *vNext, int *vTail, int *vMinIDTask);
 void fof_compile_catalogue(void);
 void fof_compute_group_properties(int gr, int start, int len);
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+void fof_compute_halo_environment(int gr, int start, int len);
+void fof_exchange_halo_environment_data(void);
+void fof_finish_halo_environment(void);
+#endif
+
 void fof_exchange_group_data(void);
 void fof_finish_group_properties(void);
 void fof_assign_group_numbers(void);
 void fof_save_groups(int num);
+#ifdef CREATE_SUBFOFS
+void fof_save_groups_sub(int num);
+#endif
+
 void fof_reorder_PS(int *Id, int Nstart, int N);
 void fof_subfind_prepare_ID_list(void);
 #ifdef FOF_FUZZ_SORT_BY_NEAREST_GROUP
@@ -432,9 +633,17 @@ void fof_assign_groups_to_fuzz(void);
 #endif
 
 void fof_assign_HostHaloMass(void);
+
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+void fof_tag_densest_gas_cell(void);
+#endif
+
+
 void fof_check_for_full_nodes_recursive(int no);
 int fof_return_a_particle_in_cell_recursive(int no);
 void fof_make_black_holes(void);
+
+void fof_prepare_to_seed_black_holes(void);
 void fof_spin_measurement(void);
 
 double fof_get_comoving_linking_length(void);
@@ -472,5 +681,10 @@ int fof_subfind_get_values_per_blockelement(enum fof_subfind_iofields blocknr);
 int fof_additional_properties(enum fof_subfind_iofields blocknr);
 int sub_additional_properties(enum fof_subfind_iofields blocknr);
 #endif
+
+#ifdef PROBABILISTIC_SEEDING
+float get_random_fraction(int);
+#endif
+
 
 #endif

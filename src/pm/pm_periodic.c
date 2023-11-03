@@ -141,7 +141,7 @@ void pm_init_periodic(void)
 #ifndef FFT_COLUMN_BASED
   const int stride = GRIDz;
 #else
-  const int stride = 1;
+  const int stride    = 1;
 #endif
 
 #ifdef DOUBLEPRECISION_FFTW
@@ -154,28 +154,26 @@ void pm_init_periodic(void)
   const unsigned int flags = FFTW_ESTIMATE | FFTW_DESTROY_INPUT | alignflag;
 
   /* temporarily allocate some arrays to make sure that out-of-place plans are created */
-  const int max_GRID      = imax(imax(GRIDX, GRIDY), GRIDZ);
-  const size_t tmp_len    = 2 * max_GRID * (size_t)stride;
+  const int max_GRID = imax(imax(GRIDX, GRIDY), GRIDZ);
+  const size_t tmp_len = 2 * max_GRID * (size_t)stride;
   fft_real *rhogrid_tmp   = (fft_real *)mymalloc("rhogrid_tmp", tmp_len * sizeof(*rhogrid_tmp));
   fft_real *forcegrid_tmp = (fft_real *)mymalloc("forcegrid_tmp", tmp_len * sizeof(*forcegrid_tmp));
 
-  myplan.forward_plan_zdir =
-      FFTW(plan_many_dft_r2c)(1, ndimz, 1, rhogrid_tmp, NULL, 1, 0, (fft_complex *)forcegrid_tmp, NULL, 1, 0, flags);
+  myplan.forward_plan_zdir = FFTW(plan_many_dft_r2c)(1, ndimz, 1, rhogrid_tmp, NULL, 1, 0, (fft_complex *)forcegrid_tmp, NULL, 1, 0, flags);
 
-  myplan.forward_plan_ydir = FFTW(plan_many_dft)(1, ndimy, 1, (fft_complex *)rhogrid_tmp, NULL, stride, 0,
-                                                 (fft_complex *)forcegrid_tmp, NULL, stride, 0, FFTW_FORWARD, flags);
+  myplan.forward_plan_ydir =
+      FFTW(plan_many_dft)(1, ndimy, 1, (fft_complex *)rhogrid_tmp, NULL, stride, 0, (fft_complex *)forcegrid_tmp, NULL, stride, 0, FFTW_FORWARD, flags);
 
-  myplan.forward_plan_xdir = FFTW(plan_many_dft)(1, ndimx, 1, (fft_complex *)rhogrid_tmp, NULL, stride, 0,
-                                                 (fft_complex *)forcegrid_tmp, NULL, stride, 0, FFTW_FORWARD, flags);
+  myplan.forward_plan_xdir =
+      FFTW(plan_many_dft)(1, ndimx, 1, (fft_complex *)rhogrid_tmp, NULL, stride, 0, (fft_complex *)forcegrid_tmp, NULL, stride, 0, FFTW_FORWARD, flags);
 
-  myplan.backward_plan_xdir = FFTW(plan_many_dft)(1, ndimx, 1, (fft_complex *)rhogrid_tmp, NULL, stride, 0,
-                                                  (fft_complex *)forcegrid_tmp, NULL, stride, 0, FFTW_BACKWARD, flags);
+  myplan.backward_plan_xdir =
+      FFTW(plan_many_dft)(1, ndimx, 1, (fft_complex *)rhogrid_tmp, NULL, stride, 0, (fft_complex *)forcegrid_tmp, NULL, stride, 0, FFTW_BACKWARD, flags);
 
-  myplan.backward_plan_ydir = FFTW(plan_many_dft)(1, ndimy, 1, (fft_complex *)rhogrid_tmp, NULL, stride, 0,
-                                                  (fft_complex *)forcegrid_tmp, NULL, stride, 0, FFTW_BACKWARD, flags);
+  myplan.backward_plan_ydir =
+      FFTW(plan_many_dft)(1, ndimy, 1, (fft_complex *)rhogrid_tmp, NULL, stride, 0, (fft_complex *)forcegrid_tmp, NULL, stride, 0, FFTW_BACKWARD, flags);
 
-  myplan.backward_plan_zdir =
-      FFTW(plan_many_dft_c2r)(1, ndimz, 1, (fft_complex *)rhogrid_tmp, NULL, 1, 0, forcegrid_tmp, NULL, 1, 0, flags);
+  myplan.backward_plan_zdir = FFTW(plan_many_dft_c2r)(1, ndimz, 1, (fft_complex *)rhogrid_tmp, NULL, 1, 0, forcegrid_tmp, NULL, 1, 0, flags);
 
   myfree(forcegrid_tmp);
   myfree(rhogrid_tmp);
@@ -245,7 +243,7 @@ static fft_real *localfield_data, *import_data;
  *
  *  \return void
  */
-static void pmforce_zoom_optimized_prepare_density(const int mode, const int *const typelist)
+void pmforce_zoom_optimized_prepare_density(const int mode, const int *const typelist)
 {
   large_numpart_type i;
   int level, recvTask;
@@ -257,7 +255,7 @@ static void pmforce_zoom_optimized_prepare_density(const int mode, const int *co
   if(mode == 2)
     to_slab_fac *= POWERSPEC_FOLDFAC;
   if(mode == 3)
-    to_slab_fac *= pow(POWERSPEC_FOLDFAC, 2);
+    to_slab_fac *= POWERSPEC_FOLDFAC * POWERSPEC_FOLDFAC;
 
   part                               = (struct part_slab_data *)mymalloc("part", 8 * (NumPart * sizeof(struct part_slab_data)));
   large_numpart_type *part_sortindex = (large_numpart_type *)mymalloc("part_sortindex", 8 * (NumPart * sizeof(large_numpart_type)));
@@ -266,10 +264,10 @@ static void pmforce_zoom_optimized_prepare_density(const int mode, const int *co
 #pragma omp parallel for
   for(i = 0; i < NumPart; i++)
     {
-      double *pos;
+      MyDouble *pos;
 
 #ifdef CELL_CENTER_GRAVITY
-      double posw[3];
+      MyDouble posw[3];
       if(P[i].Type == PTYPE_GAS)
         {
           for(size_t j = 0; j < sizeof(posw) / sizeof(posw[0]); j++)
@@ -413,9 +411,9 @@ static void pmforce_zoom_optimized_prepare_density(const int mode, const int *co
     {
       int pindex = part[i].partindex >> 3;
 
-      double *pos;
+      MyDouble *pos;
 #ifdef CELL_CENTER_GRAVITY
-      double posw[3];
+      MyDouble posw[3];
       if(P[pindex].Type == PTYPE_GAS)
         {
           for(size_t j = 0; j < sizeof(posw) / sizeof(posw[0]); j++)
@@ -436,9 +434,9 @@ static void pmforce_zoom_optimized_prepare_density(const int mode, const int *co
 
       double weight = P[pindex].Mass;
 
-      /* only for power spectrum calculation */
-      if(mode > 0 && !typelist[P[pindex].Type])
-        continue;
+      if(mode) /* only for power spectrum calculation */
+        if(!typelist[P[pindex].Type])
+          continue;
 
       localfield_data[part[i + 0].localindex] += weight * (1.0 - dx) * (1.0 - dy) * (1.0 - dz);
       localfield_data[part[i + 1].localindex] += weight * (1.0 - dx) * (1.0 - dy) * dz;
@@ -525,7 +523,7 @@ static void pmforce_zoom_optimized_prepare_density(const int mode, const int *co
  *
  *  \return void
  */
-static void pmforce_zoom_optimized_readout_forces_or_potential(int dim)
+void pmforce_zoom_optimized_readout_forces_or_potential(int dim)
 {
 #ifdef EVALPOTENTIAL
 #ifdef GRAVITY_TALLBOX
@@ -603,10 +601,10 @@ static void pmforce_zoom_optimized_readout_forces_or_potential(int dim)
     {
       large_numpart_type j = i << 3;
 
-      double *pos;
+      MyDouble *pos;
 
 #ifdef CELL_CENTER_GRAVITY
-      double posw[3];
+      MyDouble posw[3];
       if(P[i].Type == PTYPE_GAS)
         {
           for(size_t j = 0; j < sizeof(posw) / sizeof(posw[0]); j++)
@@ -649,12 +647,12 @@ static void pmforce_zoom_optimized_readout_forces_or_potential(int dim)
 #else
 
 /*
- * Here come the routines for a different communication algorithm that is better suited for homogenously loaded boxes.
+ *  Here come the routines for a different communication algorithm that is better suited for a homogenuously loaded boxes.
  */
 static struct partbuf
 {
-  MyDouble Mass;
-  double Pos[3];
+  MyFloat Mass;
+  MyFloat Pos[3];
 } * partin, *partout;
 
 static size_t nimport, nexport;
@@ -670,21 +668,17 @@ static size_t *Rcvpm_count, *Rcvpm_offset;
  *                  For mode >= 1: Prepare density field for power spectrum
  *                  calculation. The density field is folded by a factor of
  *                  POWERSPEC_FOLDFAC^(mode - 1) (i.e. no folding for mode = 1).
- *  \param[in] typelist Array of length #NTYPES with flags indicating which
- *                      particle types should be included in the power
- *                      spectrum calculation.
- *
  *
  *  \return void
  */
-static void pmforce_uniform_optimized_prepare_density(const int mode, const int *const typelist)
+static void pmforce_uniform_optimized_prepare_density(const int mode)
 {
   double to_slab_fac = PMGRID / All.BoxSize;
 
   if(mode == 2)
     to_slab_fac *= POWERSPEC_FOLDFAC;
   if(mode == 3)
-    to_slab_fac *= pow(POWERSPEC_FOLDFAC, 2);
+    to_slab_fac *= POWERSPEC_FOLDFAC * POWERSPEC_FOLDFAC;
 
   /* We here enlarge NTask such that each thread gets its own cache line for send_count/send_offset.
    * This should hopefully prevent a performance penalty from 'false sharing' for these variables */
@@ -707,13 +701,10 @@ static void pmforce_uniform_optimized_prepare_density(const int mode, const int 
 #pragma omp for schedule(static) private(i)
     for(int i = 0; i < NumPart; i++)
       {
-        if(mode > 0 && !typelist[P[i].Type])
-          continue;
-
-        double *pos;
+        MyDouble *pos;
 
 #ifdef CELL_CENTER_GRAVITY
-        double posw[3];
+        MyDouble posw[3];
         if(P[i].Type == PTYPE_GAS)
           {
             for(size_t j = 0; j < sizeof(posw) / sizeof(posw[0]); j++)
@@ -859,13 +850,10 @@ static void pmforce_uniform_optimized_prepare_density(const int mode, const int 
 #pragma omp for schedule(static)
     for(int i = 0; i < NumPart; i++)
       {
-        if(mode > 0 && !typelist[P[i].Type])
-          continue;
-
-        double *pos;
+        MyDouble *pos;
 
 #ifdef CELL_CENTER_GRAVITY
-        double posw[3];
+        MyDouble posw[3];
         if(P[i].Type == PTYPE_GAS)
           {
             for(size_t j = 0; j < sizeof(posw) / sizeof(posw[0]); j++)
@@ -1422,10 +1410,10 @@ static void pmforce_uniform_optimized_readout_forces_or_potential(int dim)
 #pragma omp for schedule(static)
     for(int i = 0; i < NumPart; i++)
       {
-        double *pos;
+        MyDouble *pos;
 
 #ifdef CELL_CENTER_GRAVITY
-        double posw[3];
+        MyDouble posw[3];
         if(P[i].Type == PTYPE_GAS)
           {
             for(size_t j = 0; j < sizeof(posw) / sizeof(posw[0]); j++)
@@ -2016,7 +2004,7 @@ static void pmforce_uniform_optimized_prepare_density_powerspectrum(const int mo
               if(mode == 2)
                 to_slab_fac *= POWERSPEC_FOLDFAC;
               if(mode == 3)
-                to_slab_fac *= pow(POWERSPEC_FOLDFAC, 2);
+                to_slab_fac *= POWERSPEC_FOLDFAC * POWERSPEC_FOLDFAC;
 
                 /* determine the slabs/columns each particles accesses */
 #pragma omp parallel private(j)
@@ -2030,7 +2018,7 @@ static void pmforce_uniform_optimized_prepare_density_powerspectrum(const int mo
 #pragma omp for schedule(static) private(i)
                 for(int i = 0; i < count; i++)
                   {
-                    double *pos = &ppos[i * 3];
+                    MyDouble *pos = &(ppos[i * 3]);
 
                     int slab_x  = to_slab_fac * pos[0];
                     int slab_xx = slab_x + 1;
@@ -2167,7 +2155,7 @@ static void pmforce_uniform_optimized_prepare_density_powerspectrum(const int mo
 #pragma omp for schedule(static)
                 for(int i = 0; i < count; i++)
                   {
-                    double *pos = &ppos[i * 3];
+                    MyDouble *pos = &ppos[i * 3];
 
                     int slab_x  = to_slab_fac * pos[0];
                     int slab_xx = slab_x + 1;
@@ -2680,10 +2668,12 @@ void pmforce_periodic(const int mode, const int *const typelist)
 
 #ifdef POWERSPECTRUM_IN_POSTPROCESSING
   pmforce_uniform_optimized_prepare_density_powerspectrum(mode, typelist);
-#elif defined(PM_ZOOM_OPTIMIZED)
+#else
+#ifdef PM_ZOOM_OPTIMIZED
   pmforce_zoom_optimized_prepare_density(mode, typelist);
 #else
-  pmforce_uniform_optimized_prepare_density(mode, typelist);
+  pmforce_uniform_optimized_prepare_density(mode);
+#endif
 #endif
 
   /* allocate the memory to hold the FFT fields */
@@ -3351,10 +3341,10 @@ void calculate_power_spectra_and_ntot(const int num, const int *typeflag)
  */
 void calculate_power_spectra(const int num, const long long *ntot_type_all)
 {
-  myassert(ntot_type_all);
-
   int typeflag[NTYPES];
+
   power_spec_totnumpart = 0;
+
   for(int type = 0; type < NTYPES; type++)
     {
       typeflag[type] = 1;
@@ -3366,22 +3356,23 @@ void calculate_power_spectra(const int num, const long long *ntot_type_all)
   /* calculate power spectrum for all particle types */
   pmforce_do_powerspec(typeflag);
 
-  for(int type = 0; type < NTYPES; type++)
-    {
-      if(ntot_type_all[type] > 0)
-        {
-          for(int j = 0; j < NTYPES; j++)
-            typeflag[j] = 0;
+  if(ntot_type_all)
+    for(int type = 0; type < NTYPES; type++)
+      {
+        if(ntot_type_all[type] > 0)
+          {
+            for(int j = 0; j < NTYPES; j++)
+              typeflag[j] = 0;
 
-          typeflag[type]        = 1;
-          power_spec_totnumpart = ntot_type_all[type];
+            typeflag[type]        = 1;
+            power_spec_totnumpart = ntot_type_all[type];
 
-          file_path_sprintf(power_spec_fname, "%s/powerspec_type%d_%03d.txt", All.OutputDir, type, num);
+            file_path_sprintf(power_spec_fname, "%s/powerspec_type%d_%03d.txt", All.OutputDir, type, num);
 
-          /* calculate power spectrum for type i */
-          pmforce_do_powerspec(typeflag);
-        }
-    }
+            /* calculate power spectrum for type i */
+            pmforce_do_powerspec(typeflag);
+          }
+      }
 }
 
 /*! \brief Calculates normal and folded power spectra for a given set of
@@ -3393,7 +3384,7 @@ void calculate_power_spectra(const int num, const long long *ntot_type_all)
  *
  *  \return void
  */
-static void pmforce_do_powerspec(const int *const typeflag)
+void pmforce_do_powerspec(const int *const typeflag)
 {
   mpi_printf("POWERSPEC: Begin power spectrum. (typeflag=[%d|%d|%d|%d|%d|%d])\n", typeflag[0], typeflag[1], typeflag[2], typeflag[3],
              typeflag[4], typeflag[5]);
@@ -3420,19 +3411,18 @@ static void pmforce_do_powerspec(const int *const typeflag)
  *
  *  \param[in] flag The power spectrum is folded by a factor of
  *                  POWERSPEC_FOLDFAC^flag.
- *  \param[in] typeflag Array of length #NTYPES with flags of particle types
- *                      included in the power spectrum calculation.
+ *  \param[in] typelist Flags of particle types included in power spectrum
+ *                      calculation.
  *
  *  \return void
  */
-static void pmforce_measure_powerspec(const int flag, const int *const typeflag)
+void pmforce_measure_powerspec(const int flag, const int *const typeflag)
 {
   long long CountModes[BINS_PS];
   double SumPowerUncorrected[BINS_PS]; /* without binning correction (as for shot noise) */
   double PowerUncorrected[BINS_PS];    /* without binning correction */
   double DeltaUncorrected[BINS_PS];    /* without binning correction */
   double ShotLimit[BINS_PS];
-  double KWeightSum[BINS_PS];
   double Kbin[BINS_PS];
 
 #ifndef POWERSPECTRUM_IN_POSTPROCESSING
@@ -3454,26 +3444,26 @@ static void pmforce_measure_powerspec(const int flag, const int *const typeflag)
   MPI_Allreduce(&mass2, &power_spec_totmass2, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 #endif
 
-  const double d     = All.BoxSize / PMGRID;
-  const double dhalf = 0.5 * d;
+  double d     = All.BoxSize / PMGRID;
+  double dhalf = 0.5 * d;
 
-  const double fac = 1.0 / power_spec_totmass;
+  double fac = 1.0 / power_spec_totmass;
 
-  const double K0     = 2 * M_PI / All.BoxSize;                        /* minimum k */
-  const double K1     = K0 * (pow(POWERSPEC_FOLDFAC, 2) * PMGRID / 2); /* maximum k */
-  const double binfac = BINS_PS / (log(K1) - log(K0));
+  double K0 = 2 * M_PI / All.BoxSize; /* minimum k */
+  // double K1 = K0 * All.BoxSize / get_default_softening_of_particletype(1);      /* maximum k */
+  double K1     = K0 * (POWERSPEC_FOLDFAC * POWERSPEC_FOLDFAC * PMGRID / 2); /* maximum k */
+  double binfac = BINS_PS / (log(K1) - log(K0));
 
   mpi_printf("K0=%g, K1=%g, binfac=%g, totmass=%g\n", K0, K1, binfac, power_spec_totmass);
 
-  const double kfacx = 2.0 * M_PI / (STRETCHX * All.BoxSize);
-  const double kfacy = 2.0 * M_PI / (STRETCHY * All.BoxSize);
-  const double kfacz = 2.0 * M_PI / (STRETCHZ * All.BoxSize);
+  double kfacx = 2.0 * M_PI / (STRETCHX * All.BoxSize);
+  double kfacy = 2.0 * M_PI / (STRETCHY * All.BoxSize);
+  double kfacz = 2.0 * M_PI / (STRETCHZ * All.BoxSize);
 
   for(int i = 0; i < BINS_PS; i++)
     {
       SumPowerUncorrected[i] = 0;
       CountModes[i]          = 0;
-      KWeightSum[i]          = 0;
     }
 
 #ifdef FFT_COLUMN_BASED
@@ -3490,10 +3480,13 @@ static void pmforce_measure_powerspec(const int flag, const int *const typeflag)
       for(int z = 0; z < GRIDz; z++)
         {
 #endif
-      int count_double_fac = 1;
+      int count_double;
+
       if(z >= 1 && z < (GRIDZ + 1) / 2)
         /* these modes need to be counted twice due to the storage scheme for the FFT of a real field */
-        count_double_fac = 2;
+        count_double = 1;
+      else
+        count_double = 0;
 
       int xx, yy, zz;
 
@@ -3512,11 +3505,11 @@ static void pmforce_measure_powerspec(const int flag, const int *const typeflag)
       else
         zz = z;
 
-      const double kx = kfacx * xx;
-      const double ky = kfacy * yy;
-      const double kz = kfacz * zz;
+      double kx = kfacx * xx;
+      double ky = kfacy * yy;
+      double kz = kfacz * zz;
 
-      const double k2 = pow(kx, 2) + pow(ky, 2) + pow(kz, 2);
+      double k2 = kx * kx + ky * ky + kz * kz;
 
       if(k2 > 0)
         {
@@ -3538,8 +3531,8 @@ static void pmforce_measure_powerspec(const int flag, const int *const typeflag)
               fz = kz * dhalf;
               fz = sin(fz) / fz;
             }
-          const double ff   = 1 / (fx * fy * fz);
-          const double smth = pow(ff, 4);
+          double ff   = 1 / (fx * fy * fz);
+          double smth = ff * ff * ff * ff;
           /*
            * Note: The Fourier-transform of the density field (rho_hat) must be multiplied with ff^2
            * in order to do the de-convolution. Thats why po = rho_hat^2 gains a factor of ff^4. (Christian Arnold)
@@ -3553,45 +3546,70 @@ static void pmforce_measure_powerspec(const int flag, const int *const typeflag)
 
           double po = (fft_of_rhogrid[ip][0] * fft_of_rhogrid[ip][0] + fft_of_rhogrid[ip][1] * fft_of_rhogrid[ip][1]);
 
-          po *= pow(fac, 2) * smth;
+          po *= fac * fac * smth;
 
           double k = sqrt(k2);
 
           if(flag == 1)
             k *= POWERSPEC_FOLDFAC;
           if(flag == 2)
-            k *= pow(POWERSPEC_FOLDFAC, 2);
+            k *= POWERSPEC_FOLDFAC * POWERSPEC_FOLDFAC;
 
           if(k >= K0 && k < K1)
             {
-              const int bin = log(k / K0) * binfac;
-              SumPowerUncorrected[bin] += count_double_fac * po;
-              CountModes[bin] += count_double_fac;
-              KWeightSum[bin] += count_double_fac * log(k);
+              int bin = log(k / K0) * binfac;
+
+              SumPowerUncorrected[bin] += po;
+              CountModes[bin] += 1;
+
+              if(count_double)
+                {
+                  SumPowerUncorrected[bin] += po;
+                  CountModes[bin] += 1;
+                }
             }
         }
     }
 
   /* Now compute the power spectrum */
 
-  MPI_Allreduce(MPI_IN_PLACE, SumPowerUncorrected, BINS_PS, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  MPI_Allreduce(MPI_IN_PLACE, CountModes, BINS_PS, MPI_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
-  MPI_Allreduce(MPI_IN_PLACE, KWeightSum, BINS_PS, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  long long *countbuf = (long long int *)mymalloc("countbuf", NTask * BINS_PS * sizeof(long long));
+  double *powerbuf    = (double *)mymalloc("powerbuf", NTask * BINS_PS * sizeof(double));
+
+  MPI_Allgather(CountModes, BINS_PS * sizeof(long long), MPI_BYTE, countbuf, BINS_PS * sizeof(long long), MPI_BYTE, MPI_COMM_WORLD);
 
   for(int i = 0; i < BINS_PS; i++)
     {
+      CountModes[i] = 0;
+      for(int n = 0; n < NTask; n++)
+        CountModes[i] += countbuf[n * BINS_PS + i];
+    }
+
+  MPI_Allgather(SumPowerUncorrected, BINS_PS * sizeof(double), MPI_BYTE, powerbuf, BINS_PS * sizeof(double), MPI_BYTE, MPI_COMM_WORLD);
+
+  for(int i = 0; i < BINS_PS; i++)
+    {
+      SumPowerUncorrected[i] = 0;
+      for(int n = 0; n < NTask; n++)
+        SumPowerUncorrected[i] += powerbuf[n * BINS_PS + i];
+    }
+
+  myfree(powerbuf);
+  myfree(countbuf);
+
+  for(int i = 0; i < BINS_PS; i++)
+    {
+      Kbin[i] = exp((i + 0.5) / binfac + log(K0));
+
       if(CountModes[i] > 0)
-        {
-          Kbin[i]             = exp(KWeightSum[i] / CountModes[i]);
-          PowerUncorrected[i] = SumPowerUncorrected[i] / CountModes[i];
-        }
+        PowerUncorrected[i] = SumPowerUncorrected[i] / CountModes[i];
       else
-        {
-          Kbin[i]             = exp((i + 0.5) / binfac + log(K0));
-          PowerUncorrected[i] = 0;
-        }
+        PowerUncorrected[i] = 0;
+
       DeltaUncorrected[i] = 4 * M_PI * pow(Kbin[i], 3) / pow(2 * M_PI / All.BoxSize, 3) * PowerUncorrected[i];
-      ShotLimit[i] = 4 * M_PI * pow(Kbin[i], 3) / pow(2 * M_PI / All.BoxSize, 3) * (power_spec_totmass2 / pow(power_spec_totmass, 2));
+
+      ShotLimit[i] = 4 * M_PI * pow(Kbin[i], 3) / pow(2 * M_PI / All.BoxSize, 3) *
+                     (power_spec_totmass2 / (power_spec_totmass * power_spec_totmass));
     }
 
   if(ThisTask == 0)
@@ -3614,10 +3632,10 @@ static void pmforce_measure_powerspec(const int flag, const int *const typeflag)
       fprintf(fd, "%g\n", All.Time);
       fprintf(fd, "%d\n", (int)BINS_PS);
       fprintf(fd, "%g\n", power_spec_totmass);
-      fprintf(fd, "%15lld\n", power_spec_totnumpart);
+      fprintf(fd, "%15lld\n", (long long)(power_spec_totnumpart));
 
       for(int i = 0; i < BINS_PS; i++)
-        fprintf(fd, "%g %g %g %lld %g\n", Kbin[i], DeltaUncorrected[i], PowerUncorrected[i], CountModes[i], ShotLimit[i]);
+        fprintf(fd, "%g %g %g %g %g\n", Kbin[i], DeltaUncorrected[i], PowerUncorrected[i], (double)CountModes[i], ShotLimit[i]);
 
       fclose(fd);
     }

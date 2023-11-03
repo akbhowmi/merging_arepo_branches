@@ -69,6 +69,10 @@ void subfind_determine_sub_halo_properties(struct unbind_data *d, int num, struc
 #ifdef USE_SFR
   double sfr = 0, sfrinrad = 0, sfrinhalfrad = 0, sfrinmaxrad = 0, gasMassSfr = 0;
 #endif
+#ifdef SEED_BLACKHOLES_IN_SUBHALOS
+  double maxdens = 0, sfr_maxdens;
+  int index_maxdens = -1, task_maxdens = -1;
+#endif
 #ifdef GFM_STELLAR_EVOLUTION
   double gasMassMetallicity = 0;
   double gasMassMetals[GFM_N_CHEM_ELEMENTS];
@@ -856,6 +860,15 @@ void subfind_determine_sub_halo_properties(struct unbind_data *d, int num, struc
 #ifdef USE_SFR
                   sfrinrad += SphP[PS[p].OldIndex].Sfr; /* note: the SphP[] array has not been reordered */
 #endif
+#ifdef SEED_BLACKHOLES_IN_SUBHALOS 
+                  if (SphP[PS[p].OldIndex].Density > maxdens)
+                    {
+                       maxdens = SphP[PS[p].OldIndex].Density;
+                       task_maxdens = PS[p].OriginTask;
+                       index_maxdens = PS[p].OriginIndex;
+                       sfr_maxdens = SphP[PS[p].OldIndex].Sfr;
+                    }
+#endif
 #ifdef GFM_STELLAR_EVOLUTION
                   gasMassMetallicity += SphP[PS[p].OldIndex].Metallicity * P[p].Mass;
                   for(j = 0; j < GFM_N_CHEM_ELEMENTS; j++)
@@ -1225,6 +1238,22 @@ void subfind_determine_sub_halo_properties(struct unbind_data *d, int num, struc
       MPI_Allreduce(&gasMassSfr, &gasMassSfrtot, 1, MPI_DOUBLE, MPI_SUM, SubComm);
       gasMassSfr = gasMassSfrtot;
 #endif
+
+#ifdef SEED_BLACKHOLES_IN_SUBHALOS
+      struct { 
+        double maxdens; 
+        int paired; 
+      } in, out; 
+      in.maxdens = maxdens;
+      in.paired = task_maxdens; 
+      MPI_Allreduce(&in, &out, 1, MPI_DOUBLE_INT, MPI_MAXLOC, SubComm);
+      task_maxdens = out.paired;
+      in.paired = index_maxdens;
+      MPI_Allreduce(&in, &out, 1, MPI_DOUBLE_INT, MPI_MAXLOC, SubComm);
+      index_maxdens = out.paired;
+      maxdens = out.maxdens; 
+#endif
+
 #ifdef GFM_STELLAR_EVOLUTION
       double gasMassMetallicitytot;
       double gasMassMetalstot[GFM_N_CHEM_ELEMENTS];
@@ -1837,6 +1866,14 @@ void subfind_determine_sub_halo_properties(struct unbind_data *d, int num, struc
       subgroup->SfrInMaxRad  = sfrinmaxrad;
       subgroup->GasMassSfr   = gasMassSfr;
 #endif
+
+#ifdef SEED_BLACKHOLES_IN_SUBHALOS
+      subgroup->task_maxdens             = task_maxdens;
+      subgroup->index_maxdens            = index_maxdens;
+      subgroup->maxdens                  = maxdens;
+      subgroup->sfr_maxdens              = sfr_maxdens;
+#endif
+
 #ifdef GFM_STELLAR_EVOLUTION
       subgroup->GasMassMetallicity            = gasMassMetallicity;
       subgroup->StellarMassMetallicity        = stellarMassMetallicity;

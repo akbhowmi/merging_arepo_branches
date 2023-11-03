@@ -415,8 +415,33 @@ int do_refinements(void)
               SphP[i].Energy *= faci;
               SphP[j].Energy *= facj;
 
+
+#ifdef PREVENT_SPURIOUS_RESEEDING
+              SphP[i].SeedMass *= faci;
+              SphP[j].SeedMass *= facj;
+#endif
+
+//#ifdef SEED_BASED_ON_PROBABLISTIC_HALO_PROPERTIES
+//#ifdef PROBABILISTIC_SEED_MASS_HALO_MASS_RATIO_CRITERION
+//              MyFloat random_num1 = get_random_number();
+//              MyFloat random_num2 = get_random_number();
+//              SphP[i].RandomMinHaloMassForSeeding = sqrt(-2. * log(random_num1)) * cos(2. * log(random_num2) * M_PI);
+
+//              random_num1 = get_random_number();
+//              random_num2 = get_random_number();
+//	      SphP[j].RandomMinHaloMassForSeeding = sqrt(-2. * log(random_num1)) * cos(2. * log(random_num2) * M_PI);
+//#endif
+//#endif
+
+//#ifdef EVOLVING_SEEDING_PROBABILITY
+//             SphP[i].SecondRandomNumberForSeeding = get_random_number(); 
+//       	     SphP[j].SecondRandomNumberForSeeding = get_random_number();
+//#endif
+
+
               SphP[i].Volume *= faci;
               SphP[j].Volume *= facj;
+
 
 #ifdef TRACER_MC
               P[j].TracerHead      = -1; /* P[j] was copied from P[i] so reset its TLL to empty */

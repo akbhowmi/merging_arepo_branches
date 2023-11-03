@@ -5,8 +5,8 @@
  *
  * \file        src/dg/dg_fluxes.c
  * \date        10/2014
- * \author      Kevin Schaal
- * \brief       Calculation of the fluxes accross the interfaces
+ * \author		Kevin Schaal
+ * \brief		Calculation of the fluxes accross the interfaces
  * \details
  *
  *
@@ -54,8 +54,6 @@ struct geometry geom;
 static const double dd_epsilon = 0;
 #endif
 
-static void state_convert_to_local_frame(struct state *st, double *vel_face, double hubble_a, double atime);
-
 /*!
  * Calculate the change of the weights due to fluxes accross the interfaces
  * a2 = a2 - c * dt * R_outer(a1)
@@ -87,7 +85,7 @@ void subtract_R_outer(tessellation *T, double c, CBV(a1), CBV(a2))
 
   MaxNflux = T->Indi.AllocFacNflux;
   Nflux    = 0;
-  FluxList = (struct flux_list_data *)mymalloc_movable(&FluxList, "FluxList", MaxNflux * sizeof(struct flux_list_data));
+  FluxList = mymalloc_movable(&FluxList, "FluxList", MaxNflux * sizeof(struct flux_list_data));
 
   face *VF  = T->VF;
   point *DP = T->DP;
@@ -445,7 +443,7 @@ void subtract_R_outer(tessellation *T, double c, CBV(a1), CBV(a2))
                         {
                           T->Indi.AllocFacNflux *= ALLOC_INCREASE_FACTOR;
                           MaxNflux = T->Indi.AllocFacNflux;
-                          FluxList = (struct flux_list_data *)myrealloc_movable(FluxList, MaxNflux * sizeof(struct flux_list_data));
+                          FluxList = myrealloc_movable(FluxList, MaxNflux * sizeof(struct flux_list_data));
 
                           if(Nflux >= MaxNflux)
                             terminate("Nflux >= MaxNflux");
@@ -526,7 +524,7 @@ int dg_face_get_state(tessellation *T, CBV(a), int interface, int q, int p, int 
       st->dz = VF[i].cz - PrimExch[particle].Center[2];
     }
 
-  /* correct for periodicity */
+    /* correct for periodicity */
   st->dx = nearest_x(st->dx);
   st->dy = nearest_y(st->dy);
   st->dz = nearest_z(st->dz);
@@ -757,7 +755,7 @@ double face_timestep(struct state *state_L, struct state *state_R, double *hubbl
   return face_dt;
 }
 
-static void state_convert_to_local_frame(struct state *st, double *vel_face, double hubble_a, double atime)
+void state_convert_to_local_frame(struct state *st, double *vel_face, double hubble_a, double atime)
 {
   if(All.ComovingIntegrationOn)
     {

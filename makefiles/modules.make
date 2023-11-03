@@ -51,8 +51,8 @@ ifeq (RT_ENABLE, $(findstring RT_ENABLE, $(CONFIGVARS)))
 endif
 
 ifeq (BLACK_HOLES, $(findstring BLACK_HOLES, $(CONFIGVARS)))
-  OBJS    += blackhole/blackhole_neighbors.o blackhole/blackhole_mergers.o blackhole/blackhole_bubbles.o blackhole/blackhole_adios_wind.o blackhole/blackhole_fast_wind_findtask.o\
-             blackhole/blackhole_fast_wind.o blackhole/blackhole_swallowgas.o blackhole/blackhole.o blackhole/blackhole_density.o blackhole/blackhole_adios_wind_randomized.o \
+  OBJS    += blackhole/blackhole_neighbors.o blackhole/blackhole_mergers.o blackhole/blackhole_bubbles.o blackhole/blackhole_adios_wind.o \
+             blackhole/blackhole_swallowgas.o blackhole/blackhole.o blackhole/blackhole_density.o blackhole/blackhole_adios_wind_randomized.o \
              blackhole/blackhole_disk_vorticity.o blackhole/blackhole_bubbles_nf.o blackhole/blackhole_friction.o \
              blackhole/blackhole_refinement.o blackhole/blackhole_mdot.o  blackhole/blackhole_feedback.o  blackhole/blackhole_centering.o \
              blackhole/blackhole_bipolar.o blackhole/blackhole_spin.o
@@ -60,17 +60,64 @@ ifeq (BLACK_HOLES, $(findstring BLACK_HOLES, $(CONFIGVARS)))
   SUBDIRS += blackhole
 endif
 
+ifeq (STORE_MERGERS_IN_SNAPSHOT, $(findstring STORE_MERGERS_IN_SNAPSHOT, $(CONFIGVARS)))
+  OBJS    += blackhole/store_mergers_in_snapshot/add_mergers_to_snapshot.o blackhole/store_mergers_in_snapshot/mergers_io_vars.o blackhole/store_mergers_in_snapshot/mergers_io.o
+  INCL    += blackhole/store_mergers_in_snapshot/mergers_io.h
+  SUBDIRS += blackhole
+endif
+
+#ifeq (PREVENT_SEEDING_AROUND_BLACKHOLE_NEIGHBORS2, $(findstring PREVENT_SEEDING_AROUND_BLACKHOLE_NEIGHBORS2, $(CONFIGVARS)))
+ OBJS    += blackhole/BH_Neighbor.o
+ SUBDIRS += blackhole
+#endif
+
+ifeq (CONSTRUCT_FOF_NGBTREE, $(findstring CONSTRUCT_FOF_NGBTREE, $(CONFIGVARS)))
+  OBJS    += ngbtree_fof.o domain_toplevel_fof_gas.o	
+endif
+
+#ifeq (PREVENT_SPURIOUS_RESEEDING2, $(findstring PREVENT_SPURIOUS_RESEEDING2, $(CONFIGVARS)))
+ OBJS    += blackhole/GasNeighbor.o blackhole/GasNeighbor_reset.o
+ SUBDIRS += blackhole
+#endif
+
+#ifeq (CALCULATE_LYMAN_WERNER_INTENSITY_ALL_SOURCES, $(findstring CALCULATE_LYMAN_WERNER_INTENSITY_ALL_SOURCES, $(CONFIGVARS)))
+ OBJS    += lyman_werner_intensity.o
+#endif
+
+#ifeq (CALCULATE_LYMAN_WERNER_INTENSITY_ALL_STARFORMINGGAS, $(findstring CALCULATE_LYMAN_WERNER_INTENSITY_ALL_STARFORMINGGAS, $(CONFIGVARS)))
+ OBJS    += lyman_werner_intensity_starforminggas.o
+#endif
+
 ifeq (FOF, $(findstring FOF, $(CONFIGVARS)))
   OBJS    += fof/fof.o fof/fof_vars.o fof/fof_distribute.o fof/fof_findgroups.o fof/fof_nearest.o fof/fof_io.o fof/fof_sort_kernels.o \
-             fof/fof_fuzz.o fof/fof_gfm.o fof/fof_bh.o fof/fof_spinmeasurement.o fof/fof_massiveseeds.o
+             fof/fof_fuzz.o fof/fof_gfm.o fof/fof_mark_densest_gas_cell.o fof/fof_compute_halo_environment.o fof/fof_bh_prepare.o fof/fof_bh.o fof/fof_spinmeasurement.o fof/fof_massiveseeds.o
   INCL    += fof/fof.h
   SUBDIRS += fof
+endif
+
+ifeq (SEED_HALO_ENVIRONMENT_CRITERION, $(findstring SEED_HALO_ENVIRONMENT_CRITERION, $(CONFIGVARS)))
+  OBJS    += gravtree_tracerBH_neighbors.o forcetree_walk_tracerBH_neighbors.o
 endif
 
 ifeq (GFM_AGN_RADIATION, $(findstring GFM_AGN_RADIATION, $(CONFIGVARS)))
   OBJS    += GFM/agn_radiation.o
   SUBDIRS += GFM
 endif
+
+ifeq (CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_SOURCES, $(findstring CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_SOURCES, $(CONFIGVARS)))
+  OBJS    += GFM/stellar_lyman_werner_intensity.o
+  SUBDIRS += GFM
+endif
+
+ifeq (CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS, $(findstring CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS, $(CONFIGVARS)))
+  OBJS    += GFM/starforminggas_lyman_werner_intensity.o
+  SUBDIRS += GFM
+endif
+
+#ifeq (CHECK_FOR_ENOUGH_GAS_MASS_IN_DCBH_FORMING_POCKETS, $(findstring CHECK_FOR_ENOUGH_GAS_MASS_IN_DCBH_FORMING_POCKETS, $(CONFIGVARS)))
+ OBJS    += GFM/neighboringDCBHforminggas.o
+ SUBDIRS += GFM
+#endif
 
 ifeq (GFM_STELLAR_PHOTOMETRICS, $(findstring GFM_STELLAR_PHOTOMETRICS, $(CONFIGVARS)))
   OBJS    += GFM/stellar_photometrics.o GFM/stellar_photometrics_vars.o
@@ -130,7 +177,8 @@ ifeq (SUBFIND, $(findstring SUBFIND, $(CONFIGVARS)))
              subfind/subfind_collective.o subfind/subfind_findlinkngb.o subfind/subfind_nearesttwo.o \
              subfind/subfind_loctree.o subfind/subfind_coll_domain.o  subfind/subfind_coll_treewalk.o \
              subfind/subfind_io.o subfind/subfind_sort_kernels.o subfind/subfind_mark_cgm.o \
-             subfind/subfind_reprocess.o subfind/subfind_so_potegy.o
+             subfind/subfind_reprocess.o subfind/subfind_so_potegy.o \
+             subfind/subfind_bh.o
 ## subdir subfind and header subfind.h and file subfind/subfind_density.o already default
 endif
 
@@ -235,10 +283,6 @@ endif
 
 ifeq (SINK_PARTICLES_FEEDBACK, $(findstring SINK_PARTICLES_FEEDBACK, $(CONFIGVARS)))
   OBJS    += sink_particles/sink_feedback.o
-endif
-
-ifeq (SINK_MERGERS, $(findstring SINK_MERGERS, $(CONFIGVARS)))
-  OBJS    += sink_particles/perform_mergers.o
 endif
 
 ifeq (SINK_PHOTOION_FEEDBACK, $(findstring SINK_PHOTOION_FEEDBACK, $(CONFIGVARS)))
@@ -411,12 +455,6 @@ ifeq (CUDA, $(findstring CUDA, $(CONFIGVARS)))
   INCL    += cuda_util.h
 endif
 
-ifeq (DM_WINDTUNNEL, $(findstring DM_WINDTUNNEL, $(CONFIGVARS)))
-  OBJS    += dmwindtunnel/dmwindtunnel.o
-  INCL    += dmwindtunnel/dmwindtunnel.h
-  SUBDIRS += dmwindtunnel
-endif
-
 ifeq (SHOCK_FINDER, $(findstring SHOCK_FINDER, $(CONFIGVARS)))
   OBJS    += shock_finder/shock_finder.o shock_finder/shock_finder_ryu.o shock_finder/shock_finder_skillman.o shock_finder/shock_finder_arepo.o
   INCL    += shock_finder/shock_finder.h shock_finder/shock_finder_fields.h shock_finder/shock_finder_rays.h
@@ -583,17 +621,11 @@ ifeq (CHIMES, $(findstring CHIMES, $(CONFIGVARS)))
 endif
 
 ifeq (SFR_MCS, $(findstring SFR_MCS, $(CONFIGVARS)))
-  OBJS    += sfr_mcs/sfr_mcs.o sfr_mcs/sfr_mcs_cooling.o sfr_mcs/feedback_mcs.o sfr_mcs/feedback_mcs_utils.o sfr_mcs/imf_sampling_mcs.o sfr_mcs/turb_approx_mcs.o
+  OBJS    += sfr_mcs/sfr_mcs.o sfr_mcs/sfr_mcs_cooling.o
   ifeq (SN_MCS, $(findstring SN_MCS, $(CONFIGVARS)))
     OBJS    += sfr_mcs/sn_mcs.o sfr_mcs/sn_mcs_utils.o sfr_mcs/sn_mcs_inject.o
   endif
-  ifeq (HII_MCS,$(findstring HII_MCS,$(CONFIGVARS)))
-    OBJS    += sfr_mcs/hii_mcs.o sfr_mcs/hii_mcs_anisotropic.o sfr_mcs/hii_mcs_healpix_utils.o
-  endif
-  ifeq (PE_MCS,$(findstring PE_MCS,$(CONFIGVARS)))
-    OBJS    += sfr_mcs/pe_mcs.o sfr_mcs/estimate_local_dust_column_mcs.o
-  endif
-  INCL    += sfr_mcs/sfr_mcs_vars.h sfr_mcs/sfr_mcs_proto.h
+  INCL    += sfr_mcs/sfr_mcs_proto.h
   SUBDIRS += sfr_mcs
 endif
 
@@ -609,17 +641,5 @@ ifeq (BIERMANN_BATTERY,$(findstring BIERMANN_BATTERY,$(CONFIGVARS)))
 else
   ifeq (DURRIVE_BATTERY,$(findstring DURRIVE_BATTERY,$(CONFIGVARS)))
     OBJS    += magnetic_batteries.o
-  endif
-endif
-
-ifeq (SOLAR, $(findstring SOLAR, $(CONFIGVARS)))
-  OBJS    += solar/solar.o
-  INCL    += solar/solar.h
-  SUBDIRS += solar
-  ifeq (SOLAR_RADIATIVE_TRANSFER_DIFF, $(findstring SOLAR_RADIATIVE_TRANSFER_DIFF, $(CONFIGVARS)))
-    OBJS  += solar/radiative_transfer.o
-  endif
-  ifeq (SOLAR_RADIATIVE_TRANSFER_EDD, $(findstring SOLAR_RADIATIVE_TRANSFER_EDD, $(CONFIGVARS)))
-    OBJS  += solar/radiative_transfer.o solar/radiative_transfer_edd.o
   endif
 endif

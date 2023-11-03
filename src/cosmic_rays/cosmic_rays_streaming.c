@@ -3211,7 +3211,7 @@ void set_matrix_coefficients(struct matrix_data *md, struct hypre_data *hd, int 
   ee.N_external_elements    = 0;
   ee.Nmax_external_elements = Mesh.Indi.AllocFacNflux;
   ee.elements               = (struct external_element *)mymalloc_movable(&ee.elements, "external_elements",
-                                                                          sizeof(struct external_element) * ee.Nmax_external_elements);
+                                                            sizeof(struct external_element) * ee.Nmax_external_elements);
 
   int row;
   for(row = 0; row < md->local_row_count; row++)

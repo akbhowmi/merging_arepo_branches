@@ -57,7 +57,7 @@ void fof_subfind_exchange(MPI_Comm Communicator)
   chimes_update_all_pointers();
 #endif
 
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
   int max_loadstar;
   int star_nimport, star_nexport;
   struct star_particle_data *starBuf;
@@ -102,7 +102,7 @@ void fof_subfind_exchange(MPI_Comm Communicator)
       PartSpace += sizeof(struct gasVariables);
       PartSpace += sizeof(double) * ChimesGlobalVars.totalNumberOfSpecies;
 #endif
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
       PartSpace += sizeof(struct star_particle_data);
 #endif
 #ifdef BLACK_HOLES
@@ -121,7 +121,7 @@ void fof_subfind_exchange(MPI_Comm Communicator)
           for(n = 0; n < CommNTask; n++)
             {
               Send_count[n] = 0;
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
               star_send_count[n] = 0;
 #endif
 #ifdef BLACK_HOLES
@@ -152,7 +152,7 @@ void fof_subfind_exchange(MPI_Comm Communicator)
                   AvailableSpace -= PartSpace;
 
                   Send_count[target]++;
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
                   if(P[n].Type == 4)
                     star_send_count[target]++;
 #endif
@@ -176,7 +176,7 @@ void fof_subfind_exchange(MPI_Comm Communicator)
             }
 
           MPI_Alltoall(Send_count, 1, MPI_INT, Recv_count, 1, MPI_INT, Communicator);
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
           MPI_Alltoall(star_send_count, 1, MPI_INT, star_recv_count, 1, MPI_INT, Communicator);
 #endif
 #ifdef BLACK_HOLES
@@ -201,7 +201,7 @@ void fof_subfind_exchange(MPI_Comm Communicator)
                 }
             }
 
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
           for(j = 0, star_nimport = 0, star_nexport = 0, star_recv_offset[0] = 0, star_send_offset[0] = 0; j < CommNTask; j++)
             {
               star_nexport += star_send_count[j];
@@ -264,7 +264,7 @@ void fof_subfind_exchange(MPI_Comm Communicator)
               MPI_Allreduce(&load, &max_loadsph, 1, MPI_INT, MPI_MAX, Communicator);
             }
 
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
           if(type == 4)
             {
               load = (N_star + star_nimport - star_nexport);
@@ -303,12 +303,12 @@ void fof_subfind_exchange(MPI_Comm Communicator)
           if(type == 0)
             {
               sphAbundancesBuf     = (double *)mymalloc_movable(&sphAbundancesBuf, "abunBuf",
-                                                                nexport * ChimesGlobalVars.totalNumberOfSpecies * sizeof(double));
+                                                            nexport * ChimesGlobalVars.totalNumberOfSpecies * sizeof(double));
               sphAbundancesRecvBuf = (double *)mymalloc_movable(&sphAbundancesRecvBuf, "xRecvBuf",
                                                                 nimport * ChimesGlobalVars.totalNumberOfSpecies * sizeof(double));
             }
 #endif
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
           if(type == 4)
             starBuf =
                 (struct star_particle_data *)mymalloc_movable(&starBuf, "starBuf", star_nexport * sizeof(struct star_particle_data));
@@ -332,7 +332,7 @@ void fof_subfind_exchange(MPI_Comm Communicator)
           for(i = 0; i < CommNTask; i++)
             {
               Send_count[i] = 0;
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
               star_send_count[i] = 0;
 #endif
 #ifdef BLACK_HOLES
@@ -388,7 +388,7 @@ void fof_subfind_exchange(MPI_Comm Communicator)
                   partBuf[Send_offset[target] + Send_count[target]].TracerHead = tracer_send_count[target];
 #endif
 
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
                   if(P[n].Type == 4)
                     {
                       if(N_star < 0)
@@ -459,7 +459,7 @@ void fof_subfind_exchange(MPI_Comm Communicator)
                         }
 #endif  // CHIMES
 
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
                       if(P[nstay].Type == 4)
                         StarP[P[nstay].AuxDataID].PID = nstay;
 #endif
@@ -503,7 +503,7 @@ void fof_subfind_exchange(MPI_Comm Communicator)
           NumPart -= delta_numpart;
           NumGas -= delta_numgas;
 
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
           for(i = nstay; i < NumPart; i++)
             if(P[i].Type == 4)
               StarP[P[i].AuxDataID].PID = i;
@@ -530,7 +530,7 @@ void fof_subfind_exchange(MPI_Comm Communicator)
               reallocate_memory_maxpartsph_ignore_timebins();
             }
 
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
           if(type == 4)
             {
               All.MaxPartStar = max_loadstar + ALLOC_STARBH_ROOM * (All.TotNumGas / NTask);
@@ -566,7 +566,7 @@ void fof_subfind_exchange(MPI_Comm Communicator)
           memmove(P + NumGas + nimport, P + NumGas, (NumPart - NumGas) * sizeof(struct particle_data));
           memmove(PS + NumGas + nimport, PS + NumGas, (NumPart - NumGas) * sizeof(struct subfind_data));
 
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
           for(i = 0; i < N_star; i++)
             if(StarP[i].PID >= NumGas)
               StarP[i].PID += nimport;
@@ -619,7 +619,7 @@ void fof_subfind_exchange(MPI_Comm Communicator)
                         }
 #endif
 
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
                       if(type == 4)
                         MPI_Sendrecv(starBuf + star_send_offset[target], star_send_count[target] * sizeof(struct star_particle_data),
                                      MPI_BYTE, target, TAG_STARDATA, StarP + star_recv_offset[target] + N_star,
@@ -667,7 +667,7 @@ void fof_subfind_exchange(MPI_Comm Communicator)
             }
 #endif  // CHIMES
 
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
           if(type == 4)
             {
               int i_tmp = 0;
@@ -764,7 +764,7 @@ void fof_subfind_exchange(MPI_Comm Communicator)
           if(type == 5)
             myfree_movable(BHsBuf);
 #endif
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
           if(type == 4)
             myfree_movable(starBuf);
 #endif
@@ -821,7 +821,7 @@ void fof_subfind_exchange(MPI_Comm Communicator)
       reallocate_memory_maxpartsph_ignore_timebins();
     }
 
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
   load = N_star;
   MPI_Allreduce(&load, &max_loadstar, 1, MPI_INT, MPI_MAX, Communicator);
   max_loadstar += ALLOC_STARBH_ROOM * (All.TotNumGas / NTask);
@@ -937,7 +937,7 @@ void fof_subfind_exchange(MPI_Comm Communicator)
   myfree_movable(bh_recv_count);
   myfree_movable(bh_send_count);
 #endif
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
   myfree_movable(star_recv_offset);
   myfree_movable(star_send_offset);
   myfree_movable(star_recv_count);

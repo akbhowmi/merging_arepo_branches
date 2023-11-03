@@ -33,20 +33,21 @@ typedef struct
   MyFloat Vel[3];
   MyFloat Vth2;
 #endif
-#ifdef BH_DF_DISCRETE
-  MyDouble DFD_Mass;
-  MyFloat DFD_Vel[3];
-#endif
   float OldAcc;
   unsigned char Type;
   unsigned char SofteningType;
-
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+  MyDouble HostHaloMass;
+#endif  
   int Firstnode;
 } gravdata_in;
 
 typedef struct
 {
   MyFloat Acc[3];
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+  int no_of_BHs_ngb;
+#endif
 #ifdef EVALPOTENTIAL
   MyFloat Potential;
 #endif
@@ -75,15 +76,6 @@ typedef struct
 #ifdef MODGRAV_EFF_MASS
   MyFloat ModgravAcc[3];
 #endif
-#ifdef PE_MCS
-  MyFloat G_FUV;
-#endif
-#ifdef HII_MCS_LR
-  MyFloat EnergyDensHii;
-#endif
-#ifdef BH_DF_DISCRETE
-  MyFloat DFD_BH_Accel[3];
-#endif // BH_DF_DISCRETE
 
 } gravdata_out;
 
@@ -224,6 +216,12 @@ int force_add_empty_nodes(void);
 void force_short_range_init(void);
 int force_treeevaluate(gravdata_in *in, gravdata_out *out, int target, int mode, int thread_id, int numnodes, int *firstnode,
                        int measure_cost_flag);
+
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+int tracerBH_neighbors_force_treeevaluate(gravdata_in *in, gravdata_out *out, int target, int mode, int thread_id, int numnodes, int *firstnode,
+                       int measure_cost_flag);
+#endif
+
 int force_treeevaluate_shortrange(gravdata_in *in, gravdata_out *out, int target, int mode, int thread_id, int numnodes,
                                   int *firstnode, int measure_cost_flag);
 int force_treeevaluate_ewald_correction(int i, int mode, int thread_id);

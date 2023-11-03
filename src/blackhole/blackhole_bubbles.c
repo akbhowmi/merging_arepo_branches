@@ -525,7 +525,7 @@ static int blackhole_place_bubble_evaluate(int target, int mode, int threadid, i
 
               double dBConserved = sqrt(2.0 * dEmagnetic * All.cf_atime / SphP[j].Volume) * SphP[j].Volume;
               double B           = sqrt(SphP[j].BConserved[0] * SphP[j].BConserved[0] + SphP[j].BConserved[1] * SphP[j].BConserved[1] +
-                                        SphP[j].BConserved[2] * SphP[j].BConserved[2]);
+                              SphP[j].BConserved[2] * SphP[j].BConserved[2]);
               double dir[3];
               dir[0] = SphP[j].BConserved[0] / B;
               dir[1] = SphP[j].BConserved[1] / B;

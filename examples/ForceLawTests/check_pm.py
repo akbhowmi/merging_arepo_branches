@@ -93,30 +93,30 @@ def verify_result(path):
             len(w[0]))
 
     # validate
-    if not df_t_rel.max() <= 0.02:
+    if df_t_rel.max() > 0.02:
         error_msgs.append(
             'Relative total force error too large, maximum of %g.' %
             df_t_rel.max())
-    if not df_s_rel.max(
-    ) <= 3e10:  # todo, seems strange (~1e10 in TreePM, ~1e2 in TreePMWithHighResRegion)
+    if df_s_rel.max(
+    ) > 3e10:  # todo, seems strange (~1e10 in TreePM, ~1e2 in TreePMWithHighResRegion)
         error_msgs.append(
             'Relative short-range force error too large, maximum of %g.' %
             df_s_rel.max())
-    if not df_l_rel.max() <= 0.04:
+    if df_l_rel.max() > 0.04:
         error_msgs.append(
             'Relative long-range force error too large, maximum of %g.' %
             df_l_rel.max())
-    if not dp_t_rel.max() <= 0.5:
+    if dp_t_rel.max() > 0.5:
         error_msgs.append(
             'Relative total potential error too large, maximum of %g.' %
             dp_t_rel.max())
-    if not dp_s_rel.max(
-    ) <= 1e3:  # todo, seems strange (~1e3), TreePMWithHighResRegion
+    if dp_s_rel.max(
+    ) > 1e3:  # todo, seems strange (~1e3), TreePMWithHighResRegion
         error_msgs.append(
             'Relative short-range potential error too large, maximum of %g.' %
             dp_s_rel.max())
-    if not dp_l_rel.max(
-    ) <= 3e5:  # todo, seems strange (~1e5), TreePM and TreePMWithHighResRegion
+    if dp_l_rel.max(
+    ) > 3e5:  # todo, seems strange (~1e5), TreePM and TreePMWithHighResRegion
         error_msgs.append(
             'Relative long-range potential error too large, maximum of %g.' %
             dp_l_rel.max())
@@ -125,7 +125,7 @@ def verify_result(path):
         error_msgs.append(
             'Error is absolutely zero! Not likely, needs to be checked.')
 
-    if error_msgs:
+    if len(error_msgs):
         return False, error_msgs
 
     # return success

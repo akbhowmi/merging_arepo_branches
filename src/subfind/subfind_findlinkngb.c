@@ -384,10 +384,6 @@ static int subfind_linkngb_evaluate(int target, int mode, int threadid)
 
       while(no >= 0)
         {
-          /* no need to search further */
-          if(numngb > All.DesLinkNgb)
-            break;
-
           if(no < SubTree_MaxPart) /* single particle */
             {
               p  = no;

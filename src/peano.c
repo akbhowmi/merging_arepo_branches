@@ -149,7 +149,7 @@ void peano_hilbert_order_DP(void)
         {
           pmp[i].index = i;
           pmp[i].key   = peano_hilbert_key((int)((DP[i].x + DomainLen) * DomainFac / 3), (int)((DP[i].y + DomainLen) * DomainFac / 3),
-                                           (int)((DP[i].z + DomainLen) * DomainFac / 3), BITS_PER_DIMENSION);
+                                         (int)((DP[i].z + DomainLen) * DomainFac / 3), BITS_PER_DIMENSION);
         }
 
       mysort_peano(pmp, Mesh.Ndp, sizeof(struct peano_hilbert_data), peano_compare_key);
@@ -288,7 +288,7 @@ void reorder_gas(int *id)
               memcpy(SphP[dest].ChimesGasVars.abundances, ChimesAbunSource, ChimesGlobalVars.totalNumberOfSpecies * sizeof(double));
 #endif
 
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
               if(P[dest].Type == 4)
                 StarP[P[dest].AuxDataID].PID = dest;
 #endif
@@ -356,7 +356,7 @@ void reorder_particles(int *id)
 
               P[dest]  = Psource;
               id[dest] = idsource;
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
               if(P[dest].Type == 4)
                 StarP[P[dest].AuxDataID].PID = dest;
 #endif

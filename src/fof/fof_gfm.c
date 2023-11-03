@@ -40,6 +40,9 @@ struct group_mass_MinID
 {
   MyIDType MinID;
   MyFloat mass;
+#ifdef OUTPUT_HOST_PROPERTIES_FOR_BH_MERGERS
+  MyFloat totalmass, gasmass, stellarmass, darkmattermass, starformationrate;
+#endif
 #ifdef GFM_BIPOLAR_WINDS
 #if(GFM_BIPOLAR_WINDS == 3)
   MyFloat DensGasAngMomentum[3];
@@ -133,6 +136,14 @@ void fof_assign_HostHaloMass(
           if(groups_to_export[start].MinID == Group[k].MinID)
             {
               groups_to_export[start].mass = Group[k].Mass;
+#ifdef OUTPUT_HOST_PROPERTIES_FOR_BH_MERGERS
+              groups_to_export[start].totalmass = Group[k].Mass;
+              groups_to_export[start].gasmass = Group[k].MassType[0];
+              groups_to_export[start].stellarmass = Group[k].MassType[4];
+              groups_to_export[start].darkmattermass = Group[k].MassType[1];
+              groups_to_export[start].starformationrate = Group[k].Sfr;
+#endif
+
 #ifdef GFM_BIPOLAR_WINDS
               for(l = 0; l < 3; l++)
                 {
@@ -189,6 +200,7 @@ void fof_assign_HostHaloMass(
 #if defined(GFM_WINDS_VARIABLE) && (GFM_WINDS_VARIABLE == 0)
       SphP[i].w.HostHaloMass = 0;
 #endif
+
 #ifdef GFM_BIPOLAR_WINDS
       for(j = 0; j < 3; j++)
         {
@@ -218,6 +230,18 @@ void fof_assign_HostHaloMass(
     BHP[i].HostHaloMass = 0.0;
 #endif
 
+#ifdef OUTPUT_HOST_PROPERTIES_FOR_BH_MERGERS
+  for(i = 0; i < NumBHs; i++)
+    {
+        BHP[i].HostHaloTotalMass = -1.0;
+        BHP[i].HostHaloStellarMass = -1.0;
+        BHP[i].HostHaloGasMass = -1.0;
+        BHP[i].HostHaloDMMass = -1.0;
+        BHP[i].HostHaloSFR = -1.0;
+    }
+#endif
+
+
   for(i = 0, start = 0; i < NgroupsExt; i++)
     {
       while(FOF_PList[start].MinID < required_groups[i].MinID)
@@ -238,6 +262,7 @@ void fof_assign_HostHaloMass(
 #if defined(GFM_WINDS_VARIABLE) && (GFM_WINDS_VARIABLE == 0)
                 SphP[FOF_PList[start + lenloc].Pindex].w.HostHaloMass = required_groups[i].mass;
 #endif
+
 #ifdef GFM_BIPOLAR_WINDS
                 for(j = 0; j < 3; j++)
                   {
@@ -276,6 +301,17 @@ void fof_assign_HostHaloMass(
 #if defined(BLACK_HOLES) && (defined(GFM_AGN_RADIATION) || defined(MASSIVE_SEEDS_MERGER))
             if(P[FOF_PList[start + lenloc].Pindex].Type == 5)
               BPP(FOF_PList[start + lenloc].Pindex).HostHaloMass = required_groups[i].mass;
+#endif
+
+#ifdef OUTPUT_HOST_PROPERTIES_FOR_BH_MERGERS
+            if(P[FOF_PList[start + lenloc].Pindex].Type == 5) 
+              {
+                 BPP(FOF_PList[start + lenloc].Pindex).HostHaloTotalMass = required_groups[i].totalmass;
+                 BPP(FOF_PList[start + lenloc].Pindex).HostHaloStellarMass = required_groups[i].stellarmass;
+                 BPP(FOF_PList[start + lenloc].Pindex).HostHaloGasMass = required_groups[i].gasmass;
+                 BPP(FOF_PList[start + lenloc].Pindex).HostHaloDMMass = required_groups[i].darkmattermass;
+                 BPP(FOF_PList[start + lenloc].Pindex).HostHaloSFR = required_groups[i].starformationrate;
+              }
 #endif
             lenloc++;
           }

@@ -30,8 +30,8 @@ void sx_phot_reallocate_ABPP(void)
   //printf("SX: (%d) ABPP realloc max %d old %d new %d sxSwapABPP %d \n", ThisTask, 
   // 	 sxNumSPD, sxMaxNumABPP, newNum, sxSwapABPP);
   sxMaxNumABPP = newNum;
-  sxRealAPP = (struct sxABPP_struct *)myrealloc_movable(sxRealAPP, sxMaxNumABPP * sizeof(struct sxABPP_struct));
-  sxRealBPP = (struct sxABPP_struct *)myrealloc_movable(sxRealBPP, sxMaxNumABPP * sizeof(struct sxABPP_struct));
+  sxRealAPP = myrealloc_movable(sxRealAPP, sxMaxNumABPP * sizeof(struct sxABPP_struct));
+  sxRealBPP = myrealloc_movable(sxRealBPP, sxMaxNumABPP * sizeof(struct sxABPP_struct));
   sxAPP = (sxSwapABPP) ? sxRealBPP : sxRealAPP; 
   sxBPP = (sxSwapABPP) ? sxRealAPP : sxRealBPP;
 #ifdef SX_DISPLAY_MEMORY
@@ -541,8 +541,8 @@ void sx_phot_transport_start_run(void)
 #endif
 
   // Initialize an array that will keep indexes of the transported photon packages
-  sxRealSPDtoAPP = (int *)mymalloc("sxRealSPDtoAPP", sxNumSPD * sizeof(int));
-  sxRealSPDtoBPP = (int *)mymalloc("sxRealSPDtoBPP", sxNumSPD * sizeof(int));
+  sxRealSPDtoAPP = mymalloc("sxRealSPDtoAPP", sxNumSPD * sizeof(int));
+  sxRealSPDtoBPP = mymalloc("sxRealSPDtoBPP", sxNumSPD * sizeof(int));
   sxSPDtoAPP = sxRealSPDtoAPP;
   sxSPDtoBPP = sxRealSPDtoBPP;
   memset(sxSPDtoAPP, -1, sxNumSPD * sizeof(int));  

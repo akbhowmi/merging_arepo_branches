@@ -80,10 +80,10 @@ void create_mesh(void)
 #ifdef CREATE_FULL_MESH
   int k;
 
-  short int *buTimeBin = (short int *)mymalloc_movable(&buTimeBin, "buTimeBin", NumGas * sizeof(short int));
+  short int *buTimeBin = (short int *)mymalloc_movable(&buTimeBin, "buTimeBin", NumPart * sizeof(short int));
   static int buTimeBinActive[TIMEBINS];
 
-  for(k = 0; k < NumGas; k++)
+  for(k = 0; k < NumPart; k++)
     {
       buTimeBin[k]      = P[k].TimeBinHydro;
       P[k].TimeBinHydro = 0;
@@ -100,13 +100,13 @@ void create_mesh(void)
 #elif defined(SHOCK_FINDER_ON_THE_FLY) && !defined(FORCE_EQUAL_TIMESTEPS)
   int k;
 
-  short int *buTimeBin = (short int *)mymalloc_movable(&buTimeBin, "buTimeBin", NumGas * sizeof(short int));
+  short int *buTimeBin = (short int *)mymalloc_movable(&buTimeBin, "buTimeBin", NumPart * sizeof(short int));
 
-  for(k = 0; k < NumGas; k++)
+  for(k = 0; k < NumPart; k++)
     {
       buTimeBin[k] = P[k].TimeBinHydro;
 
-      if(P[k].Type == 0 && SDATA(k).ShockZone)
+      if(SDATA(k).ShockZone)
         P[k].TimeBinHydro = All.LowestActiveTimeBin;
     }
 
@@ -473,7 +473,7 @@ void create_mesh(void)
 #endif
 
 #if(defined(CREATE_FULL_MESH) || defined(SHOCK_FINDER_ON_THE_FLY)) && !defined(FORCE_EQUAL_TIMESTEPS)
-  for(k = 0; k < NumGas; k++)
+  for(k = 0; k < NumPart; k++)
     P[k].TimeBinHydro = buTimeBin[k];
 
   reconstruct_timebins();

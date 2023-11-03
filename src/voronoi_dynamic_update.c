@@ -822,7 +822,7 @@ void voronoi_update_connectivity(tessellation *T)
               q_image_flags = (DP[VF[i].p1].image_flags & MASK);
             }
 
-          if(p_task == ThisTask && p_index >= 0 && p_index < NumGas && q_index >= 0)
+          if(p_task == ThisTask && p_index >= 0 && p_index < NumGas)
             {
               if(TimeBinSynchronized[P[p_index].TimeBinHydro])
                 {

@@ -1,6 +1,6 @@
-#!/usr/bin/env python3
+#! /usr/bin/env python
 """ Idealized test, AMR Kelvin-Helmholtz (static) in 2D. """
-import os.path
+import os
 import h5py
 import numpy as np
 import sys

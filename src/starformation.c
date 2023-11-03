@@ -84,10 +84,6 @@ void sfr_init(void)
  */
 void sfr_create_star_particles(void)
 {
-#ifdef DO_NOT_CREATE_STAR_PARTICLES
-  return;
-#endif
-
   TIMER_START(CPU_COOLINGSFR);
 
   int idx, i, bin;
@@ -97,6 +93,10 @@ void sfr_create_star_particles(void)
   double p = 0, pall = 0, prob, p_decide;
   double rate_in_msunperyear;
   double sfrrate, totsfrrate;
+
+#ifdef DO_NOT_CREATE_STAR_PARTICLES
+  return;
+#endif
 
 #ifdef COSMIC_RAYS_EXTRA_DIAGNOSTICS
   double InitialCREnergy = 0;
@@ -136,10 +136,6 @@ void sfr_create_star_particles(void)
 #endif
 #endif
 
-#ifdef IMF_SAMPLING_MCS
-  int old_N_star = N_star;
-#endif
-
   for(idx = 0; idx < TimeBinsHydro.NActiveParticles; idx++)
     {
       i = TimeBinsHydro.ActiveParticleList[idx];
@@ -158,13 +154,8 @@ void sfr_create_star_particles(void)
 #endif
 
 #if defined(SFR_KEEP_CELLS) || defined(SMUGGLE_SFR)
-#ifdef BH_BASED_CGM_ZOOM
-          if(P[i].Mass < 0.3 * All.TargetGasMass / All.CGM_RefinementFactor)
-            continue;
-#else
           if(P[i].Mass < 0.3 * All.TargetGasMass)
             continue;
-#endif
 #endif
 
 #ifdef SMUGGLE_RADIATION_FEEDBACK
@@ -211,10 +202,6 @@ void sfr_create_star_particles(void)
 #endif
               else
                 mass_of_star = All.TargetGasMass;
-
-#ifdef REFINEMENT_LIMIT_STARFORMING_GAS
-              mass_of_star = P[i].Mass;
-#endif
 
 #ifdef REFINEMENT_HIGH_RES_GAS
               if(SphP[i].HighResMass < HIGHRESMASSFAC * P[i].Mass)
@@ -282,19 +269,14 @@ void sfr_create_star_particles(void)
               else
 #endif
                 {
+                  /* all or nothing! */
                   if(get_random_number() < prob)
                     {
-#ifdef REFINEMENT_LIMIT_STARFORMING_GAS
-                      /* all or nothing! */
-                      int NStars   = imax(floor(P[i].Mass / (All.TargetGasMass * All.StellarMassToGasMassRatio) + 0.5), 1);
-                      mass_of_star = P[i].Mass / NStars;
-#else
-                    int NStars = floor(1. / All.StellarMassToGasMassRatio + 0.5);
-                    mass_of_star *= All.StellarMassToGasMassRatio;
+                      int NStars = floor(1. / All.StellarMassToGasMassRatio + 0.5);
+                      mass_of_star *= All.StellarMassToGasMassRatio;
 
-                    if(NStars * mass_of_star > P[i].Mass)
-                      mass_of_star = P[i].Mass / NStars;
-#endif
+                      if(NStars * mass_of_star > P[i].Mass)
+                        mass_of_star = P[i].Mass / NStars;
 
                       /* get local velocity dispersion in gas */
                       double VelDisp = fmin(SphP[i].VelDisp, get_sound_speed(i));
@@ -314,33 +296,7 @@ void sfr_create_star_particles(void)
 
 #ifdef GFM_WINDS
           if(p_decide >= p / pall) /* ok, it is decided to consider winds */
-            {
-#ifdef REFINEMENT_LIMIT_STARFORMING_GAS
-#ifdef REFINEMENT_HIGH_RES_GAS
-              if(SphP[i].HighResMass < HIGHRESMASSFAC * P[i].Mass)
-                {
-                  make_wind(idx, i, prob, mass_of_star, v_wind, u_wind);
-                }
-              else
-#endif
-                // all or nothing
-                if(get_random_number() < prob)
-                  {
-                    int NStars   = imax(floor(P[i].Mass / (All.TargetGasMass * All.StellarMassToGasMassRatio) + 0.5), 1);
-                    mass_of_star = P[i].Mass / NStars;
-
-                    for(int istar = 0; istar < NStars; istar++)
-                      {
-                        if(istar == NStars - 1 && P[i].Mass < 2. * mass_of_star)
-                          mass_of_star = P[i].Mass;
-
-                        make_wind(idx, i, 1., mass_of_star, v_wind, u_wind);
-                      }
-                  }
-#else
-              make_wind(idx, i, prob, mass_of_star, v_wind, u_wind);
-#endif
-            }
+            make_wind(idx, i, prob, mass_of_star, v_wind, u_wind);
 #endif
 
 #ifdef METALS
@@ -379,7 +335,7 @@ void sfr_create_star_particles(void)
   tot_stars_spawned   = out[0];
   tot_stars_converted = out[1];
 
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
   All.TotN_star += tot_stars_spawned + tot_stars_converted;
 #ifdef GFM_WINDS
   tot_wind_spawned   = out[2];
@@ -511,15 +467,6 @@ void sfr_create_star_particles(void)
   All.TotalCREnergyLossSfr += dCREnergy;
 #endif
 
-#ifdef IMF_SAMPLING_MCS
-  if((tot_stars_spawned + tot_stars_converted) > 0)
-    do_imf_sampling(old_N_star);
-#endif
-
-#ifdef SFR_MCS_LOG_DETAILS
-  myflush(FdSFDetails);
-#endif
-
   TIMER_STOP(CPU_COOLINGSFR);
 }
 
@@ -539,8 +486,8 @@ void convert_cell_into_star(int i, double birthtime)
   P[i].Type          = 4;
   P[i].SofteningType = All.SofteningTypeOfPartType[P[i].Type];
 
-  // for(int k = 0; k < 3; k++)
-  //   P[i].Pos[k] = SphP[i].Center[k];
+  for(int k = 0; k < 3; k++)
+    P[i].Pos[k] = SphP[i].Center[k];
 
 #if defined(REFINEMENT_HIGH_RES_GAS) && !defined(TGSET)
   if(SphP[i].HighResMass < HIGHRESMASSFAC * P[i].Mass)
@@ -556,12 +503,18 @@ void convert_cell_into_star(int i, double birthtime)
     P[i].SofteningType = get_softening_type_from_mass(P[i].Mass);
 #endif
 
-#if defined(SFR_MCS) && !defined(SN_MCS_INITIAL_DRIVING)
-  sfr_mcs_add_star(i, i, P[i].Mass, birthtime);
-#endif
-
 #ifdef GFM
   gfm_add_star(i, i, P[i].Mass, birthtime, 1.5 * get_cell_radius(i));
+
+#ifdef GAS_BASED_SEED_MODEL
+  StarP[P[i].AuxDataID].Parent_GasID = P[i].ID;
+  StarP[P[i].AuxDataID].Spawned = 2;
+#endif
+
+#ifdef PREVENT_SPURIOUS_RESEEDING
+  StarP[P[i].AuxDataID].SeedMass = SphP[i].SeedMass;
+#endif
+
 
 #ifdef TRACER_MC
   int i_tracer = P[i].TracerHead;
@@ -592,6 +545,13 @@ void convert_cell_into_star(int i, double birthtime)
   sf_add_to_log(SphP[i].Density);
 #endif
 
+#ifdef SN_MCS
+  P[i].N_SN           = 0;
+  P[i].N_SN_cum       = 0;
+  P[i].N_SN_event_cum = 0;
+  P[i].InitialMass    = P[i].Mass;
+#endif
+
 #ifdef VORONOI_DYNAMIC_UPDATE
   voronoi_remove_connection(i);
 #endif
@@ -620,8 +580,8 @@ void spawn_star_from_cell(int igas, double birthtime, int istar, MyDouble mass_o
   P[istar].SofteningType = All.SofteningTypeOfPartType[P[istar].Type];
   P[istar].Mass          = mass_of_star;
 
-  // for(int k = 0; k < 3; k++)
-  //   P[istar].Pos[k] = SphP[igas].Center[k];
+  for(int k = 0; k < 3; k++)
+    P[istar].Pos[k] = SphP[igas].Center[k];
 
 #if defined(REFINEMENT_HIGH_RES_GAS) && !defined(TGSET)
   if(SphP[igas].HighResMass < HIGHRESMASSFAC * P[igas].Mass)
@@ -647,16 +607,28 @@ void spawn_star_from_cell(int igas, double birthtime, int istar, MyDouble mass_o
   sf_add_to_log(SphP[igas].Density);
 #endif
 
+#ifdef SN_MCS
+  P[istar].N_SN           = 0;
+  P[istar].N_SN_cum       = 0;
+  P[istar].N_SN_event_cum = 0;
+  P[istar].InitialMass    = mass_of_star;
+#ifdef METALS
+  P[istar].Metallicity = SphP[igas].Metallicity;
+#endif
+#endif
+
   /* now change the conserved quantities in the cell in proportion */
   double fac = (P[igas].Mass - P[istar].Mass) / P[igas].Mass;
-
-#if defined(SFR_MCS) && !defined(SN_MCS_INITIAL_DRIVING)
-  sfr_mcs_add_star(istar, igas, mass_of_star, birthtime);
-#endif
 
 #ifdef GFM
   gfm_add_star(istar, igas, mass_of_star, birthtime, 1.5 * get_cell_radius(igas));
 #endif
+
+#ifdef GAS_BASED_SEED_MODEL
+  StarP[P[istar].AuxDataID].Parent_GasID = P[igas].ID;
+  StarP[P[istar].AuxDataID].Spawned = 1;
+#endif
+
 
 #ifdef MHD
   double Emag = 0.5 * (SphP[igas].B[0] * SphP[igas].B[0] + SphP[igas].B[1] * SphP[igas].B[1] + SphP[igas].B[2] * SphP[igas].B[2]) *

@@ -1741,7 +1741,7 @@ double entropy_constant(double xh, double z, int neutral)
       for(i = 0; i < 6; i++)
         {
           result += GAS_CONSTANT * xi[i] / mui[i] *
-                    log(pow(mui[i] * UAMU * BOLTZMANN_K / (2. * PI * H_BAR * H_BAR), 1.5) * gi0[i] * mui[i] * UAMU / xi[i]);
+                    log(pow(mui[i] * UAMU * BOLTZMANN_K / (2. * PI * HBAR * HBAR), 1.5) * gi0[i] * mui[i] * UAMU / xi[i]);
         }
       /* no contribution by electrons since gas is neutral */
     }
@@ -1751,14 +1751,14 @@ double entropy_constant(double xh, double z, int neutral)
       for(i = 0; i < 6; i++)
         {
           result += GAS_CONSTANT * xi[i] / mui[i] *
-                    log(pow(mui[i] * UAMU * BOLTZMANN_K / (2. * PI * H_BAR * H_BAR), 1.5) * gii[i] * mui[i] * UAMU / xi[i]);
+                    log(pow(mui[i] * UAMU * BOLTZMANN_K / (2. * PI * HBAR * HBAR), 1.5) * gii[i] * mui[i] * UAMU / xi[i]);
         }
       /* contribution by electrons */
       mue = 0;
       for(i = 0; i < 6; i++)
         mue += zi[i] * xi[i] / mui[i];
 
-      result += GAS_CONSTANT * mue * log(pow(MASS_E * BOLTZMANN_K / (2. * PI * H_BAR * H_BAR), 1.5) * 2.0 * UAMU / mue);
+      result += GAS_CONSTANT * mue * log(pow(MASS_E * BOLTZMANN_K / (2. * PI * HBAR * HBAR), 1.5) * 2.0 * UAMU / mue);
     }
 
   return result;

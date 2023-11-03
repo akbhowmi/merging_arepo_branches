@@ -90,8 +90,6 @@ static int *pIsReflective;
 
 static int cornerCount;
 
-static int get_substeps_of_point(int point);
-
 /*
   Initialize the viscosity coefficient and perform some consistency checks on the Config
   options
@@ -201,7 +199,7 @@ void diffusion_explicit(int substeps)
   mpi_printf("BRAGINSKI_VISCOSITY: Doing explicit diffusion.\n");
 
   // Allocate memory
-  state0 = (struct sphp_copy *)mymalloc_movable(&state0, "state0", NumGas * sizeof(struct sphp_copy));
+  state0 = mymalloc_movable(&state0, "state0", NumGas * sizeof(struct sphp_copy));
 
   // Copy necessary information from SphP and P.
   copy_SphP(state0);
@@ -264,11 +262,11 @@ void diffusion_explicit_sts(int substeps)
 
   // Allocate memory
   // state0 will contain τ L(Y⁰) which we calculate only once.
-  state0 = (struct sphp_copy *)mymalloc_movable(&state0, "state0", NumGas * sizeof(struct sphp_copy));
+  state0 = mymalloc_movable(&state0, "state0", NumGas * sizeof(struct sphp_copy));
   // System states at various steps (jm1 is j minus 1 etc)
   // state_jm2 = mymalloc_movable(&state_jm2, "state_jm2", NumGas * sizeof(struct sphp_copy));
-  state_jm1 = (struct sphp_copy *)mymalloc_movable(&state_jm1, "state_jm1", NumGas * sizeof(struct sphp_copy));
-  state_j   = (struct sphp_copy *)mymalloc_movable(&state_j, "state_j", NumGas * sizeof(struct sphp_copy));
+  state_jm1 = mymalloc_movable(&state_jm1, "state_jm1", NumGas * sizeof(struct sphp_copy));
+  state_j   = mymalloc_movable(&state_j, "state_j", NumGas * sizeof(struct sphp_copy));
 
   // STS weights and parameters
   double mu[s + 1];
@@ -519,9 +517,8 @@ void calculate_and_add_fluxes(struct sphp_copy *state1, struct sphp_copy *state2
 
   int Nflux    = 0;
   int MaxNflux = Mesh.Indi.AllocFacNflux;
-  ViscFluxList =
-      (struct viscflux_list_data *)mymalloc_movable(&ViscFluxList, "FluxList", MaxNflux * sizeof(struct viscflux_list_data));
-  grad_v = (struct grad_v *)mymalloc("grad_v", sizeof(struct grad_v));
+  ViscFluxList = mymalloc_movable(&ViscFluxList, "FluxList", MaxNflux * sizeof(struct viscflux_list_data));
+  grad_v       = (struct grad_v *)mymalloc("grad_v", sizeof(struct grad_v));
   double flux_E, flux_Mx, flux_My, flux_Mz;
 
   if(All.ComovingIntegrationOn)
@@ -2224,9 +2221,8 @@ int apply_flux_or_calculate_fluxlist(struct viscflux_list_data *ViscFluxList, st
           if(Nflux >= *MaxNflux)
             {
               Mesh.Indi.AllocFacNflux *= ALLOC_INCREASE_FACTOR;
-              *MaxNflux = Mesh.Indi.AllocFacNflux;
-              ViscFluxList =
-                  (struct viscflux_list_data *)myrealloc_movable(ViscFluxList, *MaxNflux * sizeof(struct viscflux_list_data));
+              *MaxNflux    = Mesh.Indi.AllocFacNflux;
+              ViscFluxList = myrealloc_movable(ViscFluxList, *MaxNflux * sizeof(struct viscflux_list_data));
 
               if(Nflux >= *MaxNflux)
                 terminate("Nflux >= MaxNflux");

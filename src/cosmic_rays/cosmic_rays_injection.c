@@ -30,10 +30,10 @@
  *
  */
 
-static int *NgbCount;
-static MyFloat *NumNgb;
-static MyFloat *NormSph;
-static double CREnergy_Injected;
+int *NgbCount;
+MyFloat *NumNgb;
+MyFloat *NormSph;
+double CREnergy_Injected;
 
 static void cosmic_rays_inject(int target, int mode, int thread_id);
 

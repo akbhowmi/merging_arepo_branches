@@ -133,7 +133,7 @@ void init_field(enum iofields field, const char *label, const char *datasetname,
       IO_Fields[N_IO_Fields].offset = (size_t)pointer_to_field - (size_t)TracerLinkedList;
     }
 #endif
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
   else if(array == A_STARP)
     {
       IO_Fields[N_IO_Fields].offset = (size_t)pointer_to_field - (size_t)StarP;
@@ -312,7 +312,7 @@ void create_snapshot_if_desired(void)
             mpi_printf("SUBBOX_SNAPSHOTS: Writing subboxes snapshots %03d (%06d)\n", All.SubboxSnapshotFileCount,
                        All.SubboxSyncCounter);
 
-            DumpFlag = DUMP_BOTH; /* make subboxes full snapshots */
+            DumpFlag = 1; /* make subboxes full snapshots */
 
             for(int isubbox = 1; isubbox <= Nsubboxes; isubbox++)
               savepositions(All.SubboxSnapshotFileCount, isubbox);
@@ -339,6 +339,7 @@ void create_snapshot_if_desired(void)
                  All.HighFreqStarsOutputTimes[All.HighFreqStarsSnapshotCount]);
 
       savepositions(All.HighFreqStarsSnapshotCount, 42);
+
 
       All.HighFreqStarsSnapshotCount++;
     }
@@ -368,8 +369,40 @@ void create_snapshot_if_desired(void)
   if(All.HighestActiveTimeBin == All.HighestOccupiedTimeBin) /* allow only top-level synchronization points */
     if(All.Ti_Current >= All.Ti_nextoutput && All.Ti_nextoutput >= 0)
       {
+
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_ALL_SOURCES
+        lyman_werner_source_update_list();
+        calc_lyman_werner_intensity_for_stars();
+#endif
+
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_ALL_STARFORMINGGAS
+        lyman_werner_starforminggas_update_list();
+        calc_lyman_werner_intensity_for_starforminggas();
+#endif
+
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_SOURCES
+        assign_stellar_lyman_werner_intensity();
+#endif
+
+////#ifdef CHECK_FOR_ENOUGH_GAS_MASS_IN_DCBH_FORMING_POCKETS
+////        neighboringDCBHforminggas();
+////#endif
+
+////#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS
+////        assign_starforminggas_lyman_werner_intensity();
+////#endif
+
         DumpFlag = DumpFlagNextSnap;
         produce_dump();
+
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_SOURCES
+        reset_stellar_lyman_werner_intensity();
+#endif
+
+////#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS
+////        reset_starforminggas_lyman_werner_intensity();
+////#endif
+
 
         All.Ti_nextoutput = find_next_outputtime(All.Ti_Current + 1);
 
@@ -433,12 +466,6 @@ void produce_dump(void)
 #endif
 
   savepositions(All.SnapshotFileCount++, 0); /* write snapshot file */
-
-#ifdef BH_NEW_LOGS
-  close_bh_logfiles();   // Close the BH logfiles for the previous snapshot
-  if(All.Ti_Current < TIMEBASE) // Only create new logfiles if we're not at the final time
-    open_bh_logfiles();    // Open new BH logfiles for the next snapshot
-#endif
 
 #ifdef POWERSPECTRUM_ON_THE_FLY
   {
@@ -509,15 +536,22 @@ void savepositions(const int num, const int subbox_flag)
 
 #ifdef FOF
       if(RestartFlag != RESTART_FOF_SUBFIND && RestartFlag != RESTART_SHOCK_FINDER && RestartFlag != RESTART_RECALC_POTENTIAL &&
-         RestartFlag != RESTART_CALC_VORONOI_DM_DENSITY && subbox_flag == 0 && DumpFlag != DUMP_ONLY_SNAP)
+         subbox_flag == 0 && DumpFlag != 2)
         {
 #ifdef TGSET
           if(TGD.NHMax < 1e4)
 #endif
             {
               mpi_printf("\nWe shall first compute a group catalogue for this snapshot file\n");
+#ifdef CREATE_SUBFOFS
+              All.SubFOF_mode = 0;
+#endif
               fof_fof(num);
-            }
+#ifdef CREATE_SUBFOFS
+       	      All.SubFOF_mode = 1;
+              fof_fof(num);
+#endif
+           }
         }
 #endif
 
@@ -529,9 +563,17 @@ void savepositions(const int num, const int subbox_flag)
       int filenr, masterTask, lastTask;
       distribute_file(All.NumFilesPerSnapshot, &filenr, &masterTask, &lastTask);
 
-      if(DumpFlag != DUMP_ONLY_HALOS)
+      if(DumpFlag != 4)
         {
           CommBuffer = (void *)mymalloc("CommBuffer", COMMBUFFERSIZE);
+
+          if(NTask < All.NumFilesPerSnapshot)
+            {
+              warn(
+                  "Number of processors must be larger or equal than All.NumFilesPerSnapshot! Reducing All.NumFilesPerSnapshot "
+                  "accordingly.\n");
+              All.NumFilesPerSnapshot = NTask;
+            }
 
 #ifndef HAVE_HDF5
           if(All.SnapFormat == SNAP_FORMAT_HDF5)
@@ -795,12 +837,8 @@ void savepositions(const int num, const int subbox_flag)
               if(filenr / All.NumFilesWrittenInParallel == gr) /* ok, it's this processor's turn */
                 {
                   if(ThisTask == masterTask && filenr % All.NumFilesWrittenInParallel == 0)
-                    {
-                      printf("writing snapshot files group %d out of %d - files %d-%d (total of %d files): '%s'\n", gr + 1, ngroups,
-                             filenr, imin(filenr + All.NumFilesWrittenInParallel, All.NumFilesPerSnapshot) - 1,
-                             All.NumFilesPerSnapshot, buf);
-                      myflush(stdout);
-                    }
+                    printf("writing snapshot files group %d out of %d - files %d-%d (total of %d files): '%s'\n", gr + 1, ngroups,
+                           filenr, filenr + All.NumFilesWrittenInParallel - 1, All.NumFilesPerSnapshot, buf);
                   write_file(buf, masterTask, lastTask, subbox_flag);
 #ifdef OUTPUT_XDMF
                   if(All.SnapFormat == SNAP_FORMAT_HDF5)
@@ -832,11 +870,11 @@ void savepositions(const int num, const int subbox_flag)
       else
         {
           mpi_printf("done with writing files: no dump of snapshot (DumpFlag = %d).\n", DumpFlag);
-        } /* if(DumpFlag != DUMP_ONLY_HALOS) */
+        } /* if(DumpFlag != 4) */
 
 #ifdef FOF
       if(RestartFlag != RESTART_FOF_SUBFIND && RestartFlag != RESTART_SHOCK_FINDER && RestartFlag != RESTART_SNAP_CONVERSION &&
-         RestartFlag != RESTART_RECALC_POTENTIAL && subbox_flag == 0 && DumpFlag != DUMP_ONLY_SNAP)
+         RestartFlag != RESTART_RECALC_POTENTIAL && subbox_flag == 0 && DumpFlag != 2)
         {
 #ifdef TGSET
           if(TGD.NHMax < 1e4)
@@ -865,7 +903,7 @@ void savepositions(const int num, const int subbox_flag)
                   All.MaxPartSph = fof_OldMaxPartSph;
                   reallocate_memory_maxpartsph_ignore_timebins();
                 }
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
               if(All.MaxPartStar != fof_OldMaxPartStar)
                 {
                   All.MaxPartStar = fof_OldMaxPartStar;
@@ -919,7 +957,7 @@ void savepositions(const int num, const int subbox_flag)
 
 #if(defined(TRACER_MC) || defined(TRACER_PARTICLE)) && !defined(TRACER_NO_RESET_EACH_SNAP)
       /* reset 'maximum' type tracer properties, for full snapshot dumps only */
-      if(subbox_flag == 0 && (DumpFlag == DUMP_BOTH || DumpFlag == DUMP_ONLY_SNAP))
+      if(subbox_flag == 0 && (DumpFlag == 1 || DumpFlag == 2))
         reset_tracer_parent_fluid_properties();
 #endif
 
@@ -1030,7 +1068,7 @@ void fill_write_buffer(void *const buffer, const enum iofields blocknr, int *con
 #endif
                     particle = pindex;
                     break;
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
                   case A_STARP:
                     particle = P[pindex].AuxDataID;
                     break;
@@ -1102,7 +1140,7 @@ void fill_write_buffer(void *const buffer, const enum iofields blocknr, int *con
                   case A_P:
                     array_pos = P + pindex;
                     break;
-#if defined(GFM) || defined(SFR_MCS)
+#ifdef GFM
                   case A_STARP:
                     array_pos = StarP + P[pindex].AuxDataID;
                     break;
@@ -1349,9 +1387,7 @@ int get_particles_in_block(const enum iofields blocknr, int *const typelist)
                 {
 #ifdef TRACER_MC
                   if(i == TRACER_MC)
-                    /* temporary, only needed for old snapshots with
-                     * MassTable[TRACER_MC] = 0 */
-                    continue;
+                    continue; /* temporary, only needed for old snapshots with MassTable[TRACER_MC]==0 */
 #endif
                   typelist[i] = 1;
                   npart += header.npart[i];
@@ -1480,7 +1516,7 @@ int blockpresent(const enum iofields blocknr, const int write)
 #endif /* #ifndef READ_IN_ALL_IC_FIELDS */
 
 #ifdef HCOUTPUT
-  if(DumpFlag == DUMP_HCOUTPUT)
+  if(DumpFlag == 5)
     {
       if(blocknr == IO_POS || blocknr == IO_VEL || blocknr == IO_ID || blocknr == IO_MASS || blocknr == IO_GFM_AGE)
         return 1;
@@ -1513,7 +1549,7 @@ int blockpresent(const enum iofields blocknr, const int write)
                 }
 
               /* normal full snapshot (with or without groupcat): only skip fields marked by SN_MINI_ONLY */
-              if(DumpFlag == DUMP_BOTH || DumpFlag == DUMP_ONLY_SNAP)
+              if(DumpFlag == 1 || DumpFlag == 2)
                 {
                   if(IO_Fields[f].snap_type == SN_MINI_ONLY)
                     return 0;
@@ -1522,26 +1558,22 @@ int blockpresent(const enum iofields blocknr, const int write)
                 }
 
               /* mini-snaps: write only those fields marked by either SN_MINI or SN_MINI_ONLY */
-              if(DumpFlag == DUMP_BOTH_MINI)
+              if(DumpFlag == 3)
                 {
                   if(IO_Fields[f].snap_type == SN_MINI || IO_Fields[f].snap_type == SN_MINI_ONLY)
                     return 1;
 
                   if(IO_Fields[f].typelist == BHS_ONLY)
-                    /* temporarily hard-coded that all BH fields are included
-                     * in mini-snaps */
-                    return 1;
+                    return 1; /* temporarily hard-coded that all BH fields are included in mini-snaps */
 
-                  /* specifically do not include any other fields in mini-snaps */
-                  return 0;
+                  return 0; /* specifically do not include any other fields in mini-snaps */
                 }
             }
           return 0;
         }
     }
 
-  /* default: not present */
-  return 0;
+  return 0; /* default: not present */
 }
 
 /*! \brief This function associates a short 4-character block name with each
@@ -1626,7 +1658,7 @@ void write_file(const char *fname, const int writeTask, const int lastTask, cons
   char buf[MAXLEN_PATH];
   char dataset_name[IO_DATASET_NAME_SIZE];
 #ifdef HDF5_FILTERS
-  hid_t hdf5_properties = 0;
+  hid_t hdf5_properties;
 #endif
   hid_t hdf5_paramsgrp = 0;
   hid_t hdf5_configgrp = 0;
@@ -1643,6 +1675,9 @@ void write_file(const char *fname, const int writeTask, const int lastTask, cons
   for(int try_io = 0; try_io < 2; try_io++)
     {
       WriteErrorFlag = 0;
+#ifdef HAVE_HDF5
+      H5Eget_current_stack(); /* clears current error stack */
+#endif
 #endif
 
       /* determine particle numbers of each type in file */
@@ -1883,14 +1918,10 @@ void write_file(const char *fname, const int writeTask, const int lastTask, cons
                               hdf5_dataspace_in_file = my_H5Screate_simple(rank, dims, NULL);
 #ifdef HDF5_FILTERS
                               hdf5_properties = my_H5Pcreate(H5P_DATASET_CREATE);
-                              /* set chunk size */
-                              my_H5Pset_chunk(hdf5_properties, rank, dims);
-                              /* reshuffle bytes to get better compression ratio */
-                              my_H5Pset_shuffle(hdf5_properties);
-                              /* gzip compression level 9 */
-                              my_H5Pset_deflate(hdf5_properties, 9);
-                              /* Fletcher32 checksum on dataset */
-                              my_H5Pset_fletcher32(hdf5_properties);
+                              my_H5Pset_chunk(hdf5_properties, rank, dims); /* set chunk size */
+                              my_H5Pset_shuffle(hdf5_properties);           /* reshuffle bytes to get better compression ratio */
+                              my_H5Pset_deflate(hdf5_properties, 9);        /* gzip compression level 9 */
+                              my_H5Pset_fletcher32(hdf5_properties);        /* Fletcher32 checksum on dataset */
 
                               if(my_H5Pall_filters_avail(hdf5_properties))
                                 hdf5_dataset =
@@ -2100,8 +2131,7 @@ void write_file(const char *fname, const int writeTask, const int lastTask, cons
                   writeTask, lastTask, try_io, alternative_fname);
               myflush(stdout);
             }
-          /* try on a different output directory */
-          fname = alternative_fname;
+          fname = alternative_fname; /* try on a different output directory */
         }
       else
         {
@@ -2358,16 +2388,13 @@ void write_parameters_attributes_in_hdf5(const hid_t handle)
  */
 herr_t my_hdf5_error_handler(void *unused)
 {
-  herr_t result;
 #ifdef TOLERATE_WRITE_ERROR
   if(FlagNyt == 0)
     write_error(2, 0, 0);
-  result = 1;
+  return 1;
 #else
-  result = 0;
+  return 0;
 #endif
-  H5Eprint(stdout);
-  return result;
 }
 
 void write_dataset_attributes(const hid_t hdf5_dataset, const enum iofields blocknr)
@@ -2663,6 +2690,21 @@ void mpi_printf(const char *fmt, ...)
       va_end(l);
     }
 }
+
+void mpi_printf_task(int PrintTask, const char *fmt, ...)
+{
+  if(ThisTask == PrintTask)
+    {
+      va_list l;
+      va_start(l, fmt);
+      vprintf(fmt, l);
+      myflush(stdout);
+      va_end(l);
+    }
+}
+
+
+
 
 /*! \brief A wrapper for the fprintf() function.
  *

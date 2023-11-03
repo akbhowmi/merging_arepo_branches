@@ -28,6 +28,15 @@
 #include "proto.h"
 #include "voronoi.h"
 
+#ifdef MRT
+#include "MRT/RT.h"
+#include "MRT/RT_proto.h"
+#endif
+
+#ifdef LOCAL_FEEDBACK
+#include "local_feedback/local_feedback.h"
+#endif
+
 static void create_end_file(void);
 static void do_second_order_source_terms_first_half(void);
 static void do_second_order_source_terms_second_half(void);
@@ -162,7 +171,6 @@ void run(void)
 
   while(1) /* main loop */
     {
-
       /* if we are starting from restart files, skip in the first iteration the
        * parts until the restart files were written */
       if(RestartFlag != RESTART_RESTART)
@@ -175,6 +183,10 @@ void run(void)
           flush_everything();
 
           create_snapshot_if_desired();
+
+#ifdef PREVENT_SPURIOUS_RESEEDING2
+          GasNeighbor_reset();
+#endif
 
 #ifdef AURIGA_MOVIE
           auriga_movie_check_output();
@@ -208,6 +220,7 @@ void run(void)
 #endif
 
               create_end_file();  // create empty file called end in output directory
+
               break;
             }
 
@@ -219,14 +232,6 @@ void run(void)
 
 #ifdef NUCLEAR_NETWORK_DETONATE_CORE
           detonate_core();
-#endif
-
-#if defined(DM_WINDTUNNEL) && defined(DM_WINDTUNNEL_EXTERNAL_SOURCE)  // dark matter windtunnel - set windtunnel params from wind table
-          interpolate_from_dm_wind_table(All.Time, &All.DMWindtunnelInjectionDensity, &All.DMWindtunnelVY, &All.DMWindtunnelSigmaVY);
-#endif
-
-#ifdef DM_WINDTUNNEL  // dark matter windtunnel - modify particles in injection region
-          apply_windtunnel_bcs();
 #endif
 
 #ifndef OTVET_NOGRAVITY
@@ -289,6 +294,7 @@ void run(void)
 #endif
           /* compute intercell flux with Riemann solver and update the cells with the fluxes */
           compute_interface_fluxes(&Mesh);
+
 #endif
 
 #ifdef BECDM
@@ -321,7 +327,6 @@ void run(void)
           free_mesh();
 #endif
 #endif
-
           /* Check whether we should write a restart file.
            * Note that at this place we do not need to store the mesh, not the gravity tree.
            */
@@ -333,8 +338,8 @@ void run(void)
 
       set_non_standard_physics_for_current_time();
 
-#if defined(VORONOI_STATIC_MESH) && !defined(VORONOI_STATIC_MESH_DO_DOMAIN_DECOMPOSITION)
-      /* may only be used if there is no gravity */
+#if defined(VORONOI_STATIC_MESH) && !defined(VORONOI_STATIC_MESH_DO_DOMAIN_DECOMPOSITION) /* may only be used if there is no gravity \
+                                                                                           */
 #ifndef MRT_SOURCES
       if(NumPart > NumGas)
         do_box_wrapping();
@@ -510,22 +515,10 @@ void do_second_order_source_terms_first_half(void)
 #if defined(MRT) && !defined(MRT_SUBCYCLE)
   mrt_run_sources();
 #endif
-#ifdef SOLAR
-  do_solar_evolution();
-#endif
-#ifdef TURB_APPROX_MCS
-  update_turbulent_energy();
-#endif
 }
 
 void do_second_order_source_terms_second_half(void)
 {
-#ifdef TURB_APPROX_MCS
-  update_turbulent_energy();
-#endif
-#ifdef SOLAR
-  do_solar_evolution();
-#endif
 #if defined(MRT) && !defined(MRT_SUBCYCLE)
   mrt_run_sources();
 #endif
@@ -588,11 +581,6 @@ void set_non_standard_physics_for_current_time(void)
 #ifdef NOH_PROBLEM
   set_special_noh_boundary_conditions();
 #endif
-
-#if defined(SFR_MCS) && \
-    ((defined(SN_MCS) && !defined(SN_MCS_INITIAL_DRIVING)) || (defined(HII_MCS) && !defined(HII_MCS_TEST)) || defined(PE_MCS))
-  update_stellar_ages();
-#endif
 }
 
 /*! \brief Calls extra modules after the gravitational force is recomputed.
@@ -608,10 +596,8 @@ void set_non_standard_physics_for_current_time(void)
 void calculate_non_standard_physics_with_valid_gravity_tree(void)
 {
 #ifdef BLACK_HOLES
-
   blackhole_find_neighboring_holes_and_potmin();
   blackhole_do_mergers();
-
 #ifdef REPOSITION_ON_POTMIN
   blackhole_reposition();
 #endif
@@ -636,7 +622,6 @@ void calculate_non_standard_physics_with_valid_gravity_tree(void)
 #ifdef OTVET
   do_otvet();
 #endif
-
 }
 
 /*! \brief Calls extra modules after the gravitational force is recomputed
@@ -687,13 +672,13 @@ void calculate_non_standard_physics_with_valid_gravity_tree_always(void)
 void calculate_non_standard_physics_prior_mesh_construction(void)
 {
 #ifdef BLACK_HOLES
-
   /* note: we estimate the gas density around the BH before the gravity tree is constructed such
    * that the later gravity tree construction can export current values for the BH_Hsml/BH_U, etc.
    * fields to the Tree_Points array, if needed. These are then later used in (gravity) tree-searches
    * for the local potential minimum and for other BHs nearby that are candidates for BH-mergers.
    */
   blackhole_density();
+
 #ifdef BH_BIPOLAR_FEEDBACK
   blackhole_bipolar();
 #endif
@@ -702,15 +687,83 @@ void calculate_non_standard_physics_prior_mesh_construction(void)
 #endif
 #endif
 
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS
+#if(CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS==0)
+  assign_starforminggas_lyman_werner_intensity();
+#ifdef CHECK_FOR_ENOUGH_GAS_MASS_IN_DCBH_FORMING_POCKETS
+  neighboringDCBHforminggas();
+#endif
+#endif
+#endif
+
 #if defined(FOF) && (defined(BLACK_HOLES) || defined(GFM_WINDS_VARIABLE) || defined(GFM_BIPOLAR_WINDS) || defined(GFM_WINDS_LOCAL))
   /* this will find new black hole seed halos and/or assign host halo masses for the variable wind model */
   if(All.Time >= All.TimeNextOnTheFlyFoF && TimeOfLastDomainConstruction == All.Time)
     {
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_ALL_SOURCES
+      lyman_werner_source_update_list();
+      calc_lyman_werner_intensity_for_stars();
+#endif
+
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_ALL_STARFORMINGGAS
+      lyman_werner_starforminggas_update_list();
+      calc_lyman_werner_intensity_for_starforminggas();
+#endif
+
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_SOURCES
+      assign_stellar_lyman_werner_intensity();
+#endif
+
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS
+#if(CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS==1)
+      assign_starforminggas_lyman_werner_intensity();
+#ifdef CHECK_FOR_ENOUGH_GAS_MASS_IN_DCBH_FORMING_POCKETS
+      neighboringDCBHforminggas();
+#endif
+#endif
+#endif
+
 #if(defined(GFM_WINDS_VARIABLE) && (GFM_WINDS_VARIABLE == 1)) || defined(GFM_WINDS_LOCAL)
+#ifdef CREATE_SUBFOFS
+      All.SubFOF_mode =	0;
+#endif
       fof_fof(-2);
+#ifdef CREATE_SUBFOFS
+      All.SubFOF_mode = 1;
+      fof_fof(-2);
+#endif
 #else
+#ifdef CREATE_SUBFOFS
+      All.SubFOF_mode = 0;
+#endif
+      fof_fof(-1);
+#ifdef CREATE_SUBFOFS
+      All.SubFOF_mode =	1;
       fof_fof(-1);
 #endif
+#endif
+
+//#ifdef CONSTRUCT_FOF_NGBTREE
+//mpi_printf("Starting allocation for ngbtree_fof");
+//ngb_treeallocate_groups();
+//mpi_printf("Building ngbtree_fof with %d groups",Ngroups);
+//ngb_treebuild_groups(Ngroups);
+//mpi_printf("Starting deallocation for ngbtree_fof");
+//ngb_treefree_groups();
+//#endif
+
+
+#ifdef PREVENT_SPURIOUS_RESEEDING2
+      GasNeighbor_reset();
+#endif
+
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_SOURCES
+      reset_stellar_lyman_werner_intensity();
+#endif
+
+////#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS
+////      reset_starforminggas_lyman_werner_intensity();
+////#endif
 
       if(All.ComovingIntegrationOn)
         All.TimeNextOnTheFlyFoF *= All.TimeBetOnTheFlyFoF;
@@ -757,12 +810,7 @@ void calculate_non_standard_physics_prior_mesh_construction(void)
   check_AuxDataID_references();
 #endif
 
-#ifdef SFR_MCS_CHECKS
-  check_AuxDataID_references_mcs();
-#endif
-
-//#if defined(BLACK_HOLES) && !defined(BH_BASED_CGM_ZOOM)
-#ifdef BLACK_HOLES
+#if defined(BLACK_HOLES) && !defined(BH_BASED_CGM_ZOOM)
   blackhole_accretion();
 #endif
 
@@ -809,6 +857,9 @@ void calculate_non_standard_physics_prior_mesh_construction(void)
   create_star_particles(); /* call this even if star particles are not activated to print information to log file */
 #endif
 #endif
+
+
+
 
 #ifdef COSMIC_RAYS
 #ifdef COSMIC_RAYS_SN_INJECTION
@@ -927,8 +978,8 @@ void calculate_non_standard_physics_end_of_step(void)
 #endif
 
 #ifdef MONOTONE_CONDUCTION
-  mpi_printf("CONDUCTION: EndStep = %llu\tCurrentStep = %llu\n", (long long)All.Conduction_Ti_endstep, (long long)All.Ti_Current);
-  if(All.Conduction_Ti_endstep == All.Ti_Current)
+  mpi_printf("CONDUCTION: EndStep = %llu\tCurrentStep = %llu\n", (long long)All.conduction_Ti_endstep, (long long)All.Ti_Current);
+  if(All.conduction_Ti_endstep == All.Ti_Current)
     {
       if(All.ComovingIntegrationOn)
         {
@@ -942,7 +993,7 @@ void calculate_non_standard_physics_end_of_step(void)
     }
   else
     mpi_printf("CONDUCTION: Nothing to do on this timestep, begin=%llu, end=%llu, current=%llu\n",
-               (long long)All.Conduction_Ti_begstep, (long long)All.Conduction_Ti_endstep, (long long)All.Ti_Current);
+               (long long)All.conduction_Ti_begstep, (long long)All.conduction_Ti_endstep, (long long)All.Ti_Current);
 #endif
 
 #ifdef IMPLICIT_OHMIC_DIFFUSION
@@ -969,6 +1020,10 @@ void calculate_non_standard_physics_end_of_step(void)
   ADM_cooling();
 #endif
 
+#ifdef SN_MCS
+  do_supernovae();
+#endif
+
 #ifdef COOLING
 #ifdef USE_SFR
 #ifdef RADCOOL
@@ -980,6 +1035,7 @@ void calculate_non_standard_physics_end_of_step(void)
 #ifndef MRT_LOCAL_FEEDBACK
   cooling_and_starformation();
 #endif
+
 #endif
 #else
 #ifdef RADCOOL
@@ -1008,7 +1064,7 @@ void calculate_non_standard_physics_end_of_step(void)
 #endif
 #endif
 
-#if defined(BLACK_HOLES) && (defined(BH_ADIOS_WIND) || defined(BH_FAST_WIND))
+#if defined(BLACK_HOLES) && defined(BH_ADIOS_WIND)
   blackhole_update_wind_affected_cells();
 #endif
 
@@ -1106,10 +1162,6 @@ void calculate_non_standard_physics_end_of_step(void)
 
   mpi_printf("RUN: Back from SNE routines!!!\n");
 
-#endif
-
-#if defined(SN_MCS) || defined(HII_MCS) || defined(PE_MCS)
-  do_stellar_feedback();
 #endif
 
 #ifdef SINK_PHOTOION_FEEDBACK
@@ -1211,7 +1263,6 @@ int check_for_interruption_of_run(void)
       restart(RESTART_MODUS_WRITE); /* write an occasional restart file */
       stopflag = 0;
     }
-
   return 0;
 }
 
@@ -1234,7 +1285,7 @@ integertime find_next_outputtime(integertime ti_curr)
     mode = 1;
 #endif
 
-  DumpFlagNextSnap = DUMP_BOTH;
+  DumpFlagNextSnap = 1;
   ti_next          = -1;
 
   if(All.OutputListOn)

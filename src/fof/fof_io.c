@@ -59,6 +59,14 @@ void fof_save_groups(const int num)
 
   CommBuffer = mymalloc("CommBuffer", COMMBUFFERSIZE);
 
+  if(NTask < All.NumFilesPerSnapshot)
+    {
+      warn(
+          "Number of processors must be larger or equal than All.NumFilesPerSnapshot! Reducing All.NumFilesPerSnapshot "
+          "accordingly.\n");
+      All.NumFilesPerSnapshot = NTask;
+    }
+
   if(All.SnapFormat < SNAP_FORMAT_GADGET || All.SnapFormat > SNAP_FORMAT_HDF5)
     mpi_printf("Unsupported File-Format. All.SnapFormat=%d\n", All.SnapFormat);
 
@@ -74,16 +82,42 @@ void fof_save_groups(const int num)
     {
       if(ThisTask == 0)
         {
-          file_path_sprintf(buf, "%s/groups_%03d", All.OutputDir, num);
-          mkdir(buf, MKDIR_MODE);
+#ifdef CREATE_SUBFOFS
+         if (All.SubFOF_mode == 0)
+          {
+#endif         
+             file_path_sprintf(buf, "%s/groups_%03d", All.OutputDir, num);
+             mkdir(buf, MKDIR_MODE);
+#ifdef CREATE_SUBFOFS
+          }
+         else
+          {
+             file_path_sprintf(buf, "%s/groups_sub_%03d", All.OutputDir, num);
+             mkdir(buf, MKDIR_MODE);
+          }
+#endif
+
         }
       MPI_Barrier(MPI_COMM_WORLD);
     }
-
-  if(All.NumFilesPerSnapshot > 1)
-    file_path_sprintf(buf, "%s/groups_%03d/fof_tab_%03d.%d", All.OutputDir, num, num, filenr);
+#ifdef CREATE_SUBFOFS
+  if (All.SubFOF_mode == 0)
+   {
+#endif
+     if(All.NumFilesPerSnapshot > 1)
+        file_path_sprintf(buf, "%s/groups_%03d/fof_tab_%03d.%d", All.OutputDir, num, num, filenr);
+     else
+        file_path_sprintf(buf, "%s/fof_tab_%03d", All.OutputDir, num);
+#ifdef CREATE_SUBFOFS
+   }
   else
-    file_path_sprintf(buf, "%s/fof_tab_%03d", All.OutputDir, num);
+   {
+     if(All.NumFilesPerSnapshot > 1)
+        file_path_sprintf(buf, "%s/groups_sub_%03d/fof_sub_tab_%03d.%d", All.OutputDir, num, num, filenr);
+     else
+        file_path_sprintf(buf, "%s/fof_sub_tab_%03d", All.OutputDir, num);
+   }
+#endif
 
   ngrps = All.NumFilesPerSnapshot / All.NumFilesWrittenInParallel;
   if((All.NumFilesPerSnapshot % All.NumFilesWrittenInParallel))
@@ -495,12 +529,13 @@ void fof_subfind_write_file(const char *const fname, const int writeTask, const 
  */
 void fof_subfind_fill_write_buffer(const enum fof_subfind_iofields blocknr, const int startindex, const int pc)
 {
-  MyOutputFloat *fp = (MyOutputFloat *)CommBuffer;
-  int *ip           = (int *)CommBuffer;
-#if defined(FOF_STOREIDS) || defined(SUBFIND)
-  MyIDType *idp = (MyIDType *)CommBuffer;
-#endif
+  int n, k, pindex, *ip;
+  MyOutputFloat *fp;
+  MyIDType *idp;
 
+  fp  = (MyOutputFloat *)CommBuffer;
+  ip  = (int *)CommBuffer;
+  idp = (MyIDType *)CommBuffer;
 #ifdef FOF_FUZZ_SORT_BY_NEAREST_GROUP
   unsigned long long *llp = (unsigned long long *)CommBuffer;
 #endif
@@ -515,6 +550,12 @@ void fof_subfind_fill_write_buffer(const enum fof_subfind_iofields blocknr, cons
           case IO_FOF_MTOT:
             *fp++ = Group[pindex].Mass;
             break;
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+          case IO_FOF_MTOT2:
+            *fp++ = Group2[pindex].Mass;
+            break;
+#endif
+
           case IO_FOF_POS:
             for(int k = 0; k < 3; k++)
 #ifdef SUBFIND
@@ -528,11 +569,16 @@ void fof_subfind_fill_write_buffer(const enum fof_subfind_iofields blocknr, cons
               *fp++ = wrap_position_shift(Group[pindex].CM[k], k);
             break;
           case IO_FOF_POSMINPOT:
-#if defined(GFM_BIPOLAR_WINDS) && (GFM_BIPOLAR_WINDS == 3)
-            for(int k = 0; k < 3; k++)
-              *fp++ = Group[pindex].Pos_MinPotential[k];
+#if defined(CALCULATE_SPIN_STARFORMINGGAS) || (defined(GFM_BIPOLAR_WINDS) && (GFM_BIPOLAR_WINDS == 3))
+            for(k = 0; k < 3; k++)
+              *fp++ = wrap_position_shift(Group[pindex].Pos_MinPotential[k], k);
 #endif
             break;
+#ifdef CALCULATE_SPIN_STARFORMINGGAS
+          case IO_FOF_RVIRESTIMATE:
+            *fp++ = Group[pindex].RvirEstimate;
+            break;
+#endif
           case IO_FOF_VEL:
             for(int k = 0; k < 3; k++)
               *fp++ = Group[pindex].Vel[k];
@@ -604,6 +650,131 @@ void fof_subfind_fill_write_buffer(const enum fof_subfind_iofields blocknr, cons
             *fp++ = Group[pindex].BH_Mdot;
 #endif
             break;
+#ifdef BLACK_HOLES
+#ifdef PREVENT_SPURIOUS_RESEEDING
+          case IO_FOF_TOTALGASSEEDMASS:
+            *fp++ = Group[pindex].TotalGasSeedMass;
+            break;
+#endif
+#ifdef OUTPUT_LOG_FILES_FOR_SEEDING
+          case IO_FOF_STARFORMINGGASMASS:
+            *fp++ = Group[pindex].StarFormingGasMass;
+            break;
+          case IO_FOF_STARFORMINGGASMETALLICITY:
+            *fp++ = Group[pindex].StarFormingGasMassMetallicity/Group[pindex].StarFormingGasMass;
+            break;
+          case IO_FOF_STARFORMINGMETALFREEGASMASS:
+            *fp++ = Group[pindex].StarFormingMetalFreeGasMass;
+            break;
+#endif
+
+#if defined(CREATE_SUBFOFS) && defined(SEED_HALO_ENVIRONMENT_CRITERION) 
+          case IO_FOF_HOSTHALOMASS:
+            *fp++ = Group2[pindex].HostHaloMass;
+            break;
+#endif
+
+#ifdef CHECK_FOR_ENOUGH_GAS_MASS_IN_DCBH_FORMING_POCKETS
+          case IO_FOF_MAX_NEIGHBORING_DCBH_FORMING_GASMASS:
+            *fp++ = Group[pindex].MaxNeighboringDCBHFormingGasMass;
+            break;
+#endif
+
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_ALL_SOURCES
+          case IO_FOF_LYMANWERNERINTENSITYALLSOURCES_TYPE2:
+            *fp++ = Group[pindex].LymanWernerIntensityAllSources_maxdens_type2;
+            break;
+          case IO_FOF_LYMANWERNERINTENSITYALLSOURCES_TYPE3:
+            *fp++ = Group[pindex].LymanWernerIntensityAllSources_maxdens_type3;
+            break;
+#endif
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_SOURCES
+          case IO_FOF_LYMANWERNERINTENSITYLOCALSOURCES_TYPE2:
+            *fp++ = Group[pindex].LymanWernerIntensityLocalSources_maxdens_type2;
+            break;
+          case IO_FOF_LYMANWERNERINTENSITYLOCALSOURCES_TYPE3:
+            *fp++ = Group[pindex].LymanWernerIntensityLocalSources_maxdens_type3;
+            break;
+#endif
+
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS
+          case IO_FOF_LYMANWERNERINTENSITYLOCALSTARFORMINGGAS_TYPE2:
+            *fp++ = Group[pindex].LymanWernerIntensityLocalStarFormingGas_maxdens_type2;
+            break;
+          case IO_FOF_LYMANWERNERINTENSITYLOCALSTARFORMINGGAS_TYPE3:
+            *fp++ = Group[pindex].LymanWernerIntensityLocalStarFormingGas_maxdens_type3;
+            break;
+          case IO_FOF_MAXLYMANWERNERINTENSITYINDENSEMETALPOORGAS:
+            *fp++ = Group[pindex].MaxLymanWernerIntensityInDenseMetalPoorGas;
+            break;
+          case IO_FOF_STARFORMINGMETALFREELYMANWERNERGASMASS:
+            *fp++ = Group[pindex].StarFormingMetalFreeLymanWernerGasMass;
+            break;
+          case IO_FOF_LYMANWERNERGASMASS:
+            *fp++ = Group[pindex].LymanWernerGasMass;
+            break;
+#endif
+
+#ifdef OUTPUT_LOG_FILES_FOR_SEEDING
+          case IO_FOF_METALLICITY_MAXDENS:
+            *fp++ = Group[pindex].Metallicity_maxdens;
+            break;
+#endif
+
+#ifdef SEED_BASED_ON_PROBABLISTIC_HALO_PROPERTIES
+#ifdef PROBABILISTIC_SEED_MASS_HALO_MASS_RATIO_CRITERION
+          case IO_FOF_RANDOMMINHALOMASSFORSEEDING_MAXDENS:
+            *fp++ = Group[pindex].RandomMinHaloMassForSeeding_maxdens;
+            break;
+#endif
+#ifdef EVOLVING_SEEDING_PROBABILITY
+          case IO_FOF_SECONDRANDOMNUMBERFORSEEDING_AVERAGE:
+            *fp++ = Group[pindex].SecondRandomNumberForSeeding_maxdens;
+            break;
+#endif
+#endif
+          case IO_FOF_COULDHAVEBEENABLACKHOLE_SUM:
+            *ip++ = Group[pindex].CouldHaveBeenABlackHole_sum;
+            break;
+
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+//#ifdef(PTYPE_USED_FOR_ENVIRONMENT_BASED_SEEDING == 0)
+//          case IO_FOF_ISTHISTHEDENSESTCELL_SUM:
+//            *ip++ = Group2[pindex].IsThisTheDensestCell_sum;
+//            break;
+//#else
+//          case IO_FOF_ISTHISTHEMINPOTENTIAL_SUM:
+//            *ip++ = Group2[pindex].IsThisTheMinPotential_sum;
+//            break;
+//#endif
+          case IO_FOF_NUMBEROFMAJORNEIGHBORS:
+            *ip++ = Group2[pindex].NumberOfMajorNeighbors;
+            break;
+#endif
+
+
+
+#ifdef CALCULATE_SPIN_STARFORMINGGAS
+          case IO_FOF_SPIN_STARFORMINGGAS:
+            *fp++ = Group[pindex].DensGasDimensionlessSpin;
+            break;
+
+          case IO_FOF_SPIN_STARFORMINGGAS_MAX:
+            *fp++ = Group[pindex].DensGasDimensionlessSpin_Max;
+            break;
+
+          case IO_FOF_TEMPERATURE:
+            *fp++ = Group[pindex].MeanTemperature;
+            break;
+
+          case IO_FOF_VIRIAL_TEMPERATURE:
+            *fp++ = Group[pindex].VirialTemperature;
+            break;
+#endif
+
+
+
+#endif
           case IO_FOF_WINDMASS:
 #ifdef GFM_WINDS
             *fp++ = Group[pindex].WindMass;
@@ -1101,8 +1272,8 @@ void fof_subfind_fill_write_buffer(const enum fof_subfind_iofields blocknr, cons
 #endif
             break;
           case IO_FOF_DENSLVEC:
-#if defined(GFM_BIPOLAR_WINDS) && (GFM_BIPOLAR_WINDS == 3)
-            for(int k = 0; k < 3; k++)
+#if (defined(CALCULATE_SPIN_STARFORMINGGAS)) || (defined(GFM_BIPOLAR_WINDS) && (GFM_BIPOLAR_WINDS == 3))
+            for(k = 0; k < 3; k++)
               *fp++ = Group[pindex].DensGasAngMomentum[k];
 #endif
             break;
@@ -1241,6 +1412,25 @@ void fof_subfind_fill_write_buffer(const enum fof_subfind_iofields blocknr, cons
             *fp++ = SubGroup[pindex].Sfr;
 #endif
             break;
+
+#ifdef SEED_BLACKHOLES_IN_SUBHALOS
+          case IO_SUB_MAXDENS:
+            *fp++ = SubGroup[pindex].maxdens;
+          break;
+          case IO_SUB_INDEXMAXDENS:
+       	    *ip++ = SubGroup[pindex].index_maxdens;
+          break;
+          case IO_SUB_TASKMAXDENS:
+            *ip++ = SubGroup[pindex].task_maxdens;
+          break;
+          case IO_SUB_SFRMAXDENS:
+            *fp++ = SubGroup[pindex].sfr_maxdens;
+          break;
+#endif
+
+
+
+
           case IO_SUB_SFRINRAD:
 #if defined(USE_SFR) && defined(SUBFIND)
             *fp++ = SubGroup[pindex].SfrInRad;
@@ -1512,6 +1702,11 @@ void fof_subfind_get_dataset_name(const enum fof_subfind_iofields blocknr, char 
       case IO_FOF_MTOT:
         strcpy(label, "GroupMass");
         break;
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+      case IO_FOF_MTOT2:
+        strcpy(label, "GroupMass2");
+        break;
+#endif
       case IO_FOF_POS:
         strcpy(label, "GroupPos");
         break;
@@ -1554,6 +1749,125 @@ void fof_subfind_get_dataset_name(const enum fof_subfind_iofields blocknr, char 
       case IO_FOF_BHMDOT:
         strcpy(label, "GroupBHMdot");
         break;
+#ifdef BLACK_HOLES
+#ifdef PREVENT_SPURIOUS_RESEEDING
+      case IO_FOF_TOTALGASSEEDMASS:
+        strcpy(label, "GroupTotalGasSeedMass");
+        break;
+#endif
+#ifdef OUTPUT_LOG_FILES_FOR_SEEDING
+      case IO_FOF_STARFORMINGGASMASS:
+        strcpy(label, "GroupStarFormingGasMass");
+        break;
+      case IO_FOF_STARFORMINGGASMETALLICITY:
+        strcpy(label, "GroupStarFormingGasMetallicity");
+        break;
+      case IO_FOF_STARFORMINGMETALFREEGASMASS:
+        strcpy(label, "GroupStarFormingMetalFreeGasMass");
+        break;
+#endif
+
+#if defined(CREATE_SUBFOFS) && defined(SEED_HALO_ENVIRONMENT_CRITERION)
+      case IO_FOF_HOSTHALOMASS:
+        strcpy(label, "GroupHostHaloMass");
+        break;
+#endif
+
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_SOURCES
+      case IO_FOF_LYMANWERNERINTENSITYLOCALSOURCES_TYPE2:
+        strcpy(label, "GroupLymanWernerIntensityLocalSources_maxdens_type2");
+        break;
+      case IO_FOF_LYMANWERNERINTENSITYLOCALSOURCES_TYPE3:
+        strcpy(label, "GroupLymanWernerIntensityLocalSources_maxdens_type3");
+        break;
+#endif
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS
+      case IO_FOF_LYMANWERNERINTENSITYLOCALSTARFORMINGGAS_TYPE2:
+        strcpy(label, "GroupLymanWernerIntensityLocalStarFormingGas_maxdens_type2");
+        break;
+      case IO_FOF_LYMANWERNERINTENSITYLOCALSTARFORMINGGAS_TYPE3:
+        strcpy(label, "GroupLymanWernerIntensityLocalStarFormingGas_maxdens_type3");
+        break;
+      case IO_FOF_MAXLYMANWERNERINTENSITYINDENSEMETALPOORGAS:
+        strcpy(label, "GroupMaxLymanWernerIntensityInDenseMetalPoorGas");
+        break;
+      case IO_FOF_STARFORMINGMETALFREELYMANWERNERGASMASS:
+        strcpy(label, "GroupStarFormingMetalFreeLymanWernerGasMass");
+        break;
+      case IO_FOF_LYMANWERNERGASMASS:
+        strcpy(label, "GroupLymanWernerGasMass");
+        break;
+#endif
+
+#ifdef OUTPUT_LOG_FILES_FOR_SEEDING
+      case IO_FOF_METALLICITY_MAXDENS:
+        strcpy(label, "GroupMetallicityMaxdens");
+        break;
+#endif
+
+#ifdef SEED_BASED_ON_PROBABLISTIC_HALO_PROPERTIES
+#ifdef PROBABILISTIC_SEED_MASS_HALO_MASS_RATIO_CRITERION
+      case IO_FOF_RANDOMMINHALOMASSFORSEEDING_MAXDENS:
+        strcpy(label, "GroupRandomMinHaloMassForSeedingMaxdens");
+        break;
+#endif
+
+#ifdef EVOLVING_SEEDING_PROBABILITY                     
+       case IO_FOF_SECONDRANDOMNUMBERFORSEEDING_AVERAGE:
+       strcpy(label, "GroupSecondRandomNumberForSeedingAverage");
+       break;
+#endif
+#endif
+
+      case IO_FOF_COULDHAVEBEENABLACKHOLE_SUM:
+      strcpy(label, "GroupCouldHaveBeenABlackHole_sum");
+      break;
+
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+//      case IO_FOF_ISTHISTHEMINPOTENTIAL_SUM:
+//      strcpy(label, "GroupIsThisTheMinPotential_sum");
+//      break;
+
+      case IO_FOF_NUMBEROFMAJORNEIGHBORS:
+      strcpy(label, "GroupNumberOfMajorNeighbors");
+      break;
+#endif
+
+
+#ifdef CHECK_FOR_ENOUGH_GAS_MASS_IN_DCBH_FORMING_POCKETS
+        case IO_FOF_MAX_NEIGHBORING_DCBH_FORMING_GASMASS:
+        strcpy(label, "MaxNeighboringDCBHFormingGasMass");
+        break;
+#endif
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_ALL_SOURCES
+      case IO_FOF_LYMANWERNERINTENSITYALLSOURCES_TYPE2:
+        strcpy(label, "GroupLymanWernerIntensityAllSources_maxdens_type2");
+        break;
+      case IO_FOF_LYMANWERNERINTENSITYALLSOURCES_TYPE3:
+        strcpy(label, "GroupLymanWernerIntensityAllSources_maxdens_type3");
+        break;
+#endif
+
+#ifdef CALCULATE_SPIN_STARFORMINGGAS
+      case IO_FOF_SPIN_STARFORMINGGAS:
+        strcpy(label, "GroupDensGasDimensionlessSpin");
+        break;
+      case IO_FOF_SPIN_STARFORMINGGAS_MAX:
+        strcpy(label, "GroupDensGasDimensionlessSpinMax");
+        break;
+      case IO_FOF_TEMPERATURE:
+        strcpy(label, "GroupMeanTemperature");
+        break;
+      case IO_FOF_VIRIAL_TEMPERATURE:
+        strcpy(label, "GroupVirialTemperature");
+        break;
+#endif
+#ifdef CALCULATE_SPIN_STARFORMINGGAS
+      case IO_FOF_RVIRESTIMATE:
+        strcpy(label, "GroupRvirEstimate");
+        break;
+#endif
+#endif
       case IO_FOF_WINDMASS:
         strcpy(label, "GroupWindMass");
         break;
@@ -1902,6 +2216,20 @@ void fof_subfind_get_dataset_name(const enum fof_subfind_iofields blocknr, char 
       case IO_SUB_SFR:
         strcpy(label, "SubhaloSFR");
         break;
+#ifdef SEED_BLACKHOLES_IN_SUBHALOS
+      case IO_SUB_MAXDENS:
+        strcpy(label, "SubhaloMaxDens");
+        break;      
+      case IO_SUB_INDEXMAXDENS:
+        strcpy(label, "SubhaloIndexMaxDens");
+        break;
+      case IO_SUB_TASKMAXDENS:
+        strcpy(label, "SubhaloTaskMaxDens");
+        break;
+      case IO_SUB_SFRMAXDENS:
+        strcpy(label, "SubhaloSfrMaxDens");
+        break;
+#endif
       case IO_SUB_SFRINRAD:
         strcpy(label, "SubhaloSFRinRad");
         break;
@@ -2017,6 +2345,9 @@ int fof_subfind_get_dataset_group(const enum fof_subfind_iofields blocknr)
     {
       case IO_FOF_LEN:
       case IO_FOF_MTOT:
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+      case IO_FOF_MTOT2:
+#endif
       case IO_FOF_POS:
       case IO_FOF_CM:
       case IO_FOF_POSMINPOT:
@@ -2031,6 +2362,70 @@ int fof_subfind_get_dataset_group(const enum fof_subfind_iofields blocknr)
       case IO_FOF_GASDUSTMETAL:
       case IO_FOF_BHMASS:
       case IO_FOF_BHMDOT:
+#ifdef BLACK_HOLES
+#ifdef PREVENT_SPURIOUS_RESEEDING
+      case IO_FOF_TOTALGASSEEDMASS:
+#endif
+#ifdef OUTPUT_LOG_FILES_FOR_SEEDING
+      case IO_FOF_STARFORMINGGASMASS: 
+      case IO_FOF_STARFORMINGGASMETALLICITY:
+      case IO_FOF_STARFORMINGMETALFREEGASMASS:
+#endif
+
+#if defined(CREATE_SUBFOFS) && defined(SEED_HALO_ENVIRONMENT_CRITERION)
+      case IO_FOF_HOSTHALOMASS:
+#endif
+
+#ifdef CHECK_FOR_ENOUGH_GAS_MASS_IN_DCBH_FORMING_POCKETS
+      case IO_FOF_MAX_NEIGHBORING_DCBH_FORMING_GASMASS:
+#endif
+
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_ALL_SOURCES 
+      case IO_FOF_LYMANWERNERINTENSITYALLSOURCES_TYPE2:
+      case IO_FOF_LYMANWERNERINTENSITYALLSOURCES_TYPE3:
+#endif
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_SOURCES
+      case IO_FOF_LYMANWERNERINTENSITYLOCALSOURCES_TYPE2:
+      case IO_FOF_LYMANWERNERINTENSITYLOCALSOURCES_TYPE3:
+#endif
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS
+      case IO_FOF_LYMANWERNERINTENSITYLOCALSTARFORMINGGAS_TYPE2:
+      case IO_FOF_LYMANWERNERINTENSITYLOCALSTARFORMINGGAS_TYPE3:
+      case IO_FOF_MAXLYMANWERNERINTENSITYINDENSEMETALPOORGAS:
+      case IO_FOF_STARFORMINGMETALFREELYMANWERNERGASMASS:
+      case IO_FOF_LYMANWERNERGASMASS:
+#endif
+
+#ifdef OUTPUT_LOG_FILES_FOR_SEEDING
+      case IO_FOF_METALLICITY_MAXDENS:
+#endif
+
+#ifdef SEED_BASED_ON_PROBABLISTIC_HALO_PROPERTIES
+#ifdef PROBABILISTIC_SEED_MASS_HALO_MASS_RATIO_CRITERION
+      case IO_FOF_RANDOMMINHALOMASSFORSEEDING_MAXDENS:
+#endif
+#ifdef EVOLVING_SEEDING_PROBABILITY
+       case IO_FOF_SECONDRANDOMNUMBERFORSEEDING_AVERAGE:
+#endif
+#endif
+
+      case IO_FOF_COULDHAVEBEENABLACKHOLE_SUM:
+
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+//      case IO_FOF_ISTHISTHEMINPOTENTIAL_SUM:
+      case IO_FOF_NUMBEROFMAJORNEIGHBORS:
+#endif
+
+#ifdef CALCULATE_SPIN_STARFORMINGGAS
+      case IO_FOF_SPIN_STARFORMINGGAS:
+      case IO_FOF_SPIN_STARFORMINGGAS_MAX:
+      case IO_FOF_TEMPERATURE:
+      case IO_FOF_VIRIAL_TEMPERATURE:
+#endif
+#ifdef CALCULATE_SPIN_STARFORMINGGAS
+      case IO_FOF_RVIRESTIMATE:
+#endif
+#endif
       case IO_FOF_WINDMASS:
       case IO_FOF_M_MEAN200:
       case IO_FOF_R_MEAN200:
@@ -2101,7 +2496,6 @@ int fof_subfind_get_dataset_group(const enum fof_subfind_iofields blocknr)
       case IO_FOF_EKIN_CRIT500:
       case IO_FOF_ETHR_CRIT500:
 #endif
-
         return 0;
 
       case IO_SUB_LEN:
@@ -2129,6 +2523,12 @@ int fof_subfind_get_dataset_group(const enum fof_subfind_iofields blocknr)
       case IO_SUB_BFLD_HALO:
       case IO_SUB_BFLD_DISK:
       case IO_SUB_SFR:
+#ifdef SEED_BLACKHOLES_IN_SUBHALOS
+      case IO_SUB_MAXDENS:
+      case IO_SUB_INDEXMAXDENS:
+      case IO_SUB_TASKMAXDENS:
+      case IO_SUB_SFRMAXDENS:
+#endif
       case IO_SUB_SFRINRAD:
       case IO_SUB_SFRINHALFRAD:
       case IO_SUB_SFRINMAXRAD:
@@ -2209,6 +2609,9 @@ int fof_subfind_get_particles_in_block(enum fof_subfind_iofields blocknr)
     {
       case IO_FOF_LEN:
       case IO_FOF_MTOT:
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+      case IO_FOF_MTOT2:
+#endif
       case IO_FOF_POS:
       case IO_FOF_CM:
       case IO_FOF_POSMINPOT:
@@ -2223,6 +2626,66 @@ int fof_subfind_get_particles_in_block(enum fof_subfind_iofields blocknr)
       case IO_FOF_GASDUSTMETAL:
       case IO_FOF_BHMASS:
       case IO_FOF_BHMDOT:
+#ifdef BLACK_HOLES
+#ifdef PREVENT_SPURIOUS_RESEEDING
+      case IO_FOF_TOTALGASSEEDMASS:
+#endif
+#ifdef OUTPUT_LOG_FILES_FOR_SEEDING
+      case IO_FOF_STARFORMINGGASMASS:
+      case IO_FOF_STARFORMINGGASMETALLICITY:
+      case IO_FOF_STARFORMINGMETALFREEGASMASS:
+#endif
+#if defined(CREATE_SUBFOFS) && defined(SEED_HALO_ENVIRONMENT_CRITERION)
+      case IO_FOF_HOSTHALOMASS:
+#endif
+#ifdef CHECK_FOR_ENOUGH_GAS_MASS_IN_DCBH_FORMING_POCKETS
+      case IO_FOF_MAX_NEIGHBORING_DCBH_FORMING_GASMASS:
+#endif
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_ALL_SOURCES
+      case IO_FOF_LYMANWERNERINTENSITYALLSOURCES_TYPE2:
+      case IO_FOF_LYMANWERNERINTENSITYALLSOURCES_TYPE3:
+#endif
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_SOURCES
+      case IO_FOF_LYMANWERNERINTENSITYLOCALSOURCES_TYPE2:
+      case IO_FOF_LYMANWERNERINTENSITYLOCALSOURCES_TYPE3:
+#endif
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS
+      case IO_FOF_LYMANWERNERINTENSITYLOCALSTARFORMINGGAS_TYPE2:
+      case IO_FOF_LYMANWERNERINTENSITYLOCALSTARFORMINGGAS_TYPE3:
+      case IO_FOF_MAXLYMANWERNERINTENSITYINDENSEMETALPOORGAS:
+      case IO_FOF_STARFORMINGMETALFREELYMANWERNERGASMASS:
+      case IO_FOF_LYMANWERNERGASMASS:
+#endif
+#ifdef OUTPUT_LOG_FILES_FOR_SEEDING
+      case IO_FOF_METALLICITY_MAXDENS:
+#endif
+
+#ifdef SEED_BASED_ON_PROBABLISTIC_HALO_PROPERTIES
+#ifdef PROBABILISTIC_SEED_MASS_HALO_MASS_RATIO_CRITERION
+      case IO_FOF_RANDOMMINHALOMASSFORSEEDING_MAXDENS:
+#endif
+#ifdef EVOLVING_SEEDING_PROBABILITY
+       case IO_FOF_SECONDRANDOMNUMBERFORSEEDING_AVERAGE:
+#endif
+#endif
+
+      case IO_FOF_COULDHAVEBEENABLACKHOLE_SUM:
+
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+//      case IO_FOF_ISTHISTHEMINPOTENTIAL_SUM:
+      case IO_FOF_NUMBEROFMAJORNEIGHBORS:
+#endif
+
+#ifdef CALCULATE_SPIN_STARFORMINGGAS
+      case IO_FOF_SPIN_STARFORMINGGAS:
+      case IO_FOF_SPIN_STARFORMINGGAS_MAX:
+      case IO_FOF_TEMPERATURE:
+      case IO_FOF_VIRIAL_TEMPERATURE:
+#endif
+#ifdef CALCULATE_SPIN_STARFORMINGGAS
+      case IO_FOF_RVIRESTIMATE:
+#endif
+#endif
       case IO_FOF_WINDMASS:
       case IO_FOF_FUZZOFFTYPE:
       case IO_FOF_RADIOLUM:
@@ -2328,6 +2791,12 @@ int fof_subfind_get_particles_in_block(enum fof_subfind_iofields blocknr)
       case IO_SUB_BFLD_HALO:
       case IO_SUB_BFLD_DISK:
       case IO_SUB_SFR:
+#ifdef SEED_BLACKHOLES_IN_SUBHALOS
+      case IO_SUB_MAXDENS:
+      case IO_SUB_INDEXMAXDENS:
+      case IO_SUB_TASKMAXDENS:
+      case IO_SUB_SFRMAXDENS:
+#endif
       case IO_SUB_SFRINRAD:
       case IO_SUB_SFRINHALFRAD:
       case IO_SUB_SFRINMAXRAD:
@@ -2421,12 +2890,76 @@ int fof_subfind_get_values_per_blockelement(const enum fof_subfind_iofields bloc
       case IO_SUB_GRNR:
       case IO_SUB_PARENT:
       case IO_FOF_MTOT:
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+      case IO_FOF_MTOT2:
+#endif
       case IO_FOF_SFR:
       case IO_FOF_GASMETAL:
       case IO_FOF_STARMETAL:
       case IO_FOF_GASDUSTMETAL:
       case IO_FOF_BHMASS:
       case IO_FOF_BHMDOT:
+#ifdef BLACK_HOLES
+#ifdef PREVENT_SPURIOUS_RESEEDING
+      case IO_FOF_TOTALGASSEEDMASS:
+#endif
+#ifdef OUTPUT_LOG_FILES_FOR_SEEDING
+      case IO_FOF_STARFORMINGGASMASS:
+      case IO_FOF_STARFORMINGGASMETALLICITY:
+      case IO_FOF_STARFORMINGMETALFREEGASMASS:
+#endif
+#if defined(CREATE_SUBFOFS) && defined(SEED_HALO_ENVIRONMENT_CRITERION)
+      case IO_FOF_HOSTHALOMASS:
+#endif
+#ifdef CHECK_FOR_ENOUGH_GAS_MASS_IN_DCBH_FORMING_POCKETS
+      case IO_FOF_MAX_NEIGHBORING_DCBH_FORMING_GASMASS:
+#endif
+
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_ALL_SOURCES
+      case IO_FOF_LYMANWERNERINTENSITYALLSOURCES_TYPE2:
+      case IO_FOF_LYMANWERNERINTENSITYALLSOURCES_TYPE3:
+#endif
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_SOURCES
+      case IO_FOF_LYMANWERNERINTENSITYLOCALSOURCES_TYPE2:
+      case IO_FOF_LYMANWERNERINTENSITYLOCALSOURCES_TYPE3:
+#endif
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS
+      case IO_FOF_LYMANWERNERINTENSITYLOCALSTARFORMINGGAS_TYPE2:
+      case IO_FOF_LYMANWERNERINTENSITYLOCALSTARFORMINGGAS_TYPE3:
+      case IO_FOF_MAXLYMANWERNERINTENSITYINDENSEMETALPOORGAS:
+      case IO_FOF_STARFORMINGMETALFREELYMANWERNERGASMASS:
+      case IO_FOF_LYMANWERNERGASMASS:
+#endif
+#ifdef OUTPUT_LOG_FILES_FOR_SEEDING
+      case IO_FOF_METALLICITY_MAXDENS:
+#endif
+
+#ifdef SEED_BASED_ON_PROBABLISTIC_HALO_PROPERTIES 
+#ifdef PROBABILISTIC_SEED_MASS_HALO_MASS_RATIO_CRITERION
+      case IO_FOF_RANDOMMINHALOMASSFORSEEDING_MAXDENS:
+#endif
+#ifdef EVOLVING_SEEDING_PROBABILITY
+       case IO_FOF_SECONDRANDOMNUMBERFORSEEDING_AVERAGE:
+#endif	
+#endif
+
+      case IO_FOF_COULDHAVEBEENABLACKHOLE_SUM:
+
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+//      case IO_FOF_ISTHISTHEMINPOTENTIAL_SUM:
+      case IO_FOF_NUMBEROFMAJORNEIGHBORS:
+#endif
+
+#ifdef CALCULATE_SPIN_STARFORMINGGAS
+      case IO_FOF_SPIN_STARFORMINGGAS:
+      case IO_FOF_SPIN_STARFORMINGGAS_MAX:
+      case IO_FOF_TEMPERATURE:
+      case IO_FOF_VIRIAL_TEMPERATURE:
+#endif
+#ifdef CALCULATE_SPIN_STARFORMINGGAS
+      case IO_FOF_RVIRESTIMATE:
+#endif
+#endif
       case IO_FOF_WINDMASS:
       case IO_FOF_M_MEAN200:
       case IO_FOF_R_MEAN200:
@@ -2450,6 +2983,12 @@ int fof_subfind_get_values_per_blockelement(const enum fof_subfind_iofields bloc
       case IO_SUB_BFLD_HALO:
       case IO_SUB_BFLD_DISK:
       case IO_SUB_SFR:
+#ifdef SEED_BLACKHOLES_IN_SUBHALOS
+      case IO_SUB_MAXDENS:
+      case IO_SUB_INDEXMAXDENS:
+      case IO_SUB_TASKMAXDENS:
+      case IO_SUB_SFRMAXDENS:
+#endif
       case IO_SUB_SFRINRAD:
       case IO_SUB_SFRINHALFRAD:
       case IO_SUB_SFRINMAXRAD:
@@ -2626,6 +3165,10 @@ int fof_subfind_get_bytes_per_blockelement(const enum fof_subfind_iofields block
       case IO_SUB_LEN:
       case IO_SUB_GRNR:
       case IO_SUB_PARENT:
+#ifdef SEED_BLACKHOLES_IN_SUBHALOS
+      case IO_SUB_INDEXMAXDENS:
+      case IO_SUB_TASKMAXDENS:
+#endif
         bytes_per_blockelement = sizeof(int);
         break;
 
@@ -2641,12 +3184,75 @@ int fof_subfind_get_bytes_per_blockelement(const enum fof_subfind_iofields block
         break;
 
       case IO_FOF_MTOT:
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+      case IO_FOF_MTOT2:
+#endif
       case IO_FOF_SFR:
       case IO_FOF_GASMETAL:
       case IO_FOF_STARMETAL:
       case IO_FOF_GASDUSTMETAL:
       case IO_FOF_BHMASS:
       case IO_FOF_BHMDOT:
+#ifdef BLACK_HOLES
+#ifdef PREVENT_SPURIOUS_RESEEDING
+      case IO_FOF_TOTALGASSEEDMASS:
+#endif
+#ifdef OUTPUT_LOG_FILES_FOR_SEEDING
+      case IO_FOF_STARFORMINGGASMASS:
+      case IO_FOF_STARFORMINGGASMETALLICITY:
+      case IO_FOF_STARFORMINGMETALFREEGASMASS:
+#endif
+#if defined(CREATE_SUBFOFS) && defined(SEED_HALO_ENVIRONMENT_CRITERION)
+      case IO_FOF_HOSTHALOMASS:
+#endif
+#ifdef CHECK_FOR_ENOUGH_GAS_MASS_IN_DCBH_FORMING_POCKETS
+      case IO_FOF_MAX_NEIGHBORING_DCBH_FORMING_GASMASS:
+#endif
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_ALL_SOURCES
+      case IO_FOF_LYMANWERNERINTENSITYALLSOURCES_TYPE2:
+      case IO_FOF_LYMANWERNERINTENSITYALLSOURCES_TYPE3:
+#endif
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_SOURCES
+      case IO_FOF_LYMANWERNERINTENSITYLOCALSOURCES_TYPE2:
+      case IO_FOF_LYMANWERNERINTENSITYLOCALSOURCES_TYPE3:
+#endif
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS
+      case IO_FOF_LYMANWERNERINTENSITYLOCALSTARFORMINGGAS_TYPE2:
+      case IO_FOF_LYMANWERNERINTENSITYLOCALSTARFORMINGGAS_TYPE3:
+      case IO_FOF_MAXLYMANWERNERINTENSITYINDENSEMETALPOORGAS:
+      case IO_FOF_STARFORMINGMETALFREELYMANWERNERGASMASS:
+      case IO_FOF_LYMANWERNERGASMASS:
+#endif
+#ifdef OUTPUT_LOG_FILES_FOR_SEEDING
+      case IO_FOF_METALLICITY_MAXDENS:
+#endif
+
+#ifdef SEED_BASED_ON_PROBABLISTIC_HALO_PROPERTIES
+#ifdef PROBABILISTIC_SEED_MASS_HALO_MASS_RATIO_CRITERION
+      case IO_FOF_RANDOMMINHALOMASSFORSEEDING_MAXDENS:
+#endif
+#ifdef EVOLVING_SEEDING_PROBABILITY
+       case IO_FOF_SECONDRANDOMNUMBERFORSEEDING_AVERAGE:
+#endif
+#endif
+
+       case IO_FOF_COULDHAVEBEENABLACKHOLE_SUM:
+
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+//      case IO_FOF_ISTHISTHEMINPOTENTIAL_SUM:
+      case IO_FOF_NUMBEROFMAJORNEIGHBORS:
+#endif
+
+#ifdef CALCULATE_SPIN_STARFORMINGGAS
+      case IO_FOF_SPIN_STARFORMINGGAS:
+      case IO_FOF_SPIN_STARFORMINGGAS_MAX:
+      case IO_FOF_TEMPERATURE:
+      case IO_FOF_VIRIAL_TEMPERATURE:
+#endif
+#ifdef CALCULATE_SPIN_STARFORMINGGAS
+      case IO_FOF_RVIRESTIMATE:
+#endif
+#endif
       case IO_FOF_WINDMASS:
       case IO_FOF_M_MEAN200:
       case IO_FOF_R_MEAN200:
@@ -2669,6 +3275,10 @@ int fof_subfind_get_bytes_per_blockelement(const enum fof_subfind_iofields block
       case IO_SUB_BFLD_HALO:
       case IO_SUB_BFLD_DISK:
       case IO_SUB_SFR:
+#ifdef SEED_BLACKHOLES_IN_SUBHALOS
+      case IO_SUB_MAXDENS:
+      case IO_SUB_SFRMAXDENS:
+#endif
       case IO_SUB_SFRINRAD:
       case IO_SUB_SFRINHALFRAD:
       case IO_SUB_SFRINMAXRAD:
@@ -2848,6 +3458,18 @@ int fof_subfind_get_datatype(const enum fof_subfind_iofields blocknr)
       case IO_SUB_LENTYPE:
       case IO_SUB_GRNR:
       case IO_SUB_PARENT:
+#ifdef SEED_BLACKHOLES_IN_SUBHALOS
+      case IO_SUB_TASKMAXDENS:
+      case IO_SUB_INDEXMAXDENS:
+#endif
+
+      case IO_FOF_COULDHAVEBEENABLACKHOLE_SUM:
+
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+//      case IO_FOF_ISTHISTHEMINPOTENTIAL_SUM:
+      case IO_FOF_NUMBEROFMAJORNEIGHBORS:
+#endif
+
 #ifdef SUBFIND_EXTENDED_PROPERTIES
       case IO_FOF_LENTYPE_MEAN200:
       case IO_FOF_LENTYPE_CRIT200:
@@ -2858,6 +3480,9 @@ int fof_subfind_get_datatype(const enum fof_subfind_iofields blocknr)
         break;
 
       case IO_FOF_MTOT:
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+      case IO_FOF_MTOT2:
+#endif
       case IO_FOF_POS:
       case IO_FOF_CM:
       case IO_FOF_POSMINPOT:
@@ -2871,6 +3496,59 @@ int fof_subfind_get_datatype(const enum fof_subfind_iofields blocknr)
       case IO_FOF_GASDUSTMETAL:
       case IO_FOF_BHMASS:
       case IO_FOF_BHMDOT:
+#ifdef BLACK_HOLES
+#ifdef PREVENT_SPURIOUS_RESEEDING
+      case IO_FOF_TOTALGASSEEDMASS:
+#endif
+#ifdef OUTPUT_LOG_FILES_FOR_SEEDING
+      case IO_FOF_STARFORMINGGASMASS:
+      case IO_FOF_STARFORMINGGASMETALLICITY:
+      case IO_FOF_STARFORMINGMETALFREEGASMASS:
+#endif
+#if defined(CREATE_SUBFOFS) && defined(SEED_HALO_ENVIRONMENT_CRITERION)
+      case IO_FOF_HOSTHALOMASS:
+#endif
+#ifdef CHECK_FOR_ENOUGH_GAS_MASS_IN_DCBH_FORMING_POCKETS
+      case IO_FOF_MAX_NEIGHBORING_DCBH_FORMING_GASMASS:
+#endif
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_ALL_SOURCES
+      case IO_FOF_LYMANWERNERINTENSITYALLSOURCES_TYPE2:
+      case IO_FOF_LYMANWERNERINTENSITYALLSOURCES_TYPE3:
+#endif
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_SOURCES
+      case IO_FOF_LYMANWERNERINTENSITYLOCALSOURCES_TYPE2:
+      case IO_FOF_LYMANWERNERINTENSITYLOCALSOURCES_TYPE3:
+#endif
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS
+      case IO_FOF_LYMANWERNERINTENSITYLOCALSTARFORMINGGAS_TYPE2:
+      case IO_FOF_LYMANWERNERINTENSITYLOCALSTARFORMINGGAS_TYPE3:
+      case IO_FOF_MAXLYMANWERNERINTENSITYINDENSEMETALPOORGAS:
+      case IO_FOF_STARFORMINGMETALFREELYMANWERNERGASMASS:
+      case IO_FOF_LYMANWERNERGASMASS:
+#endif
+#ifdef OUTPUT_LOG_FILES_FOR_SEEDING
+      case IO_FOF_METALLICITY_MAXDENS:
+#endif
+
+#ifdef SEED_BASED_ON_PROBABLISTIC_HALO_PROPERTIES
+#ifdef PROBABILISTIC_SEED_MASS_HALO_MASS_RATIO_CRITERION
+      case IO_FOF_RANDOMMINHALOMASSFORSEEDING_MAXDENS: 
+#endif
+#ifdef EVOLVING_SEEDING_PROBABILITY
+       case IO_FOF_SECONDRANDOMNUMBERFORSEEDING_AVERAGE:
+#endif
+#endif
+
+#ifdef CALCULATE_SPIN_STARFORMINGGAS 
+      case IO_FOF_SPIN_STARFORMINGGAS:
+      case IO_FOF_SPIN_STARFORMINGGAS_MAX:
+      case IO_FOF_TEMPERATURE:
+      case IO_FOF_VIRIAL_TEMPERATURE:
+#endif
+#ifdef CALCULATE_SPIN_STARFORMINGGAS
+      case IO_FOF_RVIRESTIMATE:
+#endif
+#endif
       case IO_FOF_WINDMASS:
       case IO_FOF_M_MEAN200:
       case IO_FOF_R_MEAN200:
@@ -2902,6 +3580,10 @@ int fof_subfind_get_datatype(const enum fof_subfind_iofields blocknr)
       case IO_SUB_BFLD_HALO:
       case IO_SUB_BFLD_DISK:
       case IO_SUB_SFR:
+#ifdef SEED_BLACKHOLES_IN_SUBHALOS
+      case IO_SUB_MAXDENS:
+      case IO_SUB_SFRMAXDENS:
+#endif
       case IO_SUB_SFRINRAD:
       case IO_SUB_SFRINHALFRAD:
       case IO_SUB_SFRINMAXRAD:
@@ -3045,6 +3727,9 @@ int fof_subfind_blockpresent(const enum fof_subfind_iofields blocknr)
       case IO_FOF_LEN:
       case IO_FOF_LENTYPE:
       case IO_FOF_MTOT:
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+      case IO_FOF_MTOT2:
+#endif
       case IO_FOF_POS:
       case IO_FOF_CM:
       case IO_FOF_VEL:
@@ -3054,6 +3739,12 @@ int fof_subfind_blockpresent(const enum fof_subfind_iofields blocknr)
 
       case IO_FOF_SFR:
       case IO_SUB_SFR:
+#ifdef SEED_BLACKHOLES_IN_SUBHALOS
+      case IO_SUB_MAXDENS:
+      case IO_SUB_INDEXMAXDENS:
+      case IO_SUB_TASKMAXDENS:
+      case IO_SUB_SFRMAXDENS:
+#endif
       case IO_SUB_SFRINRAD:
       case IO_SUB_SFRINHALFRAD:
       case IO_SUB_SFRINMAXRAD:
@@ -3070,7 +3761,7 @@ int fof_subfind_blockpresent(const enum fof_subfind_iofields blocknr)
         break;
 
       case IO_FOF_POSMINPOT:
-#if defined(GFM_BIPOLAR_WINDS) && (GFM_BIPOLAR_WINDS == 3)
+#if defined(CALCULATE_SPIN_STARFORMINGGAS) || (defined(GFM_BIPOLAR_WINDS) && (GFM_BIPOLAR_WINDS == 3))
         present = 1;
 #endif
         break;
@@ -3082,7 +3773,7 @@ int fof_subfind_blockpresent(const enum fof_subfind_iofields blocknr)
         break;
 
       case IO_FOF_DENSLVEC:
-#if defined(GFM_BIPOLAR_WINDS) && (GFM_BIPOLAR_WINDS == 3)
+#if (defined(CALCULATE_SPIN_STARFORMINGGAS)) || (defined(GFM_BIPOLAR_WINDS) && (GFM_BIPOLAR_WINDS == 3))
         present = 1;
 #endif
         break;
@@ -3141,9 +3832,122 @@ int fof_subfind_blockpresent(const enum fof_subfind_iofields blocknr)
       case IO_SUB_BHMDOT:
 #ifdef BLACK_HOLES
         present = 1;
+#endif  
+        break;
+#ifdef BLACK_HOLES
+#ifdef PREVENT_SPURIOUS_RESEEDING
+      case IO_FOF_TOTALGASSEEDMASS:
+        present = 1; 
+        break;
 #endif
+#ifdef OUTPUT_LOG_FILES_FOR_SEEDING
+      case IO_FOF_STARFORMINGGASMASS:
+        present = 1;
+        break;
+      case IO_FOF_STARFORMINGGASMETALLICITY:
+        present = 1;
+        break;
+      case IO_FOF_STARFORMINGMETALFREEGASMASS:
+        present = 1;
+        break;
+#endif
+#if defined(CREATE_SUBFOFS) && defined(SEED_HALO_ENVIRONMENT_CRITERION)
+      case IO_FOF_HOSTHALOMASS:
+        present = 1;
+        break;
+#endif
+
+#ifdef CHECK_FOR_ENOUGH_GAS_MASS_IN_DCBH_FORMING_POCKETS
+      case IO_FOF_MAX_NEIGHBORING_DCBH_FORMING_GASMASS:
+        present = 1;
+        break;
+#endif
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_ALL_SOURCES
+      case IO_FOF_LYMANWERNERINTENSITYALLSOURCES_TYPE2:
+        present = 1;
+        break;
+      case IO_FOF_LYMANWERNERINTENSITYALLSOURCES_TYPE3:
+        present = 1;
+        break;
+#endif
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_SOURCES
+      case IO_FOF_LYMANWERNERINTENSITYLOCALSOURCES_TYPE2:
+        present = 1;
+        break;
+      case IO_FOF_LYMANWERNERINTENSITYLOCALSOURCES_TYPE3:
+        present = 1;
+        break;
+#endif
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS
+      case IO_FOF_LYMANWERNERINTENSITYLOCALSTARFORMINGGAS_TYPE2:
+        present = 1;
+        break;
+      case IO_FOF_LYMANWERNERINTENSITYLOCALSTARFORMINGGAS_TYPE3:
+        present = 1;
+        break;
+      case IO_FOF_MAXLYMANWERNERINTENSITYINDENSEMETALPOORGAS:
+        present = 1;
+        break;
+      case IO_FOF_STARFORMINGMETALFREELYMANWERNERGASMASS:
+        present = 1;
+        break;
+      case IO_FOF_LYMANWERNERGASMASS:
+        present = 1;
+        break;
+#endif
+#ifdef OUTPUT_LOG_FILES_FOR_SEEDING
+      case IO_FOF_METALLICITY_MAXDENS:
+        present = 1;
+        break;
+#endif
+
+#ifdef SEED_BASED_ON_PROBABLISTIC_HALO_PROPERTIES
+#ifdef PROBABILISTIC_SEED_MASS_HALO_MASS_RATIO_CRITERION 
+      case IO_FOF_RANDOMMINHALOMASSFORSEEDING_MAXDENS:
+        present = 1;
+        break;
+#endif
+#ifdef EVOLVING_SEEDING_PROBABILITY
+       case IO_FOF_SECONDRANDOMNUMBERFORSEEDING_AVERAGE:
+        present = 1;
+        break; 
+#endif
+#endif
+
+      case IO_FOF_COULDHAVEBEENABLACKHOLE_SUM:
+        present = 1;
         break;
 
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+//      case IO_FOF_ISTHISTHEMINPOTENTIAL_SUM:
+//      	present = 1;
+//        break;
+      case IO_FOF_NUMBEROFMAJORNEIGHBORS:
+      	present = 1;
+        break;
+#endif
+
+
+#ifdef CALCULATE_SPIN_STARFORMINGGAS
+      case IO_FOF_SPIN_STARFORMINGGAS:
+        present = 1;
+        break;
+      case IO_FOF_SPIN_STARFORMINGGAS_MAX:
+        present = 1;
+        break;
+      case IO_FOF_TEMPERATURE:
+        present = 1;
+        break;
+      case IO_FOF_VIRIAL_TEMPERATURE:
+        present = 1;
+        break;
+#endif
+#ifdef CALCULATE_SPIN_STARFORMINGGAS
+      case IO_FOF_RVIRESTIMATE:
+        present = 1;
+        break;
+#endif
+#endif
       case IO_FOF_WINDMASS:
       case IO_SUB_WINDMASS:
 #ifdef GFM_WINDS
@@ -3319,6 +4123,11 @@ void fof_subfind_get_Tab_IO_Label(const enum fof_subfind_iofields blocknr, char 
       case IO_FOF_MTOT:
         memcpy(label, "FMAS", IO_LABEL_SIZE);
         break;
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+      case IO_FOF_MTOT2:
+        memcpy(label, "FMA2", IO_LABEL_SIZE);
+        break;
+#endif
       case IO_FOF_POS:
         memcpy(label, "FPOS", IO_LABEL_SIZE);
         break;
@@ -3361,6 +4170,122 @@ void fof_subfind_get_Tab_IO_Label(const enum fof_subfind_iofields blocknr, char 
       case IO_FOF_BHMDOT:
         memcpy(label, "FMDT", IO_LABEL_SIZE);
         break;
+#ifdef BLACK_HOLES
+#ifdef PREVENT_SPURIOUS_RESEEDING
+      case IO_FOF_TOTALGASSEEDMASS:
+        memcpy(label, "TGSM", IO_LABEL_SIZE);
+        break;
+#endif
+#ifdef OUTPUT_LOG_FILES_FOR_SEEDING
+      case IO_FOF_STARFORMINGGASMASS:
+        memcpy(label, "SFGM", IO_LABEL_SIZE);
+        break;
+      case IO_FOF_STARFORMINGGASMETALLICITY:
+        memcpy(label, "SFMM", IO_LABEL_SIZE);
+        break;
+      case IO_FOF_STARFORMINGMETALFREEGASMASS:
+        memcpy(label, "SFMF", IO_LABEL_SIZE);
+        break;
+#endif
+
+#if defined(CREATE_SUBFOFS) && defined(SEED_HALO_ENVIRONMENT_CRITERION)
+      case IO_FOF_HOSTHALOMASS:
+        memcpy(label, "SHHM", IO_LABEL_SIZE);
+        break;
+#endif
+
+
+#ifdef CHECK_FOR_ENOUGH_GAS_MASS_IN_DCBH_FORMING_POCKETS
+      case IO_FOF_MAX_NEIGHBORING_DCBH_FORMING_GASMASS:
+        memcpy(label, "NDFG", IO_LABEL_SIZE);
+        break;
+#endif
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_ALL_SOURCES
+      case IO_FOF_LYMANWERNERINTENSITYALLSOURCES_TYPE2:
+        memcpy(label, "LWA2", IO_LABEL_SIZE);
+        break;
+      case IO_FOF_LYMANWERNERINTENSITYALLSOURCES_TYPE3:
+        memcpy(label, "LWA3", IO_LABEL_SIZE);
+        break;
+#endif
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_SOURCES
+      case IO_FOF_LYMANWERNERINTENSITYLOCALSOURCES_TYPE2:
+        memcpy(label, "LWL2", IO_LABEL_SIZE);
+        break;
+      case IO_FOF_LYMANWERNERINTENSITYLOCALSOURCES_TYPE3:
+        memcpy(label, "LWL3", IO_LABEL_SIZE);
+        break;
+#endif
+#ifdef CALCULATE_LYMAN_WERNER_INTENSITY_LOCAL_STARFORMINGGAS
+      case IO_FOF_LYMANWERNERINTENSITYLOCALSTARFORMINGGAS_TYPE2:
+        memcpy(label, "LWL2", IO_LABEL_SIZE);
+        break;
+      case IO_FOF_LYMANWERNERINTENSITYLOCALSTARFORMINGGAS_TYPE3:
+        memcpy(label, "LWL3", IO_LABEL_SIZE);
+        break;
+      case IO_FOF_MAXLYMANWERNERINTENSITYINDENSEMETALPOORGAS:
+        memcpy(label, "MLWD", IO_LABEL_SIZE);
+        break;
+      case IO_FOF_STARFORMINGMETALFREELYMANWERNERGASMASS:
+        memcpy(label, "SFLW", IO_LABEL_SIZE);
+        break;
+      case IO_FOF_LYMANWERNERGASMASS:
+        memcpy(label, "LWGM", IO_LABEL_SIZE);
+        break;
+#endif
+#ifdef OUTPUT_LOG_FILES_FOR_SEEDING
+      case IO_FOF_METALLICITY_MAXDENS:
+       	memcpy(label, "FMMX", IO_LABEL_SIZE);
+       	break;
+#endif
+
+#ifdef SEED_BASED_ON_PROBABLISTIC_HALO_PROPERTIES
+#ifdef PROBABILISTIC_SEED_MASS_HALO_MASS_RATIO_CRITERION
+      case IO_FOF_RANDOMMINHALOMASSFORSEEDING_MAXDENS:
+        memcpy(label, "RMHS", IO_LABEL_SIZE);
+        break;
+#endif
+#ifdef EVOLVING_SEEDING_PROBABILITY
+       case IO_FOF_SECONDRANDOMNUMBERFORSEEDING_AVERAGE:
+        memcpy(label, "SRNF", IO_LABEL_SIZE);
+        break;
+#endif
+#endif
+
+       case IO_FOF_COULDHAVEBEENABLACKHOLE_SUM:
+        memcpy(label, "CHBH", IO_LABEL_SIZE);
+        break;
+
+#ifdef SEED_HALO_ENVIRONMENT_CRITERION
+//       case IO_FOF_ISTHISTHEMINPOTENTIAL_SUM:
+//      	memcpy(label, "ITDC", IO_LABEL_SIZE);
+//        break;
+       case IO_FOF_NUMBEROFMAJORNEIGHBORS:
+      	memcpy(label, "NOMN", IO_LABEL_SIZE);
+        break;
+#endif
+
+
+#ifdef CALCULATE_SPIN_STARFORMINGGAS
+      case IO_FOF_SPIN_STARFORMINGGAS:
+        memcpy(label, "SSFG", IO_LABEL_SIZE);
+        break;
+      case IO_FOF_SPIN_STARFORMINGGAS_MAX:
+        memcpy(label, "SSFM", IO_LABEL_SIZE);
+        break;
+      case IO_FOF_TEMPERATURE:
+        memcpy(label, "IGMT", IO_LABEL_SIZE);
+        break;
+      case IO_FOF_VIRIAL_TEMPERATURE:
+        memcpy(label, "IGVT", IO_LABEL_SIZE);
+        break;
+#endif
+#ifdef CALCULATE_SPIN_STARFORMINGGAS
+      case IO_FOF_RVIRESTIMATE:
+        memcpy(label, "GRVI", IO_LABEL_SIZE);
+        break;
+#endif
+#endif
       case IO_FOF_WINDMASS:
         memcpy(label, "GWIM", IO_LABEL_SIZE);
         break;
@@ -3483,6 +4408,20 @@ void fof_subfind_get_Tab_IO_Label(const enum fof_subfind_iofields blocknr, char 
       case IO_SUB_SFR:
         memcpy(label, "SSFR", IO_LABEL_SIZE);
         break;
+#ifdef SEED_BLACKHOLES_IN_SUBHALOS
+      case IO_SUB_MAXDENS:
+        memcpy(label, "SMXD", IO_LABEL_SIZE);
+        break;
+      case IO_SUB_INDEXMAXDENS:
+        memcpy(label, "SIMD", IO_LABEL_SIZE);
+        break;
+      case IO_SUB_TASKMAXDENS:
+        memcpy(label, "STMD", IO_LABEL_SIZE);
+        break;
+      case IO_SUB_SFRMAXDENS:
+        memcpy(label, "SSMD", IO_LABEL_SIZE);
+        break;
+#endif
       case IO_SUB_SFRINRAD:
         memcpy(label, "SSFI", IO_LABEL_SIZE);
         break;

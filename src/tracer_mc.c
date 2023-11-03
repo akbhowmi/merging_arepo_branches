@@ -113,12 +113,6 @@ int exchange_tracer_flux_list(void)
 #ifdef TRACER_MC_CHECKS
       TracerLinkedList[itr].ParentID = TracerFluxListGet[i].ParentID;
 #endif
-#ifdef SN_MCS
-      if((P[p].Type == 0) && (TracerFluxListGet[i].EjectaFlag == 1))
-        TracerLinkedList[itr].EjectaFlag = 1;
-      else
-        TracerLinkedList[itr].EjectaFlag = 0;
-#endif
 
       if(p < 0 || p >= NumPart)
         terminate("p=%d NumPart=%d\n", p, NumPart);
@@ -426,7 +420,6 @@ void record_tracer_parent_fluid_properties(void)
           while(i != -1)
             {
               /* temperature [Kelvin] */
-#ifndef GRACKLE
 #ifdef CHIMES
               mu = calculate_mean_molecular_weight(&(SphP[parent_ind].ChimesGasVars), &ChimesGlobalVars);
 #else
@@ -436,19 +429,15 @@ void record_tracer_parent_fluid_properties(void)
               mu = 4.0 / (1.0 + 3.0 * HYDROGEN_MASSFRAC);
 #endif
 #endif  // CHIMES
-#endif //GRACKLE
-
 #if(TRACER_MC_TMAX)
-#ifdef GRACKLE
-              fluid_val = get_temp_individual_cell_grackle(parent_ind);
-#elif VARIABLE_GAMMA
+#ifdef VARIABLE_GAMMA
               fluid_val = (SphP[parent_ind].GammaE - 1.0) / BOLTZMANN * SphP[parent_ind].Utherm * PROTONMASS * mu *
                           All.UnitEnergy_in_cgs / All.UnitMass_in_g;
 #else
               fluid_val =
                   GAMMA_MINUS1 / BOLTZMANN * SphP[parent_ind].Utherm * PROTONMASS * mu * All.UnitEnergy_in_cgs / All.UnitMass_in_g;
 #endif
-#if defined(USE_SFR) && !defined(SFR_MCS)
+#ifdef USE_SFR
               if(SphP[parent_ind].Sfr == 0 && fluid_val > TracerLinkedList[i].fluid_quantities[TracerMCTmaxIndex])
 #else
               if(fluid_val > TracerLinkedList[i].fluid_quantities[TracerMCTmaxIndex])
@@ -653,12 +642,6 @@ int consider_moving_tracers(int p, int pother_task, int pother_index, MyIDType p
 #endif
 #endif
 
-#ifdef SN_MCS
-          /*n.b. this might also be being swallowed by black hole etc. but set here for now */
-          if(P[p].Type == 4)
-            TracerLinkedList[move].EjectaFlag = 1;
-#endif
-
           add_tracer_to_TFL(p, move, pother_task, pother_index, pother_ID);
           nmoved++;
         }
@@ -827,10 +810,8 @@ void add_tracer_to_parent(int p, int itracer)
  */
 void move_tracer_between_parents(int p_from, int p_to, int itracer)
 {
-#ifndef SN_MCS
   if(P[p_from].Type == 4) /* moving from a star or wind particle */
     terminate("the origin should always be a gas cell here");
-#endif
 
   /* remove itracer from p */
   remove_tracer_from_parent(p_from, itracer);
@@ -884,11 +865,6 @@ void move_tracer_between_parents(int p_from, int p_to, int itracer)
     }
 #endif
 
-#endif
-
-#ifdef SN_MCS
-  if((P[p_to].Type == 0) && (P[p_from].Type == 4))
-    TracerLinkedList[itracer].EjectaFlag = 1;  
 #endif
 }
 

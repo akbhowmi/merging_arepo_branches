@@ -115,6 +115,7 @@ int force_treeevaluate(gravdata_in *in, gravdata_out *out, int target, int mode,
   double acc_x = 0;
   double acc_y = 0;
   double acc_z = 0;
+
 #ifdef EVALPOTENTIAL
   double pot = 0.0;
 #endif
@@ -163,36 +164,6 @@ int force_treeevaluate(gravdata_in *in, gravdata_out *out, int target, int mode,
   double modgrav_acc_z = 0;
 #endif
 
-#ifdef PE_MCS
-  double lum_FUV;
-  double r2_FUV, r2_invfac_FUV, dx_FUV, dy_FUV, dz_FUV;
-  double walk_G_FUV = 0.0;
-#endif
-
-#ifdef HII_MCS_LR
-  double lum_Hii;
-  double r2_Hii, r2_invfac_Hii, dx_Hii, dy_Hii, dz_Hii;
-  double walk_e_Hii = 0.0;
-#endif
-
-#ifdef BH_DF_DISCRETE
-  // velocities of BH particles
-  double dfd_vel_other[3],  // Velocity of the 'other' object(s) [i.e. particles or nodes]
-    dfd_dvel[3],   // Relative velocity between BH and other particle
-    dfd_bh_vel[3], // Velocity of the BH particle
-    dfd_bh_acc[3];  // Resulting acceleration of BH particle
-  for(int z = 0; z < 3; z++)
-    {
-      dfd_bh_vel[z] = in->DFD_Vel[z];
-      dfd_bh_acc[z] = 0.0;
-    }
-  double bh_gmass = All.G * in->DFD_Mass;
-  double dfd_rvdot, dfd_dvel_2, dfd_bimp, dfd_alpha, dfd_norm;
-
-  char dfd_msg[200];
-  sprintf(dfd_msg, "NULL");
-#endif // BH_DF_DISCRETE
-
   int ninteractions = 0;
 
   double pos_x = in->Pos[0];
@@ -233,6 +204,7 @@ int force_treeevaluate(gravdata_in *in, gravdata_out *out, int target, int mode,
       while(no >= 0)
         {
           double dx, dy, dz, r2, mass, hmax;
+
 
 #ifdef MULTIPLE_NODE_SOFTENING
           int indi_flag1 = -1, indi_flag2 = 0;
@@ -367,50 +339,16 @@ int force_treeevaluate(gravdata_in *in, gravdata_out *out, int target, int mode,
 #endif
 #endif
 
-#ifdef PE_MCS
-              if(P[no].Type == 4)
-                {
-                  r2_FUV  = r2;
-                  lum_FUV = STP(no).L_FUV;
-                }
-              else
-                {
-                  r2_FUV  = r2;
-                  lum_FUV = 0.0;
-                }
-#endif
-
-#ifdef HII_MCS_LR
-              if(P[no].Type == 0)
-                {
-                  r2_Hii  = r2;
-                  lum_Hii = SphP[no].L_Hii;
-                }
-              else
-                {
-                  r2_Hii  = r2;
-                  lum_Hii = 0.0;
-                }
-#endif
-
-#ifdef BH_DF_DISCRETE
-              if(in->Type == 5)
-                {
-                  sprintf(dfd_msg, "Single particle, no=%d, Type=%d, Mass=%g", no, P[no].Type, P[no].Mass);
-                  // the velocity V = v_m - v_M, i.e. the velocity of background in rest frame of massive object
-                  for(int z = 0; z < 3; z++)
-                      dfd_vel_other[z] = P[no].Vel[z];
-                }
-#endif // BH_DF_DISCRETE
-
               if(measure_cost_flag)
                 Thread[thread_id].P_CostCount[no]++;
 
               double h_j = All.ForceSoftening[P[no].SofteningType];
+
               hmax = (h_j > h_i) ? h_j : h_i;
+
               no = Nextnode[no];
-            }  // if single particle
-          else if(no < Tree_MaxPart + Tree_MaxNodes) /* we have an internal node */
+            }
+          else if(no < Tree_MaxPart + Tree_MaxNodes) /* we have an  internal node */
             {
               if(mode == 1)
                 {
@@ -476,9 +414,9 @@ int force_treeevaluate(gravdata_in *in, gravdata_out *out, int target, int mode,
 
 #ifdef TREECOLV2
 #ifdef TREECOLV2_VEL
-              vx_n = nop->DFD_Vel[0];
-              vy_n = nop->DFD_Vel[1];
-              vz_n = nop->DFD_Vel[2];
+              vx_n = nop->Vel[0];
+              vy_n = nop->Vel[1];
+              vz_n = nop->Vel[2];
 #endif
               tcv2_gasmass = nop->u.d.gasmass;
               if(isnan(tcv2_gasmass))
@@ -535,36 +473,6 @@ int force_treeevaluate(gravdata_in *in, gravdata_out *out, int target, int mode,
               T8gasmass = nop->T8_gas_mass;
 #endif
 #endif
-
-#ifdef PE_MCS
-              dx_FUV = GRAVITY_NEAREST_X(nop->lum_FUV_s[0] - pos_x);
-              dy_FUV = GRAVITY_NEAREST_X(nop->lum_FUV_s[1] - pos_y);
-              dz_FUV = GRAVITY_NEAREST_X(nop->lum_FUV_s[2] - pos_z);
-
-              r2_FUV = dx_FUV * dx_FUV + dy_FUV * dy_FUV + dz_FUV * dz_FUV;
-
-              lum_FUV = nop->lum_FUV;
-#endif
-
-#ifdef HII_MCS_LR
-              dx_Hii = GRAVITY_NEAREST_X(nop->lum_Hii_s[0] - pos_x);
-              dy_Hii = GRAVITY_NEAREST_X(nop->lum_Hii_s[1] - pos_y);
-              dz_Hii = GRAVITY_NEAREST_X(nop->lum_Hii_s[2] - pos_z);
-
-              r2_Hii = dx_Hii * dx_Hii + dy_Hii * dy_Hii + dz_Hii * dz_Hii;
-
-              lum_Hii = nop->lum_Hii;
-#endif
-
-#ifdef BH_DF_DISCRETE
-              if(in->Type == 5)
-                {
-                  sprintf(dfd_msg, "Internal node, no=%d, mass=%g", no, nop->u.d.mass);
-                  // the velocity V = v_m - v_M, i.e. the velocity of background in rest frame of massive object
-                  for(int z = 0; z < 3; z++)
-                      dfd_vel_other[z] = nop->DFD_Vel[z];
-                }
-#endif // BH_DF_DISCRETE
 
               if(All.ErrTolTheta) /* check Barnes-Hut opening criterion */
                 {
@@ -676,7 +584,6 @@ int force_treeevaluate(gravdata_in *in, gravdata_out *out, int target, int mode,
               r2 = dx * dx + dy * dy + dz * dz;
 
               mass = Tree_Points[n].Mass;
-
               if(measure_cost_flag)
                 Thread[thread_id].TreePoints_CostCount[n]++;
 
@@ -799,44 +706,10 @@ int force_treeevaluate(gravdata_in *in, gravdata_out *out, int target, int mode,
 #endif
 #endif
 
-#ifdef PE_MCS
-              if((Tree_Points[n].Type) == 4)
-                {
-                  r2_FUV  = r2;
-                  lum_FUV = Tree_Points[n].lum_FUV;
-                }
-              else
-                {
-                  r2_FUV  = r2;
-                  lum_FUV = 0.0;
-                }
-#endif
-
-#ifdef HII_MCS_LR
-              if((Tree_Points[n].Type) == 0)
-                {
-                  r2_Hii  = r2;
-                  lum_Hii = Tree_Points[n].lum_Hii;
-                }
-              else
-                {
-                  r2_Hii  = r2;
-                  lum_Hii = 0.0;
-                }
-#endif
-
-#ifdef BH_DF_DISCRETE
-              if(in->Type == 5)
-                {
-                  sprintf(dfd_msg, "Imported node, no=%d, n=%d, Type=%d, mass=%g", no, n, Tree_Points[n].Type, mass);
-                  // the velocity V = v_m - v_M, i.e. the velocity of background in rest frame of massive object
-                  for(int z = 0; z < 3; z++)
-                      dfd_vel_other[z] = Tree_Points[n].DFD_Vel[z];
-                }
-#endif // BH_DF_DISCRETE
-
               double h_j = All.ForceSoftening[Tree_Points[n].SofteningType];
+
               hmax = (h_j > h_i) ? h_j : h_i;
+
               no = Nextnode[no - Tree_MaxNodes];
             }
           else /* pseudo particle */
@@ -929,9 +802,9 @@ int force_treeevaluate(gravdata_in *in, gravdata_out *out, int target, int mode,
                               wp = rinv * factor_pot; /* wp   = -g(r)    */
 #endif
 #else
-                              fac = rinv3;
+                  fac = rinv3;
 #ifdef EVALPOTENTIAL
-                              wp  = -rinv;
+                  wp  = -rinv;
 #endif
 #endif
                             }
@@ -992,26 +865,6 @@ int force_treeevaluate(gravdata_in *in, gravdata_out *out, int target, int mode,
                             }
 #endif
 
-#ifdef PE_MCS
-#ifdef MULTIPLE_NODE_SOFTENING
-                          if(type == indi_flag1)
-#endif
-                            {
-                              r2_invfac_FUV = 1.0 / (r2_FUV + hmax * hmax);
-                              walk_G_FUV += lum_FUV * r2_invfac_FUV;
-                            }
-#endif
-
-#ifdef HII_MCS_LR
-#ifdef MULTIPLE_NODE_SOFTENING
-                          if(type == indi_flag1)
-#endif
-                            {
-                              r2_invfac_Hii = 1.0 / (r2_Hii + hmax * hmax);
-                              walk_e_Hii += lum_Hii * r2_invfac_Hii;
-                            }
-#endif
-
 #ifdef EVALPOTENTIAL
                           pot += mass * wp;
 #endif
@@ -1032,88 +885,16 @@ int force_treeevaluate(gravdata_in *in, gravdata_out *out, int target, int mode,
 #endif
 #endif
 
-#ifdef BH_DF_DISCRETE
-                          if(in->Type == 5)
-                            {
-                              double dr_vec[3] = {dx, dy, dz};
-                              double dfd_temp;
-                              dfd_dvel_2 = 0;
-                              dfd_rvdot = 0;
-                              dfd_bimp = 0;
-                              for(int z = 0; z < 3; z++)
-                                {
-                                  dfd_dvel[z] = dfd_vel_other[z] - dfd_bh_vel[z];
-                                  dfd_dvel_2 += dfd_dvel[z] * dfd_dvel[z];
-                                  dfd_rvdot += dr_vec[z] * dfd_dvel[z];
-                                }
-
-                              int failure = 0;
-                              if(dfd_dvel_2 > 0)
-                                {
-                                  // Calculate impact parameter
-                                  // b = vec{r} - (vec{r} \dot hat{V}) * hat{V} = vec{r} - (vec{r} \dot vec{V}) * vec{V} / |V|^2
-                                  for(int z = 0; z < 3; z++)
-                                    {
-                                      dfd_temp = dr_vec[z] - (dfd_rvdot * dfd_dvel[z]) / dfd_dvel_2;
-                                      dfd_bimp += dfd_temp * dfd_temp;
-                                    }
-                                  dfd_bimp = sqrt(dfd_bimp);
-
-                                  // alpha = b * V^2 / G(M+m) ~ b * V^2 / (G M)
-                                  // NOTE: this makes the approximation that mass of background particles m << M
-                                  dfd_alpha = dfd_bimp * dfd_dvel_2 / bh_gmass;
-                                  // This `norm` factor should include a (1/r), but there's already an extra one in `fac`
-                                  dfd_norm = (dfd_alpha * dfd_bimp) / (1.0 + dfd_alpha*dfd_alpha);
-                                  dfd_norm *= fac * All.G / sqrt(dfd_dvel_2);
-
-                                  for(int z = 0; z < 3; z++)
-                                    {
-                                      dfd_bh_acc[z] += dfd_norm * dfd_dvel[z];
-                                      failure = isnan(dfd_bh_acc[z]) ? 1 : failure;
-                                    }
-                                } // if(dfd_dvel_2 > 0)
-                              else
-                                  failure = -1;
-
-                              if(failure != 0)
-                                {
-                                  char dfd_msg_temp[300];
-                                  sprintf(dfd_msg_temp, "target=%d, mode=%d, node=%d, ninteractions=%d -> %s",
-                                         target, mode, no, ninteractions, dfd_msg);
-                                  sprintf(dfd_msg, "%s", dfd_msg_temp);
-
-                                  if(failure < 0)
-                                    {
-                                      warn("Zero relative velocity between BH and other object!  %s", dfd_msg);
-                                    }
-                                  else
-                                    {
-                                      printf("dfd_bh_acc=%g|%g|%g, ", dfd_bh_acc[0], dfd_bh_acc[1], dfd_bh_acc[2]);
-                                      printf("dfd_bh_vel=%g|%g|%g, ", dfd_bh_vel[0], dfd_bh_vel[1], dfd_bh_vel[2]);
-                                      printf("dfd_vel_other=%g|%g|%g, ", dfd_vel_other[0], dfd_vel_other[1], dfd_vel_other[2]);
-                                      printf("dfd_dvel=%g|%g|%g, ", dfd_dvel[0], dfd_dvel[1], dfd_dvel[2]);
-                                      printf("dx=%g|%g|%g, r=%g, ", dx, dy, dz, r);
-                                      // printf("bimp=%g|%g|%g, ", bimp_x, bimp_y, bimp_z);
-                                      printf("dfd_bimp=%g, ", dfd_bimp);
-                                      printf("dfd_rvdot=%g, dfd_bimp=%g, dfd_alpha=%g, dfd_norm=%g, in->DFD_Mass=%g, bh_gmass=%g, ",
-                                            dfd_rvdot, dfd_bimp, dfd_alpha, dfd_norm, in->DFD_Mass, bh_gmass);
-                                      printf("\n");
-                                      terminate("NaN values for dfd_bh_acc!  %s", dfd_msg);
-                                    }
-                                }
-                            } // if(in->Type == 5)
-#endif  // BH_DF_DISCRETE
-
 #ifdef MULTIPLE_NODE_SOFTENING
-                        } // if(mass)
+                        }
                     }
 #endif
                   ninteractions++;
 #ifdef PMGRID
                 }
 #endif
-            }  // if(mass)
-        } // while(no >= 0)
+            }
+        }
     }
 
   out->Acc[0] = acc_x;
@@ -1165,31 +946,6 @@ int force_treeevaluate(gravdata_in *in, gravdata_out *out, int target, int mode,
   out->ModgravAcc[1] = modgrav_acc_y;
   out->ModgravAcc[2] = modgrav_acc_z;
 #endif
-
-#ifdef PE_MCS
-  out->G_FUV = walk_G_FUV * All.Factor_FUV * All.cf_a2inv; /* Now energy density in Habing Units */
-#endif
-
-#ifdef HII_MCS_LR
-  out->EnergyDensHii = walk_e_Hii * All.Factor_Hii * All.cf_a2inv; /* Now energy density in Habing Units */
-#endif
-
-#ifdef BH_DF_DISCRETE
-  for(int z = 0; z < 3; z++)
-      out->DFD_BH_Accel[z] = dfd_bh_acc[z];
-
-  if(in->Type == 5)
-    {
-      if(isnan(out->DFD_BH_Accel[0]) || isnan(out->DFD_BH_Accel[1]) || isnan(out->DFD_BH_Accel[2]))
-          terminate("BH DFD_Acc values are nan!");
-    }
-  else
-    {
-      if(out->DFD_BH_Accel[0] != 0 || out->DFD_BH_Accel[1] != 0 || out->DFD_BH_Accel[2] != 0)
-          terminate("non-BH (in->Type=%d) DFD_Acc values are non-zero!  %g|%g|%g", in->Type, dfd_bh_acc[0], dfd_bh_acc[1], dfd_bh_acc[2]);
-    }
-
-#endif // BH_DF_DISCRETE
 
   return ninteractions;
 }

@@ -25,6 +25,10 @@
 #include "../allvars.h"
 #include "../proto.h"
 
+#ifdef STORE_MERGERS_IN_SNAPSHOT
+#include "./store_mergers_in_snapshot/mergers_io.h"
+#endif
+
 #ifdef BLACK_HOLES
 
 static int blackhole_tree_merger_evaluate(int i, int mode, int threadid);
@@ -33,6 +37,9 @@ struct bh_properties
 {
   MyDouble Mass;
   MyFloat BHMass;
+#if defined(PREVENT_SPURIOUS_RESEEDING) && defined(ACCOUNT_FOR_SWALLOWED_PAINTED_GAS)
+  MyFloat SeedMass;
+#endif
   MyFloat BH_CumMass_QM;
   MyFloat BH_CumEgy_QM;
   MyFloat BH_CumMass_RM;
@@ -95,12 +102,15 @@ typedef struct
 {
   MyDouble Pos[3];
   MyDouble Mass;
-  MyDouble BH_Mass;
   MyFloat BH_Hsml;
   MyIDType ID;
 
-#ifdef BH_NEW_LOGS
-  MyDouble Vel[3];
+#ifdef OUTPUT_HOST_PROPERTIES_FOR_BH_MERGERS
+  MyFloat HostHaloTotalMass, HostHaloStellarMass, HostHaloGasMass, HostHaloSFR, HostHaloDMMass, ActualBHMass, BH_Mdot;
+#endif
+
+#if defined(PREVENT_SPURIOUS_RESEEDING) && defined(ACCOUNT_FOR_SWALLOWED_PAINTED_GAS)
+  MyFloat SeedMass;
 #endif
 
 #ifdef TRACER_MC
@@ -121,20 +131,28 @@ static void particle2in(data_in *in, int i, int firstnode)
   if(i < NumPart)
     {
       for(k = 0; k < 3; k++)
-        {
-          in->Pos[k] = P[i].Pos[k];
-#ifdef BH_NEW_LOGS
-          in->Vel[k] = P[i].Vel[k];
-#endif
-        }
+        in->Pos[k] = P[i].Pos[k];
 
       in->Mass    = P[i].Mass;
-      in->BH_Mass = BPP(i).BH_Mass;
       in->BH_Hsml = BPP(i).BH_Hsml;
       in->ID      = P[i].ID;
 #ifdef TRACER_MC
       in->rtask  = ThisTask;
       in->rindex = i;
+#endif
+
+#ifdef OUTPUT_HOST_PROPERTIES_FOR_BH_MERGERS
+      in->HostHaloTotalMass =  BPP(i).HostHaloTotalMass; 
+      in->HostHaloStellarMass =  BPP(i).HostHaloStellarMass;
+      in->HostHaloGasMass =  BPP(i).HostHaloGasMass;
+      in->HostHaloDMMass =  BPP(i).HostHaloDMMass;
+      in->HostHaloSFR =  BPP(i).HostHaloSFR;
+      in->ActualBHMass = BPP(i).BH_Mass;
+      in->BH_Mdot = BPP(i).BH_Mdot;
+#endif
+
+#if defined(PREVENT_SPURIOUS_RESEEDING) && defined(ACCOUNT_FOR_SWALLOWED_PAINTED_GAS)
+      in->SeedMass = BPP(i).SeedMass;
 #endif
     }
   else
@@ -142,23 +160,30 @@ static void particle2in(data_in *in, int i, int firstnode)
       i -= Tree_ImportedNodeOffset;
 
       for(k = 0; k < 3; k++)
-        {
-          in->Pos[k] = Tree_Points[i].Pos[k];
-#ifdef BH_NEW_LOGS
-          in->Vel[k] = TBPP(i).Vel[k];
-#endif
-        }
+        in->Pos[k] = Tree_Points[i].Pos[k];
 
       in->Mass    = Tree_Points[i].Mass;
-      in->BH_Mass = TBPP(i).BH_Mass;
       in->BH_Hsml = TBPP(i).BH_Hsml;
       in->ID      = TBPP(i).ID;
 #ifdef TRACER_MC
       in->rtask  = Tree_Points[i].origTask;
       in->rindex = Tree_Points[i].index;
 #endif
-    }
+#ifdef OUTPUT_HOST_PROPERTIES_FOR_BH_MERGERS
+      in->HostHaloTotalMass =  TBPP(i).HostHaloTotalMass;
+      in->HostHaloStellarMass =  TBPP(i).HostHaloStellarMass;
+      in->HostHaloGasMass =  TBPP(i).HostHaloGasMass;
+      in->HostHaloDMMass =  TBPP(i).HostHaloDMMass;
+      in->HostHaloSFR = TBPP(i).HostHaloSFR;
+      in->ActualBHMass = TBPP(i).BH_Mass;
+      in->BH_Mdot = TBPP(i).BH_Mdot;
+#endif
 
+#if defined(PREVENT_SPURIOUS_RESEEDING) && defined(ACCOUNT_FOR_SWALLOWED_PAINTED_GAS)
+      in->SeedMass = TBPP(i).SeedMass;
+#endif
+
+    }
   in->Firstnode = firstnode;
 }
 
@@ -207,6 +232,10 @@ static void out2particle(data_out *out, int i, int mode)
           BH_accreted[P[i].AuxDataID].BH_MPB_CumEgyLow += out->Prop.BH_MPB_CumEgyLow;
           BH_accreted[P[i].AuxDataID].BH_MPB_CumEgyHigh += out->Prop.BH_MPB_CumEgyHigh;
 
+
+#if defined(PREVENT_SPURIOUS_RESEEDING) && defined(ACCOUNT_FOR_SWALLOWED_PAINTED_GAS)
+          BH_accreted[P[i].AuxDataID].SeedMass += out->Prop.SeedMass;
+#endif
           for(k = 0; k < 3; k++)
             BH_accreted[P[i].AuxDataID].Momentum[k] += out->Prop.Momentum[k];
 
@@ -251,6 +280,11 @@ static void out2particle(data_out *out, int i, int mode)
           Tree_BhngbResultsImported[idx].Prop.BH_MPB_CumEgyLow += out->Prop.BH_MPB_CumEgyLow;
           Tree_BhngbResultsImported[idx].Prop.BH_MPB_CumEgyHigh += out->Prop.BH_MPB_CumEgyHigh;
 
+#if defined(PREVENT_SPURIOUS_RESEEDING) && defined(ACCOUNT_FOR_SWALLOWED_PAINTED_GAS)
+          Tree_BhngbResultsImported[idx].Prop.SeedMass += out->Prop.SeedMass;
+#endif
+
+
           for(k = 0; k < 3; k++)
             Tree_BhngbResultsImported[idx].Prop.Momentum[k] += out->Prop.Momentum[k];
 #ifdef BH_RECOIL_KICK
@@ -262,7 +296,7 @@ static void out2particle(data_out *out, int i, int mode)
               Tree_BhngbResultsImported[idx].Prop.Spin[k] += out->Prop.Spin[k];
 #endif
             }
-#endif // BH_RECOIL_KICK
+#endif
 #ifdef DRAINGAS
           Tree_BhngbResultsImported[idx].Prop.DrainBucketMass += out->Prop.DrainBucketMass;
 #endif
@@ -492,7 +526,7 @@ void apply_recoil_kick(MyDouble Mass1, MyDouble Mass2, MyFloat *Pos1, MyFloat *P
   for(k = 0; k < 3; k++)
     FinalSpin[k] = 1 / ((1 + Q) * (1 + Q)) * (Spin2[k] + Q * Q * Spin1[k] + Lspin * Q * ez[k]);
 
-#endif // BH_SPIN_EVOLUTION
+#endif
 
   /* Correction due to orbital eccentricity */
   eccentricity = sqrt(1 + 2 * (0.5 * Vmag * Vmag - All.G * (Mass1 + Mass2) / Rmag) * Lmag * Lmag /
@@ -514,7 +548,7 @@ void apply_recoil_kick(MyDouble Mass1, MyDouble Mass2, MyFloat *Pos1, MyFloat *P
   printf("BLACK_HOLES R: S2 components: [%e, %e, %e]\n", Spin2[0], Spin2[1], Spin2[2]);
   printf("BLACK_HOLES R: Sf components: [%e, %e, %e]\n", FinalSpin[0], FinalSpin[1], FinalSpin[2]);
 }
-#endif  // BH_RECOIL_KICK
+#endif
 
 /* This routine uses the gravitational tree to search in the BH_Hsml neighborhood of
  * an active BH for other BHs that are to be merged, and carries out the mergers.
@@ -731,6 +765,10 @@ void blackhole_do_mergers(void)
       BPP(no).BH_Mass = 0;
       BPP(no).BH_Mdot = 0;
 
+#if defined(PREVENT_SPURIOUS_RESEEDING) && defined(ACCOUNT_FOR_SWALLOWED_PAINTED_GAS)
+      BPP(no).SeedMass = 0;
+#endif
+
 #ifdef BH_BUBBLES
       BPP(no).BH_Mass_bubbles = 0;
       BPP(no).BH_Mass_ini     = 0;
@@ -811,7 +849,7 @@ void blackhole_do_mergers(void)
           blackhole_new_accretion_episode(n, CurrentTime, BPP(n).BH_Mass + BH_accreted[P[n].AuxDataID].BHMass);
 #endif
 
-#endif  // BH_RECOIL_KICK
+#endif
 
           for(k = 0; k < 3; k++)
             P[n].Vel[k] =
@@ -834,6 +872,10 @@ void blackhole_do_mergers(void)
           BPP(n).BH_CumEgy_QM += BH_accreted[P[n].AuxDataID].BH_CumEgy_QM;
           BPP(n).BH_CumMass_RM += BH_accreted[P[n].AuxDataID].BH_CumMass_RM;
           BPP(n).BH_CumEgy_RM += BH_accreted[P[n].AuxDataID].BH_CumEgy_RM;
+
+#if defined(PREVENT_SPURIOUS_RESEEDING) && defined(ACCOUNT_FOR_SWALLOWED_PAINTED_GAS)
+          BPP(n).SeedMass += BH_accreted[P[n].AuxDataID].SeedMass;
+#endif
 
           if(BH_accreted[P[n].AuxDataID].BHMass > BPP(n).BH_Mass)
             {
@@ -903,12 +945,23 @@ static int blackhole_tree_merger_evaluate(int target, int mode, int threadid)
   double dx, dy, dz, r2;
   MyIDType id;
   MyDouble *pos;
-#ifdef BH_NEW_LOGS
-  MyDouble *vel;
-  char bhBuf[1028];
-  double xyz_i[3], xyz_o[3];
+  MyDouble mass;
+#ifdef OUTPUT_HOST_PROPERTIES_FOR_BH_MERGERS
+  MyFloat hosthalototalmass, hosthalostellarmass, hosthalogasmass, hosthalodmmass, hosthaloSFR, actualbhmass, bhmdot;
 #endif
-  MyDouble mass, bh_mass;
+#ifdef INCLUDE_MERGERS_OF_UNRESOLVED_SEED_BHS
+#ifdef POWERLAW_MODEL_FOR_UNRESOLVED_MERGERS
+   MyFloat CurrentRedshift = 1 / All.Time - 1;
+   All.MassGrowthPerResolvedEvent = fmin(pow(10,All.SlopeMassGrowthPerResolvedEvent * CurrentRedshift + All.InterceptMassGrowthPerResolvedEvent),All.MaxMassGrowthPerResolvedEvent) * All.SeedBlackHoleMass;
+#else
+   All.MassGrowthPerResolvedEvent = All.ConstantMassGrowthPerResolvedEvent * All.SeedBlackHoleMass;
+#endif
+#endif
+
+#if defined(PREVENT_SPURIOUS_RESEEDING) && defined(ACCOUNT_FOR_SWALLOWED_PAINTED_GAS)
+  MyFloat seedmass;
+#endif
+
   data_in local, *in;
   data_out out;
 
@@ -929,11 +982,21 @@ static int blackhole_tree_merger_evaluate(int target, int mode, int threadid)
 
   pos  = in->Pos;
   mass = in->Mass;
-  bh_mass = in->BH_Mass;
   h    = in->BH_Hsml;
   id   = in->ID;
-#ifdef BH_NEW_LOGS
-  vel = in->Vel;
+
+#ifdef OUTPUT_HOST_PROPERTIES_FOR_BH_MERGERS  
+  hosthalototalmass   = in->HostHaloTotalMass;
+  hosthalostellarmass = in->HostHaloStellarMass;
+  hosthalogasmass     = in->HostHaloGasMass;
+  hosthalodmmass      = in->HostHaloDMMass;
+  hosthaloSFR         = in->HostHaloSFR;
+  actualbhmass        = in->ActualBHMass; 
+  bhmdot              = in->BH_Mdot;
+#endif
+
+#if defined(PREVENT_SPURIOUS_RESEEDING) && defined(ACCOUNT_FOR_SWALLOWED_PAINTED_GAS)
+  seedmass            = in->SeedMass;
 #endif
 
   h2 = h * h;
@@ -963,75 +1026,110 @@ static int blackhole_tree_merger_evaluate(int target, int mode, int threadid)
 
               r2 = dx * dx + dy * dy + dz * dz;
 
-              if((r2 < h2) && (P[no].Type == 5))
+              if(r2 < h2)
                 {
-                  if((BPP(no).SwallowID == id) && (id != 0) && (P[no].ID != 0)) /* we have a black hole merger */
+                  if(P[no].Type == 5)
                     {
-                      fprintf(FdBlackHolesMergers, "%d %g %llu %g %llu %g\n", ThisTask, All.Time, (long long)id, mass,
-                              (long long)P[no].ID, BPP(no).BH_Mass);
-                      myflush(FdBlackHolesMergers);
-
-                      accreted.Mass += P[no].Mass;
-                      accreted.BHMass += BPP(no).BH_Mass;
-                      accreted.BH_CumMass_QM += BPP(no).BH_CumMass_QM;
-                      accreted.BH_CumEgy_QM += BPP(no).BH_CumEgy_QM;
-                      accreted.BH_CumMass_RM += BPP(no).BH_CumMass_RM;
-                      accreted.BH_CumEgy_RM += BPP(no).BH_CumEgy_RM;
-                      accreted.BH_MPB_CumEgyLow += BPP(no).BH_MPB_CumEgyLow;
-                      accreted.BH_MPB_CumEgyHigh += BPP(no).BH_MPB_CumEgyHigh;
-
-                      for(k = 0; k < 3; k++)
-                        accreted.Momentum[k] += P[no].Mass * P[no].Vel[k];
-#ifdef BH_RECOIL_KICK
-                      for(k = 0; k < 3; k++)
+                      if((BPP(no).SwallowID == id) && (id != 0) && (P[no].ID != 0)) /* we have a black hole merger */
                         {
-                          accreted.Pos[k] += P[no].Pos[k];
-                          accreted.Vel[k] += P[no].Vel[k];
+#ifdef OUTPUT_HOST_PROPERTIES_FOR_BH_MERGERS
+                          fprintf(FdBlackHolesMergers, "%d %g %llu %g %llu %g %g %g\n", ThisTask, All.Time, (long long)id, actualbhmass,
+                                  (long long)P[no].ID, BPP(no).BH_Mass, h, BPP(no).BH_Hsml);
+                          fprintf(FdBlackHolesMergerHosts, "%d %g %llu %g %g %g %g %g %llu %g %g %g %g %g\n", 
+								ThisTask, All.Time, (long long)id, 
+								actualbhmass, hosthalototalmass, hosthalostellarmass, 
+								hosthalogasmass, hosthalodmmass, (long long)P[no].ID, 
+								BPP(no).BH_Mass,  BPP(no).HostHaloTotalMass, BPP(no).HostHaloStellarMass,
+								BPP(no).HostHaloGasMass, BPP(no).HostHaloDMMass);
+                          myflush(FdBlackHolesMergerHosts);
+#else
+                          fprintf(FdBlackHolesMergers, "%d %g %llu %g %llu %g\n", ThisTask, All.Time, (long long)id, mass,
+                                  (long long)P[no].ID, BPP(no).BH_Mass);
+#endif
+#ifdef STORE_MERGERS_IN_SNAPSHOT
+#ifdef OUTPUT_HOST_PROPERTIES_FOR_BH_MERGERS
+                          add_merger_event(ThisTask, All.Time, id , actualbhmass , P[no].ID, BPP(no).BH_Mass , bhmdot, BPP(no).BH_Mdot , hosthalototalmass , BPP(no).HostHaloTotalMass , hosthalostellarmass , BPP(no).HostHaloStellarMass , hosthalogasmass , BPP(no).HostHaloGasMass, hosthaloSFR, BPP(no).HostHaloSFR);
+#else
+                          add_merger_event(ThisTask, All.Time, id , mass , P[no].ID, BPP(no).BH_Mass);	
+#endif
+#endif
+                          myflush(FdBlackHolesMergers);
+                          accreted.Mass += P[no].Mass;
+                          accreted.BHMass += BPP(no).BH_Mass 
+#ifdef INCLUDE_MERGERS_OF_UNRESOLVED_SEED_BHS
+                                             + All.MassGrowthPerResolvedEvent
+#endif
+;
+                          accreted.BH_CumMass_QM += BPP(no).BH_CumMass_QM;
+                          accreted.BH_CumEgy_QM += BPP(no).BH_CumEgy_QM;
+                          accreted.BH_CumMass_RM += BPP(no).BH_CumMass_RM;
+                          accreted.BH_CumEgy_RM += BPP(no).BH_CumEgy_RM;
+                          accreted.BH_MPB_CumEgyLow += BPP(no).BH_MPB_CumEgyLow;
+                          accreted.BH_MPB_CumEgyHigh += BPP(no).BH_MPB_CumEgyHigh;
+#if defined(PREVENT_SPURIOUS_RESEEDING) && defined(ACCOUNT_FOR_SWALLOWED_PAINTED_GAS)
+                          accreted.SeedMass += BPP(no).SeedMass;
+#endif
+                          for(k = 0; k < 3; k++)
+                            accreted.Momentum[k] += P[no].Mass * P[no].Vel[k];
+#ifdef BH_RECOIL_KICK
+                          for(k = 0; k < 3; k++)
+                            {
+                              accreted.Pos[k] += P[no].Pos[k];
+                              accreted.Vel[k] += P[no].Vel[k];
 #ifdef BH_SPIN_EVOLUTION
-                          accreted.Spin[k] += BPP(no).BH_SpinParameter * BPP(no).BH_SpinOrientation[k];
+                              accreted.Spin[k] += BPP(no).BH_SpinParameter * BPP(no).BH_SpinOrientation[k];
 #endif
-                        }
-#endif  // BH_RECOIL_KICK
-                      accreted.BH_CountProgs += BPP(no).BH_CountProgs;
+                            }
+#endif
+                          accreted.BH_CountProgs += BPP(no).BH_CountProgs;
+
 #ifdef TRACER_MC
-                      consider_moving_tracers(no, in->rtask, in->rindex, in->ID, 1.0);
+                          consider_moving_tracers(no, in->rtask, in->rindex, in->ID, 1.0);
 #endif
-                      int bin = P[no].TimeBinHydro;
 
-                      TimeBin_BH_mass[bin] -= BPP(no).BH_Mass;
-                      TimeBin_BH_dynamicalmass[bin] -= P[no].Mass;
-                      TimeBin_BH_Mdot[bin] -= BPP(no).BH_Mdot;
-                      if(BPP(no).BH_Mass > 0)
-                        TimeBin_BH_Medd[bin] -= BPP(no).BH_Mdot / BPP(no).BH_Mass;
+                          int bin = P[no].TimeBinHydro;
 
-                      P[no].Mass = 0;
-                      P[no].ID   = 0;
+                          TimeBin_BH_mass[bin] -= BPP(no).BH_Mass;
+                          TimeBin_BH_dynamicalmass[bin] -= P[no].Mass;
+                          TimeBin_BH_Mdot[bin] -= BPP(no).BH_Mdot;
+                          if(BPP(no).BH_Mass > 0)
+                            TimeBin_BH_Medd[bin] -= BPP(no).BH_Mdot / BPP(no).BH_Mass;
 
-                      BPP(no).BH_Mass = 0;
-                      BPP(no).BH_Mdot = 0;
+                          P[no].Mass = 0;
+                          P[no].ID   = 0;
+
+                          BPP(no).BH_Mass = 0;
+                          BPP(no).BH_Mdot = 0;
+
+#if defined(PREVENT_SPURIOUS_RESEEDING) && defined(ACCOUNT_FOR_SWALLOWED_PAINTED_GAS)
+                          BPP(no).SeedMass = 0;
+#endif
 
 #ifdef DRAINGAS
-                      accreted.DrainBucketMass += BPP(no).DrainBucketMass;
+                          accreted.DrainBucketMass += BPP(no).DrainBucketMass;
 #endif
 
 #ifdef BH_BUBBLES
-                      accreted.BHMass_bubbles += BPP(no).BH_Mass_bubbles;
-                      accreted.BHMass_ini += BPP(no).BH_Mass_ini;
-                      BPP(no).BH_Mass_bubbles = 0;
-                      BPP(no).BH_Mass_ini     = 0;
+                          accreted.BHMass_bubbles += BPP(no).BH_Mass_bubbles;
+                          accreted.BHMass_ini += BPP(no).BH_Mass_ini;
+                          BPP(no).BH_Mass_bubbles = 0;
+                          BPP(no).BH_Mass_ini     = 0;
 #endif
 
 #ifdef BH_NF_RADIO
-                      accreted.BH_RadioEgyFeedback += BPP(no).BH_RadioEgyFeedback;
-                      accreted.BH_Mdot_quasar = fmax(accreted.BH_Mdot_quasar, BPP(no).BH_Mdot_quasar);
-                      accreted.BH_Mdot_radio  = fmax(accreted.BH_Mdot_radio, BPP(no).BH_Mdot_radio);
-                      accreted.BH_HaloVvir    = fmax(accreted.BH_HaloVvir, BPP(no).BH_HaloVvir);
-                      accreted.BH_XrayLum     = fmax(accreted.BH_XrayLum, BPP(no).BH_XrayLum);
-                      accreted.BH_RadioLum    = fmax(accreted.BH_RadioLum, BPP(no).BH_RadioLum);
+                          accreted.BH_RadioEgyFeedback += BPP(no).BH_RadioEgyFeedback;
+                          accreted.BH_Mdot_quasar = fmax(accreted.BH_Mdot_quasar, BPP(no).BH_Mdot_quasar);
+                          accreted.BH_Mdot_radio  = fmax(accreted.BH_Mdot_radio, BPP(no).BH_Mdot_radio);
+                          accreted.BH_HaloVvir    = fmax(accreted.BH_HaloVvir, BPP(no).BH_HaloVvir);
+                          accreted.BH_XrayLum     = fmax(accreted.BH_XrayLum, BPP(no).BH_XrayLum);
+                          accreted.BH_RadioLum    = fmax(accreted.BH_RadioLum, BPP(no).BH_RadioLum);
 #endif
-                      N_BH_swallowed_local++;
+
+                          N_BH_swallowed_local++;
+                        }
                     }
                 }
+
               no = Nextnode[no];
             }
           else if(no < Tree_MaxPart + Tree_MaxNodes) /* internal node */
@@ -1074,94 +1172,104 @@ static int blackhole_tree_merger_evaluate(int target, int mode, int threadid)
 
               r2 = dx * dx + dy * dy + dz * dz;
 
-              /* we have a potential black hole merger */
-              if((r2 < h2) && (Tree_Points[n].Type == 5))
+              if(r2 < h2)
                 {
-                  if((TBPP(n).SwallowID == id) && (id != 0) && (TBPP(n).ID != 0)) /* we have a black hole merger */
+                  if(Tree_Points[n].Type == 5) /* we have a potential black hole merger */
                     {
-                      fprintf(FdBlackHolesMergers, "%d %g %llu %g %llu %g\n", ThisTask, All.Time, (long long)id, bh_mass,
-                              (long long)TBPP(n).ID, TBPP(n).BH_Mass);
-                      myflush(FdBlackHolesMergers);
-
-#ifdef BH_NEW_LOGS
-                      xyz_i[0] = WRAP_X(pos[0] - All.GlobalDisplacementVector[0]);
-                      xyz_i[1] = WRAP_Y(pos[1] - All.GlobalDisplacementVector[1]);
-                      xyz_i[2] = WRAP_Z(pos[2] - All.GlobalDisplacementVector[2]);
-
-                      xyz_o[0] = WRAP_X(Tree_Points[n].Pos[0] - All.GlobalDisplacementVector[0]);
-                      xyz_o[1] = WRAP_Y(Tree_Points[n].Pos[1] - All.GlobalDisplacementVector[1]);
-                      xyz_o[2] = WRAP_Z(Tree_Points[n].Pos[2] - All.GlobalDisplacementVector[2]);
-
-                      sprintf(bhBuf, "%.10f %d   %llu %.8e %.8e  %.8e %.8e %.8e %.8e %.8e %.8e   %llu %.8e %.8e  %.8e %.8e %.8e %.8e %.8e %.8e\n",
-                              All.Time, ThisTask,
-                              /* remnant BH */
-                              (long long) id, mass, bh_mass,
-                              xyz_i[0], xyz_i[1], xyz_i[2],
-                              vel[0], vel[1], vel[2],
-                              /* consumed BH */
-                              (long long) P[no].ID, P[no].Mass, TBPP(n).BH_Mass,
-                              xyz_o[0], xyz_o[1], xyz_o[2],
-                              TBPP(n).Vel[0], TBPP(n).Vel[1], TBPP(n).Vel[2]);
-                      fprintf(FdBHMergers, bhBuf);
-                      myflush(FdBHMergers);
-#endif //BH_NEW_LOGS
-
-                      accreted.Mass += Tree_Points[n].Mass;
-                      accreted.BHMass += TBPP(n).BH_Mass;
-                      accreted.BH_CumMass_QM += TBPP(n).BH_CumMass_QM;
-                      accreted.BH_CumEgy_QM += TBPP(n).BH_CumEgy_QM;
-                      accreted.BH_CumMass_RM += TBPP(n).BH_CumMass_RM;
-                      accreted.BH_CumEgy_RM += TBPP(n).BH_CumEgy_RM;
-                      accreted.BH_MPB_CumEgyLow += TBPP(n).BH_MPB_CumEgyLow;
-                      accreted.BH_MPB_CumEgyHigh += TBPP(n).BH_MPB_CumEgyHigh;
-
-                      for(k = 0; k < 3; k++)
-                        accreted.Momentum[k] += Tree_Points[n].Mass * TBPP(n).Vel[k];
-#ifdef BH_RECOIL_KICK
-                      for(k = 0; k < 3; k++)
+                      if((TBPP(n).SwallowID == id) && (id != 0) && (TBPP(n).ID != 0)) /* we have a black hole merger */
                         {
-                          accreted.Pos[k] += Tree_Points[n].Pos[k];
-                          accreted.Vel[k] += TBPP(n).Vel[k];
+#ifdef OUTPUT_HOST_PROPERTIES_FOR_BH_MERGERS
+                          fprintf(FdBlackHolesMergers, "%d %g %llu %g %llu %g %g %g\n", ThisTask, All.Time, (long long)id, actualbhmass,
+                                  (long long)TBPP(n).ID, TBPP(n).BH_Mass, h, TBPP(n).BH_Hsml);
+                          fprintf(FdBlackHolesMergerHosts, "%d %g %llu %g %g %g %g %g %llu %g %g %g %g %g\n", 
+							ThisTask, All.Time, (long long)id, 
+							actualbhmass, hosthalototalmass, hosthalostellarmass, 
+                                  			hosthalogasmass, hosthalodmmass, (long long)TBPP(n).ID, 
+				  			TBPP(n).BH_Mass, TBPP(n).HostHaloTotalMass, TBPP(n).HostHaloStellarMass, 
+                                  			TBPP(n).HostHaloGasMass, TBPP(n).HostHaloDMMass);
+                          myflush(FdBlackHolesMergerHosts);
+#else
+                          fprintf(FdBlackHolesMergers, "%d %g %llu %g %llu %g\n", ThisTask, All.Time, (long long)id, mass,
+                                  (long long)TBPP(n).ID, TBPP(n).BH_Mass);
+#endif
+                          myflush(FdBlackHolesMergers);
+#ifdef STORE_MERGERS_IN_SNAPSHOT
+#ifdef OUTPUT_HOST_PROPERTIES_FOR_BH_MERGERS
+                          add_merger_event(ThisTask, All.Time, id , actualbhmass , TBPP(n).ID, TBPP(n).BH_Mass , bhmdot , TBPP(n).BH_Mdot , hosthalototalmass , TBPP(n).HostHaloTotalMass , hosthalostellarmass , TBPP(n).HostHaloStellarMass , hosthalogasmass , TBPP(n).HostHaloGasMass, hosthaloSFR, TBPP(n).HostHaloSFR);
+#else
+                          add_merger_event(ThisTask, All.Time, id , mass , TBPP(n).ID, TBPP(n).BH_Mass);
+#endif
+#endif
+                          accreted.Mass += Tree_Points[n].Mass;
+                          accreted.BHMass += TBPP(n).BH_Mass
+#ifdef INCLUDE_MERGERS_OF_UNRESOLVED_SEED_BHS
+       	       	       	       	       	     + All.MassGrowthPerResolvedEvent
+#endif
+;
+                          accreted.BH_CumMass_QM += TBPP(n).BH_CumMass_QM;
+                          accreted.BH_CumEgy_QM += TBPP(n).BH_CumEgy_QM;
+                          accreted.BH_CumMass_RM += TBPP(n).BH_CumMass_RM;
+                          accreted.BH_CumEgy_RM += TBPP(n).BH_CumEgy_RM;
+                          accreted.BH_MPB_CumEgyLow += TBPP(n).BH_MPB_CumEgyLow;
+                          accreted.BH_MPB_CumEgyHigh += TBPP(n).BH_MPB_CumEgyHigh;
+
+#if defined(PREVENT_SPURIOUS_RESEEDING) && defined(ACCOUNT_FOR_SWALLOWED_PAINTED_GAS)
+                          accreted.SeedMass += TBPP(n).SeedMass;
+#endif
+
+
+                          for(k = 0; k < 3; k++)
+                            accreted.Momentum[k] += Tree_Points[n].Mass * TBPP(n).Vel[k];
+#ifdef BH_RECOIL_KICK
+                          for(k = 0; k < 3; k++)
+                            {
+                              accreted.Pos[k] += Tree_Points[n].Pos[k];
+                              accreted.Vel[k] += TBPP(n).Vel[k];
 #ifdef BH_SPIN_EVOLUTION
-                          accreted.Spin[k] += TBPP(n).BH_SpinParameter * TBPP(n).BH_SpinOrientation[k];
+                              accreted.Spin[k] += TBPP(n).BH_SpinParameter * TBPP(n).BH_SpinOrientation[k];
 #endif
-                        }
+                            }
 #endif
-                      accreted.BH_CountProgs += TBPP(n).BH_CountProgs;
+                          accreted.BH_CountProgs += TBPP(n).BH_CountProgs;
 #ifdef DRAINGAS
-                      accreted.DrainBucketMass += TBPP(n).DrainBucketMass;
+                          accreted.DrainBucketMass += TBPP(n).DrainBucketMass;
 #endif
 #ifdef BH_BUBBLES
-                      accreted.BHMass_bubbles += TBPP(n).BH_Mass_bubbles;
-                      accreted.BHMass_ini += TBPP(n).BH_Mass_ini;
+                          accreted.BHMass_bubbles += TBPP(n).BH_Mass_bubbles;
+                          accreted.BHMass_ini += TBPP(n).BH_Mass_ini;
 #endif
 #ifdef BH_NF_RADIO
-                      accreted.BH_RadioEgyFeedback += TBPP(n).BH_RadioEgyFeedback;
-                      accreted.BH_Mdot_quasar = fmax(accreted.BH_Mdot_quasar, TBPP(n).BH_Mdot_quasar);
-                      accreted.BH_Mdot_radio  = fmax(accreted.BH_Mdot_radio, TBPP(n).BH_Mdot_radio);
-                      accreted.BH_HaloVvir    = fmax(accreted.BH_HaloVvir, TBPP(n).BH_HaloVvir);
-                      accreted.BH_XrayLum     = fmax(accreted.BH_XrayLum, TBPP(n).BH_XrayLum);
-                      accreted.BH_RadioLum    = fmax(accreted.BH_RadioLum, TBPP(n).BH_RadioLum);
+                          accreted.BH_RadioEgyFeedback += TBPP(n).BH_RadioEgyFeedback;
+                          accreted.BH_Mdot_quasar = fmax(accreted.BH_Mdot_quasar, TBPP(n).BH_Mdot_quasar);
+                          accreted.BH_Mdot_radio  = fmax(accreted.BH_Mdot_radio, TBPP(n).BH_Mdot_radio);
+                          accreted.BH_HaloVvir    = fmax(accreted.BH_HaloVvir, TBPP(n).BH_HaloVvir);
+                          accreted.BH_XrayLum     = fmax(accreted.BH_XrayLum, TBPP(n).BH_XrayLum);
+                          accreted.BH_RadioLum    = fmax(accreted.BH_RadioLum, TBPP(n).BH_RadioLum);
 #endif
 
-                      TBPP(n).ID                                    = 0;
-                      treeBHexportflag[Tree_Points[n].AuxDataIndex] = 1;
+                          TBPP(n).ID                                    = 0;
+                          treeBHexportflag[Tree_Points[n].AuxDataIndex] = 1;
+
 #ifdef TRACER_MC
-                      /* 3 cases are all handled by setting id,rindex,rtask previously:
-                          (a) mode=0 (local P search): we found a Tree_Points BH to swallow,
-                          request this found BH be deleted later, tracers come back to this task
-                          (b) mode=0 (local Tree search): we found a Tree_Points BH to swallow,
-                          request this found BH be deleted later, but tracers go to different task
-                          (c) mode=1 (remote search, P or Tree) we found a Tree_Points BH to swallow,
-                          request this found BH be deleted later, but tracers go to different task */
-                      treeBHexportRindex[Tree_Points[n].AuxDataIndex] = in->rindex;
-                      treeBHexportRtask[Tree_Points[n].AuxDataIndex]  = in->rtask;
-                      treeBHexportRID[Tree_Points[n].AuxDataIndex]    = in->ID;
+                          /* 3 cases are all handled by setting id,rindex,rtask previously:
+                             (a) mode=0 (local P search): we found a Tree_Points BH to swallow,
+                             request this found BH be deleted later, tracers come back to this task
+                             (b) mode=0 (local Tree search): we found a Tree_Points BH to swallow,
+                             request this found BH be deleted later, but tracers go to different task
+                             (c) mode=1 (remote search, P or Tree) we found a Tree_Points BH to swallow,
+                             request this found BH be deleted later, but tracers go to different task */
+                          treeBHexportRindex[Tree_Points[n].AuxDataIndex] = in->rindex;
+                          treeBHexportRtask[Tree_Points[n].AuxDataIndex]  = in->rtask;
+                          treeBHexportRID[Tree_Points[n].AuxDataIndex]    = in->ID;
 #endif
-                      Tree_Points[n].Mass = 0;
-                      N_BH_swallowed_imported++;
+
+                          Tree_Points[n].Mass = 0;
+
+                          N_BH_swallowed_imported++;
+                        }
                     }
                 }
+
               no = Nextnode[no - Tree_MaxNodes];
             }
           else /* pseudo particle */
@@ -1175,8 +1283,8 @@ static int blackhole_tree_merger_evaluate(int target, int mode, int threadid)
               no = Nextnode[no - Tree_MaxNodes];
               continue;
             }
-        } // while(no >= 0)
-    } // for(k < numnodes)
+        }
+    }
 
   out.Prop = accreted;
 
@@ -1189,4 +1297,4 @@ static int blackhole_tree_merger_evaluate(int target, int mode, int threadid)
   return 0;
 }
 
-#endif // BLACK_HOLES
+#endif

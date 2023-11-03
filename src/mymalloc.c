@@ -38,7 +38,7 @@
 /* configuration options must be defined in order for the #ifdef check to make
  * sense */
 #include "arepoconfig.h"
-#if defined(MEMORY_MANAGER_USE_MPROTECT) && !defined(_GNU_SOURCE)
+#ifdef MEMORY_MANAGER_USE_MPROTECT
 /* Need to define _GNU_SOURCE so that MAP_ANONYMOUS will be defined in the
  * headers. This has to be done before loading any system headers. */
 #define _GNU_SOURCE
@@ -392,16 +392,12 @@ static bool strneq_any(const char *const str, const size_t size, ...)
 {
   va_list args;
   va_start(args, size);
-  bool result = false;
   char *next_str;
   while((next_str = va_arg(args, char *)))
     if(strncmp(str, next_str, size) == 0)
-      {
-        result = true;
-        break;
-      }
+      return true;
   va_end(args);
-  return result;
+  return false;
 }
 
 /*! \brief Fills the output buffer with the memory log.

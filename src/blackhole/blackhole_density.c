@@ -48,6 +48,12 @@ typedef struct
   MyFloat BH_Vel[3];
 #endif
   int Firstnode;
+
+#ifdef PREVENT_SPURIOUS_RESEEDING
+  MyFloat Time_Of_Seeding;
+  int NeighborsHaveBeenPainted;
+#endif
+
 } data_in;
 
 static data_in *DataGet;
@@ -66,6 +72,12 @@ static void particle2in(data_in *in, int i, int firstnode)
 #endif
 
   in->Firstnode = firstnode;
+#ifdef PREVENT_SPURIOUS_RESEEDING
+  in->Time_Of_Seeding = BPP(i).Time_Of_Seeding;
+  in->NeighborsHaveBeenPainted = BPP(i).NeighborsHaveBeenPainted;
+#endif
+
+
 }
 
 /* local data structure that holds results acquired on remote processors */
@@ -78,6 +90,10 @@ typedef struct
   MyFloat GasVel[3];
   MyFloat Ngb;
   MyFloat DtGasNeighbor;
+#ifdef PREVENT_SPURIOUS_RESEEDING
+  int NeighborsHaveBeenPainted;
+#endif
+
 #ifdef DRAINGAS
   MyFloat NearestDist;
   MyIDType DrainID;
@@ -114,6 +130,9 @@ static void out2particle(data_out *out, int i, int mode)
       BPP(i).BH_SurroundingGasVel[0] = out->GasVel[0];
       BPP(i).BH_SurroundingGasVel[1] = out->GasVel[1];
       BPP(i).BH_SurroundingGasVel[2] = out->GasVel[2];
+#ifdef PREVENT_SPURIOUS_RESEEDING
+      BPP(i).NeighborsHaveBeenPainted = out->NeighborsHaveBeenPainted;
+#endif
 #ifdef DRAINGAS
       BPP(i).NearestDist = out->NearestDist;
       BPP(i).DrainID     = out->DrainID;
@@ -150,6 +169,9 @@ static void out2particle(data_out *out, int i, int mode)
       BPP(i).BH_SurroundingGasVel[0] += out->GasVel[0];
       BPP(i).BH_SurroundingGasVel[1] += out->GasVel[1];
       BPP(i).BH_SurroundingGasVel[2] += out->GasVel[2];
+#ifdef PREVENT_SPURIOUS_RESEEDING
+      BPP(i).NeighborsHaveBeenPainted = out->NeighborsHaveBeenPainted;
+#endif
 #ifdef DRAINGAS
       if(out->NearestDist < BPP(i).NearestDist)
         {
@@ -458,6 +480,7 @@ void blackhole_density(void)
                     {
                       /* this will stop the search for a new BH smoothing length in the next iteration */
                       BPP(i).BH_Hsml = Left[i] = Right[i] = All.BlackHoleMaxAccretionRadius;
+                      //mpi_printf_task(ThisTask,"Attention: Maximum accretion radius reached for %d with radius %g \n",P[i].ID,BPP(i).BH_Hsml);
                     }
                 }
               else
@@ -588,8 +611,7 @@ static int blackhole_density_evaluate(int target, int mode, int threadid)
   for(int n = 0; n < nfound; n++)
     {
       int j = Thread[threadid].Ngblist[n];
-
-      if(P[j].Mass > 0 && P[j].ID != 0)
+     if(P[j].Mass > 0 && P[j].ID != 0)
         {
           double r2 = Thread[threadid].R2list[n];
 
@@ -615,11 +637,7 @@ static int blackhole_density_evaluate(int target, int mode, int threadid)
 
           vol_weight += SphP[j].Volume * wk;
 
-#ifdef BH_BASED_CGM_ZOOM
-          double ngb_j = mass_j / All.ReferenceGasPartMass * All.CGM_RefinementFactor;
-#else
           double ngb_j = mass_j / All.ReferenceGasPartMass;
-#endif
 
           if(ngb_j > MAX_CONTRIBUTION_OF_SINGLE_CELL)
             ngb_j = MAX_CONTRIBUTION_OF_SINGLE_CELL;
@@ -696,7 +714,27 @@ static int blackhole_density_evaluate(int target, int mode, int threadid)
 #endif
         }
     }
-
+#ifdef PREVENT_SPURIOUS_RESEEDING
+  out.NeighborsHaveBeenPainted = in->NeighborsHaveBeenPainted;
+  if(weighted_numngb >= (All.DesNumNgbBlackHole - All.MaxNumNgbDeviationBlackHole) && (weighted_numngb <= (All.DesNumNgbBlackHole + All.MaxNumNgbDeviationBlackHole)))
+  {
+   for(int n = 0; n < nfound; n++)
+     {
+       int j = Thread[threadid].Ngblist[n];
+       if(P[j].Mass > 0 && P[j].ID != 0)
+        {
+          if ((All.Time >= in->Time_Of_Seeding) && (in->NeighborsHaveBeenPainted == 1))
+          {  
+             SphP[j].SeedMass = All.SeedBlackHoleMass/nfound;
+             SphP[j].NumBHNGB = weighted_numngb;
+             SphP[j].nfound = nfound;
+             SphP[j].niterations++;
+             out.NeighborsHaveBeenPainted = 2;
+          }
+        }
+     }
+  }
+#endif
   out.Rho           = rho;
   out.Ngb           = weighted_numngb;
   out.Dhsmlrho      = dhsmlrho;

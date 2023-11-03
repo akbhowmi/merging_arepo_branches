@@ -132,7 +132,6 @@ extern int N_Grad_RT;
 
 extern struct grad_data
 {
-  double Center[3];
   MySingle drho[3];
 #if defined(DEREFINE_GENTLY) || defined(CONDUCTION_SATURATION) || defined(SPECIAL_RELATIVITY) || defined(GENERAL_RELATIVITY) || \
     defined(NON_LINEAR_SLOPE_LIMITERS) || defined(CALCULATE_QUANTITIES_IN_POSTPROCESS)
@@ -505,8 +504,8 @@ struct state
   double activearea;
   double volume;
 
-  double velGas[3];
-  double velVertex[3];
+  MyFloat velGas[3];
+  MyFloat velVertex[3];
   struct grad_data *grad;
 #ifdef TVD_SLOPE_LIMITER
   struct grad_data *gradul;

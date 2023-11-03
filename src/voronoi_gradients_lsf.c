@@ -162,9 +162,6 @@ void calculate_gradients(void)
       SphP[i].DoNotDerefFlag = 0;
 #endif
 
-      for(int j = 0; j < 3; j++)
-        SphP[i].Grad.Center[j] = SphP[i].Center[j]; /* center of mass of cell at time of computation of gradient */
-
       for(int k = 0; k < N_Grad; k++)
         {
           minvalues[i * N_Grad + k] = +MAX_REAL_NUMBER;
@@ -456,32 +453,6 @@ void calculate_gradients(void)
       SphP[i].CurlB[0] = SphP[i].Grad.dB[2][1] - SphP[i].Grad.dB[1][2];
       SphP[i].CurlB[1] = SphP[i].Grad.dB[0][2] - SphP[i].Grad.dB[2][0];
       SphP[i].CurlB[2] = SphP[i].Grad.dB[1][0] - SphP[i].Grad.dB[0][1];
-    }
-#endif
-
-#ifdef TURB_APPROX_MCS
-#ifdef TURB_APPROX_MCS_GRAD_UNLIM
-  /* Save velocity gradients before slope limiting */
-  for(int idx = 0; idx < TimeBinsHydro.NActiveParticles; idx++)
-    {
-      int i = TimeBinsHydro.ActiveParticleList[idx];
-      if(i < 0)
-        continue;
-      memcpy(SphP[i].dvel_unlim, SphP[i].Grad.dvel, 9 * sizeof(MySingle));
-    }
-#endif  // TURB_APPROX_MCS_GRAD_UNLIM
-#elif SFR_MCS_RATE_CRITERIA > 0
-  for(int idx = 0; idx < TimeBinsHydro.NActiveParticles; idx++)
-    {
-      int i = TimeBinsHydro.ActiveParticleList[idx];
-      if(i < 0)
-        continue;
-      SphP[i].gradv_sq = 0;
-      for(int j = 0; j < 3; j++)
-        {
-          for(int k = 0; k < 3; k++)
-            SphP[i].gradv_sq += SphP[i].Grad.dvel[j][k] * SphP[i].Grad.dvel[j][k];
-        }
     }
 #endif
 

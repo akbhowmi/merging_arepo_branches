@@ -4,8 +4,8 @@ import os.path
 import sys
 import numpy as np
 
-sys.path.insert(0, './')  # test.py
-sys.path.insert(0, 'examples/')  # test.sh
+sys.path.append('./')  # test.py
+sys.path.append('examples/')  # test.sh
 import utils
 
 # 1D code can only be used serially

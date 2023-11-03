@@ -32,8 +32,8 @@
 #include "../SMUGGLE/smuggle_feedback_kernels.h"
 #endif
 
-static data_in *DataGet;
-static data_out *DataResult;
+static data_in *DataIn, *DataGet;
+static data_out *DataResult, *DataOut;
 
 static void particle2in(data_in *in, int i, int firstnode)
 {
